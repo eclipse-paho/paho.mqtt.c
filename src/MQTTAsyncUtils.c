@@ -1762,6 +1762,16 @@ static void MQTTAsync_checkTimeouts(void)
 								m->c->passwordlen = 0;
 							}
 						}
+            if (m->c->will)
+            {
+              if (connectData.will.payload.len)
+              {
+                free (m->c->will->payload);
+                m->c->will->payload = malloc (connectData.will.payload.len);
+                memcpy (m->c->will->payload, connectData.will.payload.data, connectData.will.payload.len);
+                m->c->will->payloadlen = connectData.will.payload.len;
+              }
+            }
 					}
 				}
 				Log(TRACE_MIN, -1, "Automatically attempting to reconnect");
