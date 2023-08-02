@@ -484,9 +484,18 @@ typedef struct
 		int len;           /**< binary password length */
 		const void* data;  /**< binary password data */
 	} binarypwd;
+
+  /** LWT message and qos */
+  struct {
+     /** The LWT payload in binary form. */
+    struct {
+      int len;           /**< binary payload length */
+      const void *data;  /**< binary payload data */
+    } payload;
+  } will;
 } MQTTAsync_connectData;
 
-#define MQTTAsync_connectData_initializer {{'M', 'Q', 'C', 'D'}, 0, NULL, {0, NULL}}
+#define MQTTAsync_connectData_initializer {{'M', 'Q', 'C', 'D'}, 0, NULL, {0, NULL}, {{0, NULL}}}
 
 /**
  * This is a callback function which will allow the client application to update the 
