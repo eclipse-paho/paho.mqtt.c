@@ -895,6 +895,12 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 	#endif
 
 					MQTTAsync_freeCommand(first_publish);
+
+                    /* notify callback */
+                    if (command->client->md)
+                    {
+                        (*(command->client->md))(command->client->mdContext, first_publish->command.token);
+                    }
 				}
 			}
 			else

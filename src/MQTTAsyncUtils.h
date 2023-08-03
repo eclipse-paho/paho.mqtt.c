@@ -97,9 +97,11 @@ typedef struct MQTTAsync_struct
 	MQTTAsync_connectionLost* cl;
 	MQTTAsync_messageArrived* ma;
 	MQTTAsync_deliveryComplete* dc;
+    MQTTAsync_messageDeleted* md;
 	void* clContext; /* the context to be associated with the conn lost callback*/
 	void* maContext; /* the context to be associated with the msg arrived callback*/
 	void* dcContext; /* the context to be associated with the deliv complete callback*/
+    void* mdContext; /* the context to be associated with the message deleted callback*/
 
 	MQTTAsync_connected* connected;
 	void* connected_context; /* the context to be associated with the connected callback*/
