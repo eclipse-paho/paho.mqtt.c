@@ -2834,7 +2834,7 @@ int main(int argc, char** argv)
 			rc += tests[options.test_no](options); /* return number of failures.  0 = test succeeded */
 		}
 	}
-    else
+	else
 	{
 		MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_ERROR);
 		rc = tests[options.test_no](options); /* run just the selected test */

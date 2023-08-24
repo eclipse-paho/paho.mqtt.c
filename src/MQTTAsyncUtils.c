@@ -889,18 +889,18 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 				{
 					ListDetach(MQTTAsync_commands, first_publish);
 
-	#if !defined(NO_PERSISTENCE)
+#if !defined(NO_PERSISTENCE)
 					if (command->client->c->persistence)
 						MQTTAsync_unpersistCommand(first_publish);
-	#endif
+#endif
 
 					MQTTAsync_freeCommand(first_publish);
 
-                    /* notify callback */
-                    if (command->client->md)
-                    {
-                        (*(command->client->md))(command->client->mdContext, first_publish->command.token);
-                    }
+					/* notify callback */
+					if (command->client->md)
+					{
+						(*(command->client->md))(command->client->mdContext, first_publish->command.token);
+					}
 				}
 			}
 			else

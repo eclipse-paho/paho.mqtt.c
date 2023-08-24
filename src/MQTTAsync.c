@@ -1603,23 +1603,23 @@ int MQTTAsync_setDeliveryCompleteCallback(MQTTAsync handle, void* context,
 int MQTTAsync_setMessageDeletedCallback(MQTTAsync handle, void* context,
                                         MQTTAsync_messageDeleted* md)
 {
-    int rc = MQTTASYNC_SUCCESS;
-    MQTTAsyncs* m = handle;
+	int rc = MQTTASYNC_SUCCESS;
+	MQTTAsyncs* m = handle;
 
-    FUNC_ENTRY;
-    MQTTAsync_lock_mutex(mqttasync_mutex);
+	FUNC_ENTRY;
+	MQTTAsync_lock_mutex(mqttasync_mutex);
 
-    if (m == NULL || m->c->connect_state != 0)
-        rc = MQTTASYNC_FAILURE;
-    else
-    {
-        m->mdContext = context;
-        m->md = md;
-    }
+	if (m == NULL || m->c->connect_state != 0)
+		rc = MQTTASYNC_FAILURE;
+	else
+	{
+		m->mdContext = context;
+		m->md = md;
+	}
 
-    MQTTAsync_unlock_mutex(mqttasync_mutex);
-    FUNC_EXIT_RC(rc);
-    return rc;
+	MQTTAsync_unlock_mutex(mqttasync_mutex);
+	FUNC_EXIT_RC(rc);
+	return rc;
 }
 
 
