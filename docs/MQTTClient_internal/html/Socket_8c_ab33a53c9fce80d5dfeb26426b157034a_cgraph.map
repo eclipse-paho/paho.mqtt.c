@@ -1,19 +1,19 @@
 <map id="Socket_getReadySocket" name="Socket_getReadySocket">
-<area shape="rect" id="node1" title="Returns the next socket ready for communications as indicated by select." alt="" coords="5,376,171,402"/>
-<area shape="rect" id="node2" href="$Socket_8c.html#a42a217310f6f55473525764038ac367d" title="Don&#39;t accept work from a client unless it is accepting work back, i.e." alt="" coords="263,97,331,124"/>
-<area shape="rect" id="node9" href="$Log_8c.html#a669722e3f57811871f97c12392aba85d" title="Log a message." alt="" coords="1087,325,1131,352"/>
-<area shape="rect" id="node10" href="$Socket_8c.html#ac176152ef036b6cfd7330a9481a7b2ed" title="Continue any outstanding socket writes." alt="" coords="219,288,375,314"/>
-<area shape="rect" id="node13" href="$Socket_8c.html#a39a32a0495e5cba033f3c7fee72ae797" title="Gets the specific error corresponding to SOCKET_ERROR." alt="" coords="872,325,968,352"/>
-<area shape="rect" id="node16" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="229,452,364,478"/>
-<area shape="rect" id="node17" href="$Thread_8c.html#a5faf758226199e7cf93f6b489aca07f7" title="Unlock a mutex which has already been locked." alt="" coords="222,502,371,529"/>
-<area shape="rect" id="node3" href="$LinkedList_8c.html#a1738915a6d6f10022e9ee1481c0ae452" title="List callback function for comparing integers." alt="" coords="671,148,758,174"/>
-<area shape="rect" id="node4" href="$LinkedList_8c.html#acad319e9ce896ff1fff30ddbeb06d22d" title="Finds an element in a list by comparing the content or pointer to the content." alt="" coords="873,72,967,98"/>
-<area shape="rect" id="node6" href="$LinkedList_8c.html#a4bb7c34fe9a5832d65f530091e0fad0d" title="Removes and frees an element in a list by comparing the content." alt="" coords="447,46,566,73"/>
-<area shape="rect" id="node8" href="$Socket_8c.html#a457d9a6a9d8e886c46fcd0c096f45614" title="Indicate whether any data is pending outbound for a socket." alt="" coords="423,97,591,124"/>
-<area shape="rect" id="node5" href="$LinkedList_8c.html#a7c6fba7f4b569c69829676bed2852ee9" title="Forward iteration through a list." alt="" coords="1049,72,1168,98"/>
-<area shape="rect" id="node7" href="$LinkedList_8c.html#ab82181e0c1d96954f82dee67cee41296" title="Removes and optionally frees an element in a list by comparing the content." alt="" coords="674,46,755,73"/>
-<area shape="rect" id="node11" href="$Socket_8c.html#aa77cff9e8173f9b8d35d062558d0cb57" title="Continue an outstanding write for a particular socket." alt="" coords="432,274,581,301"/>
-<area shape="rect" id="node12" href="$Socket_8c.html#a550291985042dc080825ab27b16894fb" title="Attempts to write a series of iovec buffers to a socket in one system call so that they are sent as o..." alt="" coords="662,300,767,326"/>
-<area shape="rect" id="node14" href="$SocketBuffer_8c.html#a524311e577a7225a09fb944904c17886" title="Get any queued write data for a specific socket." alt="" coords="639,198,791,225"/>
-<area shape="rect" id="node15" href="$SocketBuffer_8c.html#a39f1ee9c98bc12a7be4d7a40b03550d5" title="List callback function for comparing pending_writes by socket." alt="" coords="839,198,1001,225"/>
+<area shape="rect" id="node1" title="Returns the next socket ready for communications as indicated by select." alt="" coords="5,262,171,288"/>
+<area shape="rect" id="node2" href="$Socket_8c.html#a42a217310f6f55473525764038ac367d" title="Don&#39;t accept work from a client unless it is accepting work back, i.e." alt="" coords="269,96,337,123"/>
+<area shape="rect" id="node9" href="$Log_8c.html#a669722e3f57811871f97c12392aba85d" title="Log a message." alt="" coords="1099,324,1143,351"/>
+<area shape="rect" id="node10" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="219,232,387,259"/>
+<area shape="rect" id="node11" href="$Thread_8c.html#a1c21203efa0c10544d24585870fe4757" title="Unlock a mutex which has already been locked." alt="" coords="233,284,373,325"/>
+<area shape="rect" id="node12" href="$Socket_8c.html#ac176152ef036b6cfd7330a9481a7b2ed" title="Continue any outstanding socket writes." alt="" coords="225,182,381,208"/>
+<area shape="rect" id="node15" href="$Socket_8c.html#a39a32a0495e5cba033f3c7fee72ae797" title="Gets the specific error corresponding to SOCKET_ERROR." alt="" coords="884,324,980,351"/>
+<area shape="rect" id="node3" href="$LinkedList_8c.html#a1738915a6d6f10022e9ee1481c0ae452" title="List callback function for comparing integers." alt="" coords="683,147,770,174"/>
+<area shape="rect" id="node4" href="$LinkedList_8c.html#acad319e9ce896ff1fff30ddbeb06d22d" title="Finds an element in a list by comparing the content or pointer to the content." alt="" coords="885,71,979,98"/>
+<area shape="rect" id="node6" href="$LinkedList_8c.html#a4bb7c34fe9a5832d65f530091e0fad0d" title="Removes and frees an element in a list by comparing the content." alt="" coords="459,46,578,72"/>
+<area shape="rect" id="node8" href="$Socket_8c.html#a457d9a6a9d8e886c46fcd0c096f45614" title="Indicate whether any data is pending outbound for a socket." alt="" coords="435,96,603,123"/>
+<area shape="rect" id="node5" href="$LinkedList_8c.html#a7c6fba7f4b569c69829676bed2852ee9" title="Forward iteration through a list." alt="" coords="1061,71,1180,98"/>
+<area shape="rect" id="node7" href="$LinkedList_8c.html#ab82181e0c1d96954f82dee67cee41296" title="Removes and optionally frees an element in a list by comparing the content." alt="" coords="686,46,767,72"/>
+<area shape="rect" id="node13" href="$Socket_8c.html#aa77cff9e8173f9b8d35d062558d0cb57" title="Continue an outstanding write for a particular socket." alt="" coords="444,223,593,250"/>
+<area shape="rect" id="node14" href="$Socket_8c.html#a550291985042dc080825ab27b16894fb" title="Attempts to write a series of iovec buffers to a socket in one system call so that they are sent as o..." alt="" coords="674,299,779,326"/>
+<area shape="rect" id="node16" href="$SocketBuffer_8c.html#a524311e577a7225a09fb944904c17886" title="Get any queued write data for a specific socket." alt="" coords="651,198,803,224"/>
+<area shape="rect" id="node17" href="$SocketBuffer_8c.html#a39f1ee9c98bc12a7be4d7a40b03550d5" title="List callback function for comparing pending_writes by socket." alt="" coords="851,198,1013,224"/>
 </map>

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2023 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -648,7 +648,7 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	m->connectTimeout = options->connectTimeout;
 
 	/* don't lock async mutex if we are being called from a callback */
-	thread_id = Thread_getid();
+	thread_id = Paho_thread_getid();
 	if (thread_id != sendThread_id && thread_id != receiveThread_id)
 	{
 		MQTTAsync_lock_mutex(mqttasync_mutex);
@@ -658,12 +658,12 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	if (sendThread_state != STARTING && sendThread_state != RUNNING)
 	{
 		sendThread_state = STARTING;
-		Thread_start(MQTTAsync_sendThread, NULL);
+		Paho_thread_start(MQTTAsync_sendThread, NULL);
 	}
 	if (receiveThread_state != STARTING && receiveThread_state != RUNNING)
 	{
 		receiveThread_state = STARTING;
-		Thread_start(MQTTAsync_receiveThread, handle);
+		Paho_thread_start(MQTTAsync_receiveThread, handle);
 	}
 	if (locked)
 		MQTTAsync_unlock_mutex(mqttasync_mutex);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2020 IBM Corp. and others
+ * Copyright (c) 2017, 2023 IBM Corp. and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -127,7 +127,10 @@ typedef struct MQTTProperties
 int MQTTProperties_len(MQTTProperties* props);
 
 /**
- * Add a property pointer to the property array.  There is no memory allocation.
+ * Add a property pointer to the property array. Memory is allocated in this function,
+ * so MQTTClient_create or MQTTAsync_create must be called first to initialize the
+ * internal heap tracking. Alternatively MQTTAsync_global_init() can be called first
+ * or build with the HIGH_PERFORMANCE option which disables the heap tracking.
  * @param props The property list to add the property to.
  * @param prop The property to add to the list.
  * @return 0 on success, -1 on failure.

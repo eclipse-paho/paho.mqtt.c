@@ -1,4 +1,4 @@
 <map id="MQTTClient_publish5" name="MQTTClient_publish5">
 <area shape="rect" id="node1" title="Attempts to publish a message to a given topic using MQTT version 5.0 (see also MQTTClient_publishMes..." alt="" coords="5,5,152,32"/>
-<area shape="rect" id="node2" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="200,5,335,32"/>
+<area shape="rect" id="node2" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="200,5,368,32"/>
 </map>

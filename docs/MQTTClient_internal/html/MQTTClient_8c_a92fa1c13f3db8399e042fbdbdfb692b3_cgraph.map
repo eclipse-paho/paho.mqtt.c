@@ -1,5 +1,5 @@
 <map id="MQTTClient_subscribeMany" name="MQTTClient_subscribeMany">
 <area shape="rect" id="node1" title="This function attempts to subscribe a client to a list of topics, which may contain wildcards (see wi..." alt="" coords="5,5,192,32"/>
 <area shape="rect" id="node2" href="$MQTTClient_8c.html#a5390c2402f135c12826ffbf6fc261f7c" title="This function attempts to subscribe an MQTT version 5.0 client to a list of topics,..." alt="" coords="240,5,433,32"/>
-<area shape="rect" id="node3" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="481,5,616,32"/>
+<area shape="rect" id="node3" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="481,5,649,32"/>
 </map>

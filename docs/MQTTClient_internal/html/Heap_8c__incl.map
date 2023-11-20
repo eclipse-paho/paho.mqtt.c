@@ -1,7 +1,8 @@
 <map id="Heap.c" name="Heap.c">
-<area shape="rect" id="node1" title="functions to manage the heap with the goal of eliminating memory leaks" alt="" coords="136,5,199,32"/>
+<area shape="rect" id="node1" title="functions to manage the heap with the goal of eliminating memory leaks" alt="" coords="180,5,243,32"/>
 <area shape="rect" id="node2" title=" " alt="" coords="5,80,68,107"/>
 <area shape="rect" id="node3" title=" " alt="" coords="93,80,157,107"/>
 <area shape="rect" id="node4" title=" " alt="" coords="181,80,241,107"/>
 <area shape="rect" id="node5" title=" " alt="" coords="265,80,333,107"/>
+<area shape="rect" id="node6" title=" " alt="" coords="358,80,435,107"/>
 </map>

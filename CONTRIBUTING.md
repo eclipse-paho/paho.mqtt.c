@@ -31,14 +31,11 @@ Please read the [Eclipse Foundation policy on accepting contributions via Git](h
 9. Push the changes in your branch to your forked repository.
 10. Finally, go to [https://github.com/eclipse/paho.mqtt.c](https://github.com/eclipse/paho.mqtt.c) and create a pull request from your "YOUR_BRANCH_NAME" branch to the ```develop``` one to request review and merge of the commits in your pushed branch.
 
-
-What happens next depends on the content of the patch. If it is 100% authored
-by the contributor and is less than 1000 lines (and meets the needs of the
-project), then it can be pulled into the main repository. If not, more steps
-are required. These are detailed in the
-[legal process poster](http://www.eclipse.org/legal/EclipseLegalProcessPoster.pdf).
-
-
+What happens next depends on the content of the patch.
+If it is 100% authored by the contributor with less than 1000 lines of new product code that meets
+the needs of the project (refactored, test code and sample code is excluded from the count), then it
+can be pulled into the main repository. When there are more than 1000 lines of new product code,
+more steps are required. More details are provided in the [handbook](https://www.eclipse.org/projects/handbook/#ip).
 
 ## Developer resources:
 

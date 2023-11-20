@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -259,8 +259,8 @@ int MQTTPacket_send_pubcomp(int MQTTVersion, int msgid, networkHandles* net, con
 
 void MQTTPacket_free_packet(MQTTPacket* pack);
 
-void writeInt4(char** pptr, int anInt);
-int readInt4(char** pptr);
+void writeInt4(char** pptr, unsigned int anInt);
+unsigned int readInt4(char** pptr);
 void writeMQTTLenString(char** pptr, MQTTLenString lenstring);
 int MQTTLenStringRead(MQTTLenString* lenstring, char** pptr, char* enddata);
 int MQTTPacket_VBIlen(int rem_len);

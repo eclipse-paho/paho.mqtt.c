@@ -214,7 +214,7 @@ Test code is available in the `test` directory. The tests can be built and execu
 After ensuring a MQTT broker is available, it is possible to execute the tests by starting the proxy and running `ctest` as described below:
 
 ```
-$ python ../test/mqttsas2.py &
+$ python ../test/mqttsas.py &
 $ ctest -VV
 ```
 

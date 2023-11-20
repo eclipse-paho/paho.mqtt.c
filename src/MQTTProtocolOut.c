@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2023 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -335,8 +335,9 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		{
 #if defined(OPENSSL)
 			rc = WebSocket_connect(&aClient->net, ssl, ip_address);
-#endif
+#else
 			rc = WebSocket_connect(&aClient->net, 0, ip_address);
+#endif
 			if ( rc == TCPSOCKET_INTERRUPTED )
 				aClient->connect_state = WEBSOCKET_IN_PROGRESS; /* Websocket connect called - wait for completion */
 		}

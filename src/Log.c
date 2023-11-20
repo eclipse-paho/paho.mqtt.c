@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -430,7 +430,7 @@ void Log(enum LOG_LEVELS log_level, int msgno, const char *format, ...)
 		va_list args;
 
 		/* we're using a static character buffer, so we need to make sure only one thread uses it at a time */
-		Thread_lock_mutex(log_mutex);
+		Paho_thread_lock_mutex(log_mutex);
 		if (format == NULL && (temp = Messages_get(msgno, log_level)) != NULL)
 			format = temp;
 
@@ -439,7 +439,7 @@ void Log(enum LOG_LEVELS log_level, int msgno, const char *format, ...)
 
 		Log_trace(log_level, msg_buf);
 		va_end(args);
-		Thread_unlock_mutex(log_mutex);
+		Paho_thread_unlock_mutex(log_mutex);
 	}
 }
 
@@ -463,7 +463,7 @@ void Log_stackTrace(enum LOG_LEVELS log_level, int msgno, thread_id_type thread_
 	if (log_level < trace_settings.trace_level)
 		return;
 
-	Thread_lock_mutex(log_mutex);
+	Paho_thread_lock_mutex(log_mutex);
 	cur_entry = Log_pretrace();
 
 	memcpy(&(cur_entry->ts), &now_ts, sizeof(now_ts));
@@ -483,7 +483,7 @@ void Log_stackTrace(enum LOG_LEVELS log_level, int msgno, thread_id_type thread_
 	}
 
 	Log_posttrace(log_level, cur_entry);
-	Thread_unlock_mutex(log_mutex);
+	Paho_thread_unlock_mutex(log_mutex);
 }
 
 

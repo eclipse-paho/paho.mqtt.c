@@ -1,5 +1,5 @@
 <map id="TreeInitialize" name="TreeInitialize">
 <area shape="rect" id="node1" title="Allocates and initializes a new tree structure." alt="" coords="5,5,100,32"/>
 <area shape="rect" id="node2" href="$Heap_8c.html#a59e53a989d69c3da767487596d9bfa1f" title="Allocates a block of memory." alt="" coords="148,5,225,32"/>
-<area shape="rect" id="node3" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="273,5,408,32"/>
+<area shape="rect" id="node3" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="273,5,441,32"/>
 </map>

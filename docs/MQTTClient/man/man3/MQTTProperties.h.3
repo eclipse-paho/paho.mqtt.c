@@ -1,4 +1,4 @@
-.TH "MQTTProperties.h" 3 "Thu Sep 29 2022" "Paho MQTT C Client Library" \" -*- nroff -*-
+.TH "MQTTProperties.h" 3 "Fri Oct 13 2023" "Paho MQTT C Client Library" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -257,7 +257,7 @@ the length in bytes of the properties when serialized\&.
 .PP
 
 .SS "int MQTTProperties_add (\fBMQTTProperties\fP * props, const \fBMQTTProperty\fP * prop)"
-Add a property pointer to the property array\&. There is no memory allocation\&. 
+Add a property pointer to the property array\&. Memory is allocated in this function, so MQTTClient_create or MQTTAsync_create must be called first to initialize the internal heap tracking\&. Alternatively MQTTAsync_global_init() can be called first or build with the HIGH_PERFORMANCE option which disables the heap tracking\&. 
 .PP
 \fBParameters\fP
 .RS 4

@@ -1,6 +1,6 @@
 <map id="MQTTAsync_struct" name="MQTTAsync_struct">
-<area shape="rect" id="node1" title=" " alt="" coords="661,485,796,512"/>
-<area shape="rect" id="node2" href="$structClients.html" title="Data related to one client." alt="" coords="287,365,349,392"/>
+<area shape="rect" id="node1" title=" " alt="" coords="663,485,797,512"/>
+<area shape="rect" id="node2" href="$structClients.html" title="Data related to one client." alt="" coords="289,365,352,392"/>
 <area shape="rect" id="node3" href="$structMQTTClient__persistence.html" title="A structure containing the function pointers to a persistence implementation and the context or state..." alt="" coords="5,231,172,257"/>
 <area shape="rect" id="node4" href="$structwillMessages.html" title="Client will message data." alt="" coords="197,231,298,257"/>
 <area shape="rect" id="node5" href="$structnetworkHandles.html" title=" " alt="" coords="323,231,439,257"/>

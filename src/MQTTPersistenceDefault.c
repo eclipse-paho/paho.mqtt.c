@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -835,12 +835,18 @@ int keysUnix(char *dirname, char ***keys, int *nkeys)
 
 				if (!temp)
 				{
+					int n = 0;
+					for (n = 0; n < i; n++)
+						free(fkeys[n]);
 					free(fkeys);
 					rc = PAHO_MEMORY_ERROR;
 					goto exit;
 				}
 				if (snprintf(temp, allocsize, "%s/%s", dirname, dir_entry->d_name) >= allocsize)
 				{
+					int n = 0;
+					for (n = 0; n < i; n++)
+						free(fkeys[n]);
 					free(temp);
 					free(fkeys);
 					rc = MQTTCLIENT_PERSISTENCE_ERROR;
@@ -850,6 +856,9 @@ int keysUnix(char *dirname, char ***keys, int *nkeys)
 				{
 					if ((fkeys[i] = malloc(strlen(dir_entry->d_name) + 1)) == NULL)
 					{
+						int n = 0;
+						for (n = 0; n < i; n++)
+							free(fkeys[n]);
 						free(temp);
 						free(fkeys);
 						rc = PAHO_MEMORY_ERROR;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2023 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -942,14 +942,14 @@ void MQTTPacket_free_packet(MQTTPacket* pack)
  * @param pptr pointer to the output buffer - incremented by the number of bytes used & returned
  * @param anInt the integer to write
  */
-void writeInt4(char** pptr, int anInt)
+void writeInt4(char** pptr, unsigned int anInt)
 {
-  **pptr = (char)(anInt / 16777216);
-  (*pptr)++;
-  anInt %= 16777216;
-  **pptr = (char)(anInt / 65536);
-  (*pptr)++;
-  anInt %= 65536;
+	**pptr = (char)(anInt / 16777216);
+	(*pptr)++;
+	anInt %= 16777216;
+	**pptr = (char)(anInt / 65536);
+	(*pptr)++;
+	anInt %= 65536;
 	**pptr = (char)(anInt / 256);
 	(*pptr)++;
 	**pptr = (char)(anInt % 256);
@@ -962,10 +962,10 @@ void writeInt4(char** pptr, int anInt)
  * @param pptr pointer to the input buffer - incremented by the number of bytes used & returned
  * @return the integer value calculated
  */
-int readInt4(char** pptr)
+unsigned int readInt4(char** pptr)
 {
 	unsigned char* ptr = (unsigned char*)*pptr;
-	int value = 16777216*(*ptr) + 65536*(*(ptr+1)) + 256*(*(ptr+2)) + (*(ptr+3));
+	unsigned int value = 16777216*(*ptr) + 65536*(*(ptr+1)) + 256*(*(ptr+2)) + (*(ptr+3));
 	*pptr += 4;
 	return value;
 }

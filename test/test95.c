@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2022 IBM Corp., Ian Craggs
+ * Copyright (c) 2012, 2023 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -383,7 +383,7 @@ int test1_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen, message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test1_will_message_received = 1;
 	else
 	  test1_messages_received++;
@@ -720,7 +720,7 @@ int test2_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen, message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test2_will_message_received = 1;
 	else
 	  test2_messages_received++;
@@ -992,7 +992,7 @@ int test3_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen, message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test3_will_message_received = 1;
 	else
 	  test3_messages_received++;
@@ -1260,7 +1260,7 @@ int test4_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen,
 			message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test4_will_message_received = 1;
 	else
 	  test4_messages_received++;
@@ -1532,7 +1532,7 @@ int test5_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen, message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test5_will_message_received = 1;
 	else
 	  test5_messages_received++;
@@ -1869,7 +1869,7 @@ int test6(struct Options options)
 	/* let client c go: connect, and send disconnect command to proxy */
 	opts.will = &wopts;
 	opts.will->payload.data = "will message";
-	opts.will->payload.len = (int)strlen(opts.will->payload.data) + 1;
+	opts.will->payload.len = (int)strlen(opts.will->payload.data);
 	opts.will->qos = 1;
 	opts.will->retained = 0;
 	opts.will->topicName = willTopic;
@@ -1970,7 +1970,7 @@ int test7_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	MyLog(LOGA_DEBUG, "Message received on topic %s, \"%.*s\"", topicName, message->payloadlen, message->payload);
 
-	if (memcmp(message->payload, "will message", message->payloadlen) == 0)
+	if (message->payloadlen == strlen("will message") && memcmp(message->payload, "will message", message->payloadlen) == 0)
 	  test7_will_message_received = 1;
 	else
 	  test7_messages_received++;

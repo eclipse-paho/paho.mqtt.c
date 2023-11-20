@@ -89,7 +89,7 @@
 #define HTTP_PROTOCOL(x) x ? "https" : "http"
 
 #if !(defined(_WIN32) || defined(_WIN64))
-#if defined(LIBUUID)
+#if defined(USE_LIBUUID)
 #include <uuid/uuid.h>
 #else /* if defined(USE_LIBUUID) */
 #include <limits.h>
@@ -103,7 +103,7 @@ typedef unsigned char uuid_t[16];
  * @brief generates a uuid, compatible with RFC 4122, version 4 (random)
  * @note Uses a very insecure algorithm but no external dependencies
  */
-void uuid_generate( uuid_t out )
+static void uuid_generate( uuid_t out )
 {
 #if defined(OPENSSL)
 	int rc = RAND_bytes( out, sizeof(uuid_t));
@@ -121,7 +121,7 @@ void uuid_generate( uuid_t out )
 }
 
 /** @brief converts a uuid to a string */
-void uuid_unparse( uuid_t uu, char *out )
+static void uuid_unparse( uuid_t uu, char *out )
 {
 	int i;
 	for ( i = 0; i < 16; ++i )
@@ -135,7 +135,7 @@ void uuid_unparse( uuid_t uu, char *out )
 	}
 	*out = '\0';
 }
-#endif /* else if defined(LIBUUID) */
+#endif /* else if defined(USE_LIBUUID) */
 #endif /* if !(defined(_WIN32) || defined(_WIN64)) */
 
 #include "Heap.h"

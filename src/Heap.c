@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -164,7 +164,7 @@ void* mymalloc(char* file, int line, size_t size)
 	size_t filenamelen = strlen(file)+1;
 	void* rc = NULL;
 
-	Thread_lock_mutex(heap_mutex);
+	Paho_thread_lock_mutex(heap_mutex);
 	size = Heap_roundup(size);
 	if ((s = malloc(sizeof(storageElement))) == NULL)
 	{
@@ -194,7 +194,7 @@ void* mymalloc(char* file, int line, size_t size)
 		goto exit;
 	}
 	memset(s->stack, 0, sizeof(filenamelen));
-	StackTrace_get(Thread_getid(), s->stack, STACK_LEN);
+	StackTrace_get(Paho_thread_getid(), s->stack, STACK_LEN);
 #endif
 	s->line = line;
 	/* Add space for eyecatcher at each end */
@@ -216,7 +216,7 @@ void* mymalloc(char* file, int line, size_t size)
 		state.max_size = state.current_size;
 	rc = ((eyecatcherType*)(s->ptr)) + 1;	/* skip start eyecatcher */
 exit:
-	Thread_unlock_mutex(heap_mutex);
+	Paho_thread_unlock_mutex(heap_mutex);
 	return rc;
 }
 
@@ -280,10 +280,10 @@ void myfree(char* file, int line, void* p)
 {
 	if (p) /* it is legal und usual to call free(NULL) */
 	{
-		Thread_lock_mutex(heap_mutex);
+		Paho_thread_lock_mutex(heap_mutex);
 		if (Internal_heap_unlink(file, line, p))
 			free(((eyecatcherType*)p)-1);
-		Thread_unlock_mutex(heap_mutex);
+		Paho_thread_unlock_mutex(heap_mutex);
 	}
 	else
 	{
@@ -301,9 +301,9 @@ void myfree(char* file, int line, void* p)
  */
 void Heap_unlink(char* file, int line, void* p)
 {
-	Thread_lock_mutex(heap_mutex);
+	Paho_thread_lock_mutex(heap_mutex);
 	Internal_heap_unlink(file, line, p);
-	Thread_unlock_mutex(heap_mutex);
+	Paho_thread_unlock_mutex(heap_mutex);
 }
 
 
@@ -324,7 +324,7 @@ void *myrealloc(char* file, int line, void* p, size_t size)
 	void* rc = NULL;
 	storageElement* s = NULL;
 
-	Thread_lock_mutex(heap_mutex);
+	Paho_thread_lock_mutex(heap_mutex);
 	s = TreeRemoveKey(&heap, ((eyecatcherType*)p)-1);
 	if (s == NULL)
 		Log(LOG_ERROR, 13, "Failed to reallocate heap item at file %s line %d", file, line);
@@ -356,7 +356,7 @@ void *myrealloc(char* file, int line, void* p, size_t size)
 		TreeAdd(&heap, s, space);
 	}
 exit:
-	Thread_unlock_mutex(heap_mutex);
+	Paho_thread_unlock_mutex(heap_mutex);
 	return (rc == NULL) ? NULL : ((eyecatcherType*)(rc)) + 1;	/* skip start eyecatcher */
 }
 
@@ -371,9 +371,9 @@ void* Heap_findItem(void* p)
 {
 	Node* e = NULL;
 
-	Thread_lock_mutex(heap_mutex);
+	Paho_thread_lock_mutex(heap_mutex);
 	e = TreeFind(&heap, ((eyecatcherType*)p)-1);
-	Thread_unlock_mutex(heap_mutex);
+	Paho_thread_unlock_mutex(heap_mutex);
 	return (e == NULL) ? NULL : e->content;
 }
 
@@ -386,7 +386,7 @@ static void HeapScan(enum LOG_LEVELS log_level)
 {
 	Node* current = NULL;
 
-	Thread_lock_mutex(heap_mutex);
+	Paho_thread_lock_mutex(heap_mutex);
 	Log(log_level, -1, "Heap scan start, total %d bytes", (int)state.current_size);
 	while ((current = TreeNextElement(&heap, current)) != NULL)
 	{
@@ -398,7 +398,7 @@ static void HeapScan(enum LOG_LEVELS log_level)
 #endif
 	}
 	Log(log_level, -1, "Heap scan end");
-	Thread_unlock_mutex(heap_mutex);
+	Paho_thread_unlock_mutex(heap_mutex);
 }
 
 

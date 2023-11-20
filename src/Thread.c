@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2023 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -56,7 +56,7 @@
  * @param fn the function to run, must be of the correct signature
  * @param parameter pointer to the function parameter, can be NULL
  */
-void Thread_start(thread_fn fn, void* parameter)
+void Paho_thread_start(thread_fn fn, void* parameter)
 {
 #if defined(_WIN32) || defined(_WIN64)
 	thread_type thread = NULL;
@@ -104,7 +104,7 @@ int Thread_set_name(const char* thread_name)
 #else
 #if defined(__GNUC__) && defined(__linux__)
 #if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 12
-	rc = pthread_setname_np(Thread_getid(), thread_name);
+	rc = pthread_setname_np(Paho_thread_getid(), thread_name);
 #endif
 #endif
 #endif
@@ -118,7 +118,7 @@ int Thread_set_name(const char* thread_name)
  * @param rc return code: 0 for success, negative otherwise
  * @return the new mutex
  */
-mutex_type Thread_create_mutex(int* rc)
+mutex_type Paho_thread_create_mutex(int* rc)
 {
 	mutex_type mutex = NULL;
 
@@ -141,7 +141,7 @@ mutex_type Thread_create_mutex(int* rc)
  * Lock a mutex which has alrea
  * @return completion code, 0 is success
  */
-int Thread_lock_mutex(mutex_type mutex)
+int Paho_thread_lock_mutex(mutex_type mutex)
 {
 	int rc = -1;
 
@@ -162,7 +162,7 @@ int Thread_lock_mutex(mutex_type mutex)
  * @param mutex the mutex
  * @return completion code, 0 is success
  */
-int Thread_unlock_mutex(mutex_type mutex)
+int Paho_thread_unlock_mutex(mutex_type mutex)
 {
 	int rc = -1;
 
@@ -185,7 +185,7 @@ int Thread_unlock_mutex(mutex_type mutex)
  * Destroy a mutex which has already been created
  * @param mutex the mutex
  */
-int Thread_destroy_mutex(mutex_type mutex)
+int Paho_thread_destroy_mutex(mutex_type mutex)
 {
 	int rc = 0;
 
@@ -205,7 +205,7 @@ int Thread_destroy_mutex(mutex_type mutex)
  * Get the thread id of the thread from which this function is called
  * @return thread id, type varying according to OS
  */
-thread_id_type Thread_getid(void)
+thread_id_type Paho_thread_getid(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		return GetCurrentThreadId();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp. and others
+ * Copyright (c) 2009, 2023 IBM Corp. and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -1281,6 +1281,7 @@ int test_qos_1_2_errors(struct Options options)
 exit:
 	MQTTClient_setTraceCallback(NULL);
 	MQTTProperties_free(&props);
+	MQTTProperties_free(&pubmsg.properties);
 	MQTTClient_destroy(&c);
 
 	MyLog(LOGA_INFO, "TEST6: test %s. %d tests run, %d failures.",

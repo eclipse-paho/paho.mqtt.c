@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2023 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -41,7 +41,7 @@
  * @endcond
  * @cond MQTTClient_main
  * @mainpage MQTT Client library for C (MQTTClient)
- * &copy; Copyright 2009, 2022 IBM Corp., Ian Craggs and others
+ * &copy; Copyright 2009, 2023 IBM Corp., Ian Craggs and others
  *
  * @brief An MQTT client library in C.
  *
@@ -1400,6 +1400,14 @@ LIBMQTT_API void MQTTClient_freeMessage(MQTTClient_message** msg);
   * @param ptr The pointer to the client library storage to be freed.
   */
 LIBMQTT_API void MQTTClient_free(void* ptr);
+
+/**
+  * This function is used to allocate memory to be used or freed by the MQTT C client library,
+  * especially the data in user persistence. This is needed on Windows when the client library
+  * and application program have been compiled with different versions of the C compiler.
+  * @param size The size of the memory to be allocated.
+  */
+LIBMQTT_API void* MQTTClient_malloc(size_t size);
 
 /**
   * This function frees the memory allocated to an MQTT client (see

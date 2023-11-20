@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2023 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -150,7 +150,7 @@ typedef struct
     void* afterRead_context;        /**< context to be used with the persistence afterRead callback */
 	void* context;                  /**< calling context - used when calling disconnect_internal */
 	int MQTTVersion;                /**< the version of MQTT being used, 3, 4 or 5 */
-	int sessionExpiry;              /**< MQTT 5 session expiry */
+	unsigned int sessionExpiry;     /**< MQTT 5 session expiry */
 	char* httpProxy;                /**< HTTP proxy */
 	char* httpsProxy;               /**< HTTPS proxy */
 #if defined(OPENSSL)
