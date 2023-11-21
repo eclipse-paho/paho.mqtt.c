@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2023 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -288,14 +288,14 @@ mutex_type deliveryCompleted_mutex = &deliveryCompleted_mutex_store;
 
 void lock_mutex(mutex_type amutex)
 {
-	int rc = Thread_lock_mutex(amutex);
+	int rc = Paho_thread_lock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s locking mutex", strerror(rc));
 }
 
 void unlock_mutex(mutex_type amutex)
 {
-	int rc = Thread_unlock_mutex(amutex);
+	int rc = Paho_thread_unlock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s unlocking mutex", strerror(rc));
 }
@@ -365,7 +365,7 @@ thread_return_type WINAPI test1_sendAndReceive(void* n)
 	rc = MQTTClient_subscribe(c, test_topic, subsqos);
 	assert("Good rc from subscribe", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
 
-	MyLog(LOGA_INFO, "Thread %u, %d messages at QoS %d", Thread_getid(), iterations, qos);
+	MyLog(LOGA_INFO, "Thread %u, %d messages at QoS %d", Paho_thread_getid(), iterations, qos);
 	test1_pubmsg.payload = test1_pubmsg_check.payload;
 	test1_pubmsg.payloadlen = test1_pubmsg_check.payloadlen;
 	test1_pubmsg.retained = 0;
@@ -462,13 +462,13 @@ int test1(struct Options options)
 	test1_deliveryCompleted = test1_arrivedcount = 0;
 
 	struct thread_parms parms0 = {c, 0, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms0);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms0);
 
 	struct thread_parms parms1 = {c, 1, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms1);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms1);
 
 	struct thread_parms parms2 = {c, 2, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms2);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms2);
 
 	/* MQTT servers can send a message to a subscriber before the server has
 	   completed the QoS 2 handshake with the publisher. For QoS 1 and 2,

@@ -1,5 +1,5 @@
 <map id="MQTTAsync_command" name="MQTTAsync_command">
-<area shape="rect" id="node1" title=" " alt="" coords="67,303,225,329"/>
+<area shape="rect" id="node1" title=" " alt="" coords="68,303,227,329"/>
 <area shape="rect" id="node2" href="$structMQTTSubscribe__options.html" title="The MQTT V5 subscribe options, apart from QoS which existed before V5." alt="" coords="5,199,172,225"/>
 <area shape="rect" id="node3" href="$structMQTTProperties.html" title="MQTT version 5 property list." alt="" coords="196,199,315,225"/>
 <area shape="rect" id="node4" href="$structMQTTProperty.html" title="Structure to hold an MQTT version 5 property of any type." alt="" coords="202,109,309,136"/>

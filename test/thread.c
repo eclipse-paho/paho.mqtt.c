@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -305,7 +305,7 @@ int test_sem(struct Options options)
 	assert("duration is 2s", duration >= 1500L, "duration was %ld", duration);
 
 	MyLog(LOGA_DEBUG, "Starting secondary thread");
-	Thread_start(sem_secondary, (void*)sem);
+	Paho_thread_start(sem_secondary, (void*)sem);
 
 	mysleep(2);
 	MyLog(LOGA_DEBUG, "post secondary");
@@ -397,7 +397,7 @@ int test_cond(struct Options options)
 	assert("rc 0 from signal cond", rc == 0, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "Starting secondary thread");
-	Thread_start(cond_secondary, (void*)cond);
+	Paho_thread_start(cond_secondary, (void*)cond);
 
 	MyLog(LOGA_DEBUG, "wait for secondary thread to enter second wait");
 	mysleep(2);
@@ -428,13 +428,13 @@ static thread_return_type WINAPI mutex_secondary(void* n)
 
 	/* this should take 2s, as there is another lock held */
 	start = start_clock();
-	rc = Thread_lock_mutex(mutex);
+	rc = Paho_thread_lock_mutex(mutex);
 	duration = elapsed(start);
 	assert("rc 0 from lock mutex", rc == 0, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is 2s", duration >= 1000L, "duration was %ld", duration);
 
-	rc = Thread_unlock_mutex(mutex);
+	rc = Paho_thread_unlock_mutex(mutex);
 	assert("rc 0 from unlock mutex", rc == 0, "rc was %d", rc);
 	MyLog(LOGA_DEBUG, "Secondary thread ending");
 	return 0;
@@ -445,7 +445,7 @@ int test_mutex(struct Options options)
 {
 	char* testname = "test_mutex";
 	int rc = 0;
-	mutex_type mutex = Thread_create_mutex(&rc);
+	mutex_type mutex = Paho_thread_create_mutex(&rc);
 	START_TIME_TYPE start;
 	long duration;
 
@@ -455,27 +455,27 @@ int test_mutex(struct Options options)
 
 	/* this should happen immediately, as there is no other lock held */
 	start = start_clock();
-	rc = Thread_lock_mutex(mutex);
+	rc = Paho_thread_lock_mutex(mutex);
 	duration = elapsed(start);
 	assert("rc 0 from lock mutex", rc == 0, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is very low", duration < 5L, "duration was %ld", duration);
 
 	MyLog(LOGA_DEBUG, "Starting secondary thread");
-	Thread_start(mutex_secondary, (void*)mutex);
+	Paho_thread_start(mutex_secondary, (void*)mutex);
 
 	mysleep(2);
-	rc = Thread_unlock_mutex(mutex); /* let background thread have it */
+	rc = Paho_thread_unlock_mutex(mutex); /* let background thread have it */
 	assert("rc 0 from unlock mutex", rc == 0, "rc was %d", rc);
 
 	start = start_clock();
-	rc = Thread_lock_mutex(mutex); /* make sure background thread hasn't locked it */
+	rc = Paho_thread_lock_mutex(mutex); /* make sure background thread hasn't locked it */
 	duration = elapsed(start);
 	assert("rc 0 from lock mutex", rc == 0, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is very low", duration < 5L, "duration was %ld", duration);
 
-	Thread_destroy_mutex(mutex);
+	Paho_thread_destroy_mutex(mutex);
 
 	MyLog(LOGA_DEBUG, "Main thread ending");
 

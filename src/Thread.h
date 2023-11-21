@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp.
+ * Copyright (c) 2009, 2023 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -68,15 +68,15 @@
 	int Thread_destroy_cond(cond_type);
 #endif
 
-LIBMQTT_API void Thread_start(thread_fn, void*);
+LIBMQTT_API void Paho_thread_start(thread_fn, void*);
 int Thread_set_name(const char* thread_name);
 
-LIBMQTT_API mutex_type Thread_create_mutex(int*);
-LIBMQTT_API int Thread_lock_mutex(mutex_type);
-LIBMQTT_API int Thread_unlock_mutex(mutex_type);
-int Thread_destroy_mutex(mutex_type);
+LIBMQTT_API mutex_type Paho_thread_create_mutex(int*);
+LIBMQTT_API int Paho_thread_lock_mutex(mutex_type);
+LIBMQTT_API int Paho_thread_unlock_mutex(mutex_type);
+int Paho_thread_destroy_mutex(mutex_type);
 
-LIBMQTT_API thread_id_type Thread_getid();
+LIBMQTT_API thread_id_type Paho_thread_getid();
 
 sem_type Thread_create_sem(int*);
 int Thread_wait_sem(sem_type sem, int timeout);

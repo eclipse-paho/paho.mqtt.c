@@ -13,7 +13,7 @@
 <area shape="rect" id="node12" href="$structMQTTClient__nameValue.html" title="MQTTClient_libraryInfo is used to store details relating to the currently used library such as the ve..." alt="" coords="615,111,779,137"/>
 <area shape="rect" id="node13" href="$structList.html" title="Structure to hold all data for one list." alt="" coords="796,231,840,257"/>
 <area shape="rect" id="node14" href="$structListElementStruct.html" title="Structure to hold all data for one list element." alt="" coords="803,111,929,137"/>
-<area shape="rect" id="node15" href="$structMQTTAsync__createOptions.html" title="Options for the ::MQTTAsync_createWithOptions call." alt="" coords="889,365,1072,392"/>
-<area shape="rect" id="node16" href="$structMQTTPacket.html" title="Data for a packet with header only." alt="" coords="1096,365,1196,392"/>
-<area shape="rect" id="node17" href="$unionHeader.html" title="Bitfields for the MQTT header byte." alt="" coords="1114,231,1178,257"/>
+<area shape="rect" id="node15" href="$structMQTTAsync__createOptions.html" title="Options for the ::MQTTAsync_createWithOptions call." alt="" coords="887,365,1069,392"/>
+<area shape="rect" id="node16" href="$structMQTTPacket.html" title="Data for a packet with header only." alt="" coords="1093,365,1193,392"/>
+<area shape="rect" id="node17" href="$unionHeader.html" title="Bitfields for the MQTT header byte." alt="" coords="1111,231,1175,257"/>
 </map>

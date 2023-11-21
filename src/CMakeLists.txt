@@ -1,5 +1,5 @@
 #*******************************************************************************
-#  Copyright (c) 2015, 2020 logi.cals GmbH and others
+#  Copyright (c) 2015, 2023 logi.cals GmbH and others
 #
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the Eclipse Public License v2.0
@@ -67,6 +67,9 @@ ELSEIF (UNIX)
         FIND_LIBRARY(LIB_ANL anl)
         IF(LIB_ANL)
             SET(LIBS_SYSTEM "${LIBS_SYSTEM}" anl)
+        ENDIF()
+        IF(PAHO_WITH_LIBUUID)
+            SET(LIBS_SYSTEM "${LIBS_SYSTEM}" uuid)
         ENDIF()
         ADD_DEFINITIONS(-D_GNU_SOURCE -fvisibility=hidden)
     ELSEIF (CMAKE_SYSTEM_NAME MATCHES "Android")

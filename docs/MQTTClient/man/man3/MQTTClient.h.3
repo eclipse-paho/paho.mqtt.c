@@ -1,4 +1,4 @@
-.TH "MQTTClient.h" 3 "Thu Sep 29 2022" "Paho MQTT C Client Library" \" -*- nroff -*-
+.TH "MQTTClient.h" 3 "Fri Oct 13 2023" "Paho MQTT C Client Library" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -287,6 +287,9 @@ MQTTClient.h
 .br
 .ti -1c
 .RI "void \fBMQTTClient_free\fP (void *ptr)"
+.br
+.ti -1c
+.RI "void * \fBMQTTClient_malloc\fP (size_t size)"
 .br
 .ti -1c
 .RI "void \fBMQTTClient_destroy\fP (\fBMQTTClient\fP *handle)"
@@ -1073,6 +1076,15 @@ This function frees memory allocated by the MQTT C client library, especially th
 \fBParameters\fP
 .RS 4
 \fIptr\fP The pointer to the client library storage to be freed\&. 
+.RE
+.PP
+
+.SS "void* MQTTClient_malloc (size_t size)"
+This function is used to allocate memory to be used or freed by the MQTT C client library, especially the data in user persistence\&. This is needed on Windows when the client library and application program have been compiled with different versions of the C compiler\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsize\fP The size of the memory to be allocated\&. 
 .RE
 .PP
 

@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['publish_20while_20disconnected_281',['Publish While Disconnected',['../offline_publish.html',1,'']]],
   ['packet_5ftype_282',['packet_type',['../struct_m_q_t_t_async__failure_data5.html#a38dfee9f038f473c95af46fcef5dd3e9',1,'MQTTAsync_failureData5']]],
   ['password_283',['password',['../struct_m_q_t_t_async__connect_options.html#aa4a2ebcb494493f648ae1e6975672575',1,'MQTTAsync_connectOptions']]],
   ['payload_284',['payload',['../struct_m_q_t_t_async__message.html#a9eff55064941fb604452abb0050ea99d',1,'MQTTAsync_message::payload()'],['../struct_m_q_t_t_async__will_options.html#a93e9de18277b05bc7a033bdee98c908a',1,'MQTTAsync_willOptions::payload()']]],
@@ -24,9 +23,10 @@ var searchData=
   ['premove_302',['premove',['../struct_m_q_t_t_client__persistence.html#a53150e443ca721b8623689371c2fbdb9',1,'MQTTClient_persistence']]],
   ['privatekey_303',['privateKey',['../struct_m_q_t_t_async___s_s_l_options.html#a7dd436cbb916fba200595c3519f09ec4',1,'MQTTAsync_SSLOptions']]],
   ['privatekeypassword_304',['privateKeyPassword',['../struct_m_q_t_t_async___s_s_l_options.html#abb427571ba37b51f6985f1a6906ca031',1,'MQTTAsync_SSLOptions']]],
-  ['properties_305',['properties',['../struct_m_q_t_t_async__message.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_message::properties()'],['../struct_m_q_t_t_async__failure_data5.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_failureData5::properties()'],['../struct_m_q_t_t_async__success_data5.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_successData5::properties()'],['../struct_m_q_t_t_async__response_options.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_responseOptions::properties()'],['../struct_m_q_t_t_async__disconnect_options.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_disconnectOptions::properties()']]],
+  ['properties_305',['properties',['../struct_m_q_t_t_async__failure_data5.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_failureData5::properties()'],['../struct_m_q_t_t_async__disconnect_options.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_disconnectOptions::properties()'],['../struct_m_q_t_t_async__response_options.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_responseOptions::properties()'],['../struct_m_q_t_t_async__success_data5.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_successData5::properties()'],['../struct_m_q_t_t_async__message.html#a1594008402f7307e4de8fa6131656dde',1,'MQTTAsync_message::properties()']]],
   ['protos_306',['protos',['../struct_m_q_t_t_async___s_s_l_options.html#a4f8661600fb8bacf031150f8dcd293a5',1,'MQTTAsync_SSLOptions']]],
   ['protos_5flen_307',['protos_len',['../struct_m_q_t_t_async___s_s_l_options.html#a26f5d839c92f9772c2a5d05486277a42',1,'MQTTAsync_SSLOptions']]],
-  ['pub_308',['pub',['../struct_m_q_t_t_async__success_data.html#a7f044c3b839c17a8840cd6f00d7a0e90',1,'MQTTAsync_successData::pub()'],['../struct_m_q_t_t_async__success_data5.html#a5c41c63d6c37acbe3c493279c5d4c44a',1,'MQTTAsync_successData5::pub()']]],
-  ['publication_20example_309',['Publication example',['../publish.html',1,'']]]
+  ['pub_308',['pub',['../struct_m_q_t_t_async__success_data5.html#a5c41c63d6c37acbe3c493279c5d4c44a',1,'MQTTAsync_successData5::pub()'],['../struct_m_q_t_t_async__success_data.html#a7f044c3b839c17a8840cd6f00d7a0e90',1,'MQTTAsync_successData::pub()']]],
+  ['publication_20example_309',['Publication example',['../publish.html',1,'']]],
+  ['publish_20while_20disconnected_310',['Publish While Disconnected',['../offline_publish.html',1,'']]]
 ];

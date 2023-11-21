@@ -1,5 +1,5 @@
 <map id="MQTTClient_unsubscribeMany" name="MQTTClient_unsubscribeMany">
 <area shape="rect" id="node1" title="This function attempts to remove existing subscriptions to a list of topics made by the specified cli..." alt="" coords="5,5,205,32"/>
 <area shape="rect" id="node2" href="$MQTTClient_8c.html#a46bdb532d2153110ccffb2f0748d1ba5" title="This function attempts to remove existing subscriptions to a list of topics made by the specified cli..." alt="" coords="253,5,460,32"/>
-<area shape="rect" id="node3" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="508,5,643,32"/>
+<area shape="rect" id="node3" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="508,5,676,32"/>
 </map>

@@ -1,4 +1,4 @@
 <map id="MQTTClient_getPendingDeliveryTokens" name="MQTTClient_getPendingDeliveryTokens">
 <area shape="rect" id="node1" title="This function sets a pointer to an array of delivery tokens for messages that are currently in&#45;flight..." alt="" coords="5,5,216,47"/>
-<area shape="rect" id="node2" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="264,13,399,39"/>
+<area shape="rect" id="node2" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="264,13,432,39"/>
 </map>

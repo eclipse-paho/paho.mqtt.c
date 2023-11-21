@@ -1,4 +1,4 @@
-.TH "MQTTAsync_SSLOptions" 3 "Thu Sep 29 2022" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.TH "MQTTAsync_SSLOptions" 3 "Fri Oct 13 2023" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -101,11 +101,11 @@ The SSL/TLS version to use\&. Specify one of MQTT_SSL_VERSION_DEFAULT (0), MQTT_
 Whether to carry out post-connect checks, including that a certificate matches the given host name\&. Exists only if struct_version >= 2 
 .SS "const char* CApath"
 From the OpenSSL documentation: If CApath is not NULL, it points to a directory containing CA certificates in PEM format\&. Exists only if struct_version >= 2 
-.SS "int(* ssl_error_cb(const char *str, size_t len, void *u)"
+.SS "int(* ssl_error_cb) (const char *str, size_t len, void *u)"
 Callback function for OpenSSL error handler ERR_print_errors_cb Exists only if struct_version >= 3 
 .SS "void* ssl_error_context"
 Application-specific contex for OpenSSL error handler ERR_print_errors_cb Exists only if struct_version >= 3 
-.SS "unsigned int(* ssl_psk_cb(const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len, void *u)"
+.SS "unsigned int(* ssl_psk_cb) (const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len, void *u)"
 Callback function for setting TLS-PSK options\&. Parameters correspond to that of SSL_CTX_set_psk_client_callback, except for u which is the pointer ssl_psk_context\&. Exists only if struct_version >= 4 
 .SS "void* ssl_psk_context"
 Application-specific contex for ssl_psk_cb Exists only if struct_version >= 4 

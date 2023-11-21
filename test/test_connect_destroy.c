@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2020 IBM Corp. and others
+ * Copyright (c) 2009, 2023 IBM Corp. and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -285,14 +285,14 @@ void myassert(char* filename, int lineno, char* description, int value, char* fo
 
 void lock_mutex(mutex_type amutex)
 {
-	int rc = Thread_lock_mutex(amutex);
+	int rc = Paho_thread_lock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s locking mutex", strerror(rc));
 }
 
 void unlock_mutex(mutex_type amutex)
 {
-	int rc = Thread_unlock_mutex(amutex);
+	int rc = Paho_thread_unlock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s unlocking mutex", strerror(rc));
 }
@@ -365,7 +365,7 @@ int test1(struct Options options)
 	opts.will = NULL;
 
 	struct thread_parms parms = {&c};
-	Thread_start(test1_destroy, (void*)&parms);
+	Paho_thread_start(test1_destroy, (void*)&parms);
 
 	MQTTClient_connect(c, &opts);
 

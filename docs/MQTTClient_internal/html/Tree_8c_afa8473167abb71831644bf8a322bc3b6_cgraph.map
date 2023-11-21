@@ -1,5 +1,5 @@
 <map id="TreeAddByIndex" name="TreeAddByIndex">
 <area shape="rect" id="node1" title="Add an item to a tree." alt="" coords="5,5,123,32"/>
 <area shape="rect" id="node2" href="$Heap_8c.html#a59e53a989d69c3da767487596d9bfa1f" title="Allocates a block of memory." alt="" coords="171,5,248,32"/>
-<area shape="rect" id="node3" href="$Thread_8c.html#a7e92185eb22775c76e1b6b8865468f17" title="Lock a mutex which has alrea." alt="" coords="296,5,431,32"/>
+<area shape="rect" id="node3" href="$Thread_8c.html#a1c9cd0a1556e72719a5ed3f9cdf6686f" title="Lock a mutex which has alrea." alt="" coords="296,5,464,32"/>
 </map>
