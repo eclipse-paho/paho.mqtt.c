@@ -686,20 +686,20 @@ typedef struct
 	/** The file in PEM format containing the public digital certificates trusted by the client. */
     const char* trustStore;
 
-	/** The file in PEM format containing the public certificate chain of the client. It may also include
-	* the client's private key.
-	*/
-	const char* keyStore;
+    /** The file in PEM format containing the public certificate chain of the client. It may also include
+    * the client's private key.
+    */
+    const char* keyStore;
 
-	/** If not included in the sslKeyStore, this setting points to the file in PEM format containing
-	* the client's private key.
-	*/
-	const char* privateKey;
+    /** If not included in the sslKeyStore, this setting points to the file in PEM format containing
+    * the client's private key.
+    */
+    const char* privateKey;
 
-	/** The password to load the client's privateKey if encrypted. */
-	const char* privateKeyPassword;
+    /** The password to load the client's privateKey if encrypted. */
+    const char* privateKeyPassword;
 
-	/** Key mode Only used if struct_version is >= 6.*/
+    /** Key mode Only used if struct_version is >= 6.*/
     enum MqttSslKeyType keyType;
 
     /** engineId for SSL Only used if struct_version is >= 6.*/
