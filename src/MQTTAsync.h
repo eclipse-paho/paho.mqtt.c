@@ -1085,12 +1085,12 @@ typedef struct
 	/** The file in PEM format containing the public certificate chain of the client. It may also include
 	* the client's private key.
 	*/
-	const char* keyStore;
+    const char* keyStore;
 
 	/** If not included in the sslKeyStore, this setting points to the file in PEM format containing
 	* the client's private key.
 	*/
-	const char* privateKey;
+    const char* privateKey;
 
 	/** The password to load the client's privateKey if encrypted. */
     const char* privateKeyPassword;
