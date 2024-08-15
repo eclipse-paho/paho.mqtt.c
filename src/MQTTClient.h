@@ -679,11 +679,12 @@ typedef struct
 	 * 2 means no ssl_error_context, ssl_error_cb
 	 * 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore
 	 * 4 means no protos, protos_len
+     * 5 means no ssl engine
 	 */
 	int struct_version;
 
 	/** The file in PEM format containing the public digital certificates trusted by the client. */
-	const char* trustStore;
+    const char* trustStore;
 
 	/** The file in PEM format containing the public certificate chain of the client. It may also include
 	* the client's private key.
@@ -697,6 +698,12 @@ typedef struct
 
 	/** The password to load the client's privateKey if encrypted. */
 	const char* privateKeyPassword;
+
+	/** Key mode Only used if struct_version is >= 6.*/
+    enum MqttSslKeyType keyType;
+
+    /** engineId for SSL Only used if struct_version is >= 6.*/
+    const char* engineId;
 
 	/**
 	* The list of cipher suites that the client will present to the server during the SSL handshake. For a
@@ -779,7 +786,7 @@ typedef struct
 	unsigned int protos_len;
 } MQTTClient_SSLOptions;
 
-#define MQTTClient_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTClient_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 6, NULL, NULL, NULL, NULL, PEM, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
 
 /**
   * MQTTClient_libraryInfo is used to store details relating to the currently used
