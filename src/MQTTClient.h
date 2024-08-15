@@ -713,7 +713,7 @@ typedef struct
 	* those offering no encryption- will be considered.
 	* This setting can be used to set an SSL anonymous connection ("aNULL" string value, for instance).
 	*/
-	const char* enabledCipherSuites;
+    const char* enabledCipherSuites;
 
     /** True/False option to enable verification of the server certificate **/
     int enableServerCertAuth;
