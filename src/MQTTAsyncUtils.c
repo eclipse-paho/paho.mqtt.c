@@ -2320,6 +2320,10 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 					m->c->connected = 0; /* don't send disconnect packet back */
 					nextOrClose(m, discrc, "Received disconnect");
 				}
+				else
+				{
+					Log(LOG_ERROR, -1, "Unexpected packet type %d", pack->header.bits.type);
+				}
 			}
 		}
 	}
