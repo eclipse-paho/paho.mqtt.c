@@ -29,6 +29,13 @@
 #endif
 #endif
 
+#ifdef __APPLE__
+	#include <AvailabilityMacros.h>
+	#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+	  #define HAS_DISPATCH
+	#endif
+#endif
+
 #include "MQTTExportDeclarations.h"
 
 #include "MQTTClient.h"
@@ -54,7 +61,7 @@
 	typedef thread_return_type (*thread_fn)(void*);
 	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; } cond_type_struct;
 	typedef cond_type_struct *cond_type;
-	#if defined(OSX)
+	#if defined(OSX) && defined(HAS_DISPATCH)
 	  #include <dispatch/dispatch.h>
 	  typedef dispatch_semaphore_t sem_type;
 	#else

@@ -234,7 +234,7 @@ sem_type Thread_create_sem(int *rc)
 		        NULL                /* object name */
 		        );
 		*rc = (sem == NULL) ? GetLastError() : 0;
-	#elif defined(OSX)
+	#elif defined(OSX) && defined(HAS_DISPATCH)
 		sem = dispatch_semaphore_create(0L);
 		*rc = (sem == NULL) ? -1 : 0;
 	#else
@@ -259,7 +259,7 @@ int Thread_wait_sem(sem_type sem, int timeout)
  * so I've used trywait in a loop instead. Ian Craggs 23/7/2010
  */
 	int rc = -1;
-#if !defined(_WIN32) && !defined(_WIN64) && !defined(OSX)
+#if !defined(_WIN32) && !defined(_WIN64) && !(defined(OSX) && defined(HAS_DISPATCH))
 #define USE_TRYWAIT
 #if defined(USE_TRYWAIT)
 	int i = 0;
@@ -276,7 +276,7 @@ int Thread_wait_sem(sem_type sem, int timeout)
 		rc = WaitForSingleObject(sem, timeout < 0 ? 0 : timeout);
 		if (rc == WAIT_TIMEOUT)
 			rc = ETIMEDOUT;
-	#elif defined(OSX)
+	#elif defined(OSX) && defined(HAS_DISPATCH)
 		/* returns 0 on success, non-zero if timeout occurred */
 		rc = (int)dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout*1000000L));
 		if (rc != 0)
@@ -320,7 +320,7 @@ int Thread_check_sem(sem_type sem)
 #if defined(_WIN32) || defined(_WIN64)
 	/* if the return value is not 0, the semaphore will not have been decremented */
 	return WaitForSingleObject(sem, 0) == WAIT_OBJECT_0;
-#elif defined(OSX)
+#elif defined(OSX) && defined(HAS_DISPATCH)
 	/* if the return value is not 0, the semaphore will not have been decremented */
 	return dispatch_semaphore_wait(sem, DISPATCH_TIME_NOW) == 0;
 #else
@@ -344,7 +344,7 @@ int Thread_post_sem(sem_type sem)
 	#if defined(_WIN32) || defined(_WIN64)
 		if (SetEvent(sem) == 0)
 			rc = GetLastError();
-	#elif defined(OSX)
+	#elif defined(OSX) && defined(HAS_DISPATCH)
 		rc = (int)dispatch_semaphore_signal(sem);
 	#else
 		int val;
@@ -371,7 +371,7 @@ int Thread_destroy_sem(sem_type sem)
 	FUNC_ENTRY;
 	#if defined(_WIN32) || defined(_WIN64)
 		rc = CloseHandle(sem);
-	#elif defined(OSX)
+	#elif defined(OSX) && defined(HAS_DISPATCH)
 	  dispatch_release(sem);
 	#else
 		rc = sem_destroy(sem);
