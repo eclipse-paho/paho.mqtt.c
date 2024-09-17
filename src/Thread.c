@@ -98,7 +98,7 @@ int Thread_set_name(const char* thread_name)
 #endif*/
 #elif defined(OSX)
 	/* pthread_setname_np __API_AVAILABLE(macos(10.6), ios(3.2)) */
-#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 	rc = pthread_setname_np(thread_name);
 #endif
 #else
@@ -449,7 +449,7 @@ int Thread_wait_cond(cond_type condvar, int timeout_ms)
 	interval.tv_sec = timeout_ms / 1000;
 	interval.tv_nsec = (timeout_ms % 1000) * 1000000L;
 
-#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
 	struct timeval cur_time;
     gettimeofday(&cur_time, NULL);
     cond_timeout.tv_sec = cur_time.tv_sec;
