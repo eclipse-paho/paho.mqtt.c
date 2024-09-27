@@ -698,7 +698,10 @@ typedef struct
 	/** The password to load the client's privateKey if encrypted. */
 	const char* privateKeyPassword;
 
-	/** This setting points to the file in PEM format containing the server's public key, can be used public key pinning*/
+	/**
+	 * This setting points to the file in PEM format containing the server's public key, can be used public key pinning
+	 * Exists only if struct_version >= 6
+	 * */
 	const char* publicKey;
 
 	/**

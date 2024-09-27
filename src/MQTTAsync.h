@@ -1070,12 +1070,13 @@ typedef struct
 	/** The eyecatcher for this structure.  Must be MQTS */
 	char struct_id[4];
 
-	/** The version number of this structure. Must be 0, 1, 2, 3, 4 or 5.
+	/** The version number of this structure. Must be 0, 1, 2, 3, 4, 5 or 6.
 	 * 0 means no sslVersion
 	 * 1 means no verify, CApath
 	 * 2 means no ssl_error_context, ssl_error_cb
 	 * 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore
 	 * 4 means no protos, protos_len
+	 * 6 means support public key pinning
 	 */
 	int struct_version;
 
@@ -1095,7 +1096,10 @@ typedef struct
 	/** The password to load the client's privateKey if encrypted. */
 	const char* privateKeyPassword;
 
-	/** This setting points to the file in PEM format containing the server's public key, can be used public key pinning*/
+	/**
+	 * This setting points to the file in PEM format containing the server's public key, can be used public key pinning
+	 * Exists only if struct_version >= 6
+	 * */
 	const char* publicKey;
 
 	/**
@@ -1179,7 +1183,7 @@ typedef struct
 	unsigned int protos_len;
 } MQTTAsync_SSLOptions;
 
-#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 6, NULL, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
 
 /** Utility structure where name/value pairs are needed */
 typedef struct
