@@ -44,6 +44,16 @@
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
 
+#if OPENSSL_PROVIDERS
+# include <openssl/store.h>
+# include <openssl/provider.h>
+
+# if (OPENSSL_VERSION_NUMBER < 0x030000000lu)
+#  error "OpenSSL providers are only usabe with OpenSSL version 3.x.x."
+# endif // (OPENSSL_VERSION_NUMBER < 0x030000000lu)
+
+#endif // OPENSSL_PROVIDERS
+
 extern Sockets mod_s;
 
 static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*cb)(const char *str, size_t len, void *u), void* u);
@@ -619,16 +629,108 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 			SSL_CTX_set_default_passwd_cb_userdata(net->ctx, (void*)opts->privateKeyPassword);
 		}
 
+#if OPENSSL_PROVIDERS
 		/* support for ASN.1 == DER format? DER can contain only one certificate? */
-		rc = SSL_CTX_use_PrivateKey_file(net->ctx, opts->privateKey, SSL_FILETYPE_PEM);
-		if (opts->privateKey == opts->keyStore)
-			opts->privateKey = NULL;
+		if(opts->providerName && (opts->providerName[0] != '\0'))
+		{
+			// Load desired OpenSSL provider, e.g. tpm2.
+			OSSL_PROVIDER *provider = OSSL_PROVIDER_load(NULL, opts->providerName);
+			if(!provider)
+			{
+				rc = 0;
+				goto free_ctx;
+			}
+
+			// Perform providers Self-Test.
+			rc = OSSL_PROVIDER_self_test(provider);
+			if(rc != 1)
+			{
+				OSSL_PROVIDER_unload(provider);
+				goto free_ctx;
+			}
+
+			// Open STORE context with given providers handle.
+			OSSL_STORE_CTX *storeCtx = OSSL_STORE_open(opts->privateKey, NULL, NULL, NULL, NULL);
+			if (!storeCtx) {
+				OSSL_PROVIDER_unload(provider);
+				rc = 0;
+				goto free_ctx;
+			}
+
+			rc = OSSL_STORE_expect(storeCtx, OSSL_STORE_INFO_PKEY);
+			if (rc != 1) {
+				OSSL_STORE_close(storeCtx);
+				OSSL_PROVIDER_unload(provider);
+				rc = 0;
+				goto free_ctx;
+			}
+
+			EVP_PKEY *pkey = NULL;
+			while (pkey == NULL && !OSSL_STORE_eof(storeCtx)) {
+				// Load STORE context and get it's type.
+				OSSL_STORE_INFO *info = OSSL_STORE_load(storeCtx);
+
+				// This can happen when, for example, we're reaching stuff that's not there
+				// or there is a thing that we don't expect.
+				// If happens, then we just loop until EOF.
+				if (info == NULL) {
+					continue;
+				}
+
+				const int type = OSSL_STORE_INFO_get_type(info);
+				if (type == OSSL_STORE_INFO_PKEY) {
+					// If type is private key, fetch it.
+					pkey = OSSL_STORE_INFO_get1_PKEY(info);
+				} else {
+					break;
+				}
+
+				OSSL_STORE_INFO_free(info);
+			}
+
+			// If private key is invalid - exit.
+			if (!pkey) {
+				OSSL_STORE_close(storeCtx);
+				OSSL_PROVIDER_unload(provider);
+				rc = 0;
+				goto free_ctx;
+			}
+
+			// Load private key handle to ctx.
+			rc = SSL_CTX_use_PrivateKey(net->ctx, pkey);
+			if (rc != 1)
+			{
+				if (opts->struct_version >= 3)
+					SSLSocket_error("SSL_CTX_use_PrivateKey", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				else
+					SSLSocket_error("SSL_CTX_use_PrivateKey", NULL, net->socket, rc, NULL, NULL);
+				goto free_ctx;
+			}
+		}
+		else
+#endif // OPENSSL_PROVIDERS
+		{
+			rc = SSL_CTX_use_PrivateKey_file(net->ctx, opts->privateKey, SSL_FILETYPE_PEM);
+			if (opts->privateKey == opts->keyStore)
+				opts->privateKey = NULL;
+			if (rc != 1)
+			{
+				if (opts->struct_version >= 3)
+					SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				else
+					SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, NULL, NULL);
+				goto free_ctx;
+			}
+		}
+
+		// Check if private kay matches certificate.
+		rc = SSL_CTX_check_private_key(net->ctx);
 		if (rc != 1)
 		{
 			if (opts->struct_version >= 3)
-				SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				SSLSocket_error("SSL_CTX_check_private_key", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
 			else
-				SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, NULL, NULL);
+				SSLSocket_error("SSL_CTX_check_private_key", NULL, net->socket, rc, NULL, NULL);
 			goto free_ctx;
 		}
 	}
@@ -721,8 +823,9 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 
 		SSL_CTX_set_info_callback(net->ctx, SSL_CTX_info_callback);
 		SSL_CTX_set_msg_callback(net->ctx, SSL_CTX_msg_callback);
-   		if (opts->enableServerCertAuth)
+   		if (opts->enableServerCertAuth) {
 			SSL_CTX_set_verify(net->ctx, SSL_VERIFY_PEER, NULL);
+		}
 
 		net->ssl = SSL_new(net->ctx);
 
@@ -773,8 +876,7 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 	rc = SSL_connect(ssl);
 	if (rc != 1)
 	{
-		int error;
-		error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
+		int error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
 		if (error == SSL_FATAL)
 			rc = error;
 		if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
@@ -1042,7 +1144,7 @@ int SSLSocket_putdatas(SSL* ssl, SOCKET socket, char* buf0, size_t buf0len, Pack
 		    	free(bufs.buffers[i]);
 		    	bufs.buffers[i] = NULL;
 		    }
-		}	
+		}
 	}
 exit:
 	FUNC_EXIT_RC(rc);
