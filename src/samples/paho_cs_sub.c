@@ -43,7 +43,7 @@ struct pubsub_opts opts =
 	NULL, NULL, 1, 0, 0, /* message options */
 	MQTTVERSION_DEFAULT, NULL, "paho-cs-sub", 0, 0, NULL, NULL, "localhost", "1883", NULL, 10, /* MQTT options */
 	NULL, NULL, 0, 0, /* will options */
-	0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* TLS options */
+	0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* TLS options */
 	0, {NULL, NULL}, /* MQTT V5 options */
 	NULL, NULL, /* HTTP and HTTPS proxies */
 };
@@ -94,6 +94,7 @@ int myconnect(MQTTClient client)
 		ssl_opts.privateKey = opts.key;
 		ssl_opts.privateKeyPassword = opts.keypass;
 		ssl_opts.enabledCipherSuites = opts.ciphers;
+		ssl_opts.engine = opts.engine;
 		conn_opts.ssl = &ssl_opts;
 	}
 

@@ -55,7 +55,7 @@ void usage(struct pubsub_opts* opts, pubsub_opts_nameValue* name_values, const c
 		printf("       [-R] [--no-delimiter]\n");
 	printf("       [--will-topic topic] [--will-payload message] [--will-qos qos] [--will-retain]\n");
 	printf("       [--cafile filename] [--capath dirname] [--cert filename] [--key filename]\n"
-		   "       [--keypass string] [--ciphers string] [--insecure]");
+		   "       [--keypass string] [--ciphers string] [--insecure] [--engine]");
 
 	printf(
 	"\n\n  -t (--topic)        : MQTT topic to %s to\n"
@@ -117,6 +117,7 @@ void usage(struct pubsub_opts* opts, pubsub_opts_nameValue* name_values, const c
 	"  --insecure          : don't check that the server certificate common name matches the hostname.\n"
 	"  --psk               : pre-shared-key in hexadecimal (no leading 0x) \n"
 	"  --psk-identity      : client identity string for TLS-PSK mode.\n"
+	"  --engine            : OpenSSL engine to use to load the private key.\n"
 	);
 
 	printf(
@@ -310,6 +311,13 @@ int getopts(int argc, char** argv, struct pubsub_opts* opts)
 		{
 			if (++count < argc)
 				opts->keypass = argv[count];
+			else
+				return 1;
+		}
+		else if (strcmp(argv[count], "--engine") == 0)
+		{
+			if (++count < argc)
+				opts->engine = argv[count];
 			else
 				return 1;
 		}
