@@ -655,6 +655,7 @@ typedef struct
 #define MQTT_SSL_VERSION_TLS_1_0 1
 #define MQTT_SSL_VERSION_TLS_1_1 2
 #define MQTT_SSL_VERSION_TLS_1_2 3
+#define MQTT_SSL_VERSION_TLS_1_3 4
 
 /**
 * MQTTClient_sslProperties defines the settings to establish an SSL/TLS connection using the
