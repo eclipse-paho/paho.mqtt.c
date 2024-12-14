@@ -696,6 +696,11 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 
 	SSL_CTX_set_mode(net->ctx, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
+	/* Finally, allow the client to have the last say in context setup */
+	if (opts->ssl_ctx_cb != NULL)
+	{
+		opts->ssl_ctx_cb(net->ctx, opts->ssl_ctx_context);
+	}
 	goto exit;
 free_ctx:
 	SSL_CTX_free(net->ctx);

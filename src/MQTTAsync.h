@@ -1076,6 +1076,7 @@ typedef struct
 	 * 2 means no ssl_error_context, ssl_error_cb
 	 * 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore
 	 * 4 means no protos, protos_len
+	 * 5 means no ssl_ctx_cb, ssl_ctx_context
 	 */
 	int struct_version;
 
@@ -1174,9 +1175,23 @@ typedef struct
 	 * Exists only if struct_version >= 5
 	 */
 	unsigned int protos_len;
+
+	/**
+	 * Callback function for setting options on SSL context after creation.
+	 * This callback will be called late in context creation, after other parameters have been set
+	 * ssl_ctx will receive the SSL_CTX* of the context just created and setup
+	 * Exists only if struct_version >= 6
+	 */
+	void (*ssl_ctx_cb) (void* ssl_ctx, void* ssl_ctx_context);
+
+	/**
+	 * Application-specific context for ssl_ctx_cb
+	 * Exists only if struct_version >= 6
+	 */
+	void* ssl_ctx_context;
 } MQTTAsync_SSLOptions;
 
-#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 6, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL }
 
 /** Utility structure where name/value pairs are needed */
 typedef struct

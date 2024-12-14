@@ -1648,6 +1648,11 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 		    m->c->sslopts->protos = options->ssl->protos;
 		    m->c->sslopts->protos_len = options->ssl->protos_len;
 		}
+		if (m->c->sslopts->struct_version >= 6)
+		{
+			m->c->sslopts->ssl_ctx_cb = options->ssl->ssl_ctx_cb;
+			m->c->sslopts->ssl_ctx_context = options->ssl->ssl_ctx_context;
+		}
 	}
 #endif
 
