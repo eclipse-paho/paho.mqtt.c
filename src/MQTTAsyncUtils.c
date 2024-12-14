@@ -3074,11 +3074,27 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 				}
 
 				if (msgtype == PUBCOMP)
+				{
 					*rc = MQTTProtocol_handlePubcomps(pack, *sock, &pubToRemove);
+					if (sendThread_state != STOPPED)
+#if !defined(_WIN32) && !defined(_WIN64)
+						Thread_signal_cond(send_cond);
+#else
+						Thread_post_sem(send_sem);
+#endif
+				}
 				else if (msgtype == PUBREC)
 					*rc = MQTTProtocol_handlePubrecs(pack, *sock, &pubToRemove);
 				else if (msgtype == PUBACK)
+				{
 					*rc = MQTTProtocol_handlePubacks(pack, *sock, &pubToRemove);
+					if (sendThread_state != STOPPED)
+#if !defined(_WIN32) && !defined(_WIN64)
+						Thread_signal_cond(send_cond);
+#else
+						Thread_post_sem(send_sem);
+#endif
+				}
 				if (!m)
 					Log(LOG_ERROR, -1, "PUBCOMP, PUBACK or PUBREC received for no client, msgid %d", msgid);
 				if (m && (msgtype != PUBREC || ackrc >= MQTTREASONCODE_UNSPECIFIED_ERROR))
