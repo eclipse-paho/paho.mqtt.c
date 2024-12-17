@@ -23,6 +23,16 @@
 
 #define MQTT_INVALID_PROPERTY_ID -2
 
+/**
+ * Enumeration type representing the key types supported
+ * ENG  for ssl engine key mode
+ * PEM  for ssl pem key mode
+ */
+enum MqttSslKeyType {
+    ENG,
+    PEM,
+};
+
 /** The one byte MQTT V5 property indicator */
 enum MQTTPropertyCodes {
   MQTTPROPERTY_CODE_PAYLOAD_FORMAT_INDICATOR = 1,  /**< The value is 1 */

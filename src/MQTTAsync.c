@@ -599,7 +599,7 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	}
 	if (options->struct_version != 0 && options->ssl) /* check validity of SSL options structure */
 	{
-		if (strncmp(options->ssl->struct_id, "MQTS", 4) != 0 || options->ssl->struct_version < 0 || options->ssl->struct_version > 5)
+		if (strncmp(options->ssl->struct_id, "MQTS", 4) != 0 || options->ssl->struct_version < 0 || options->ssl->struct_version > 6)
 		{
 			rc = MQTTASYNC_BAD_STRUCTURE;
 			goto exit;
@@ -757,6 +757,11 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 			if (m->c->sslopts->CApath)
 				free((void*)m->c->sslopts->CApath);
 		}
+        if (m->c->sslopts->struct_version >= 6) 
+        {
+            if (m->c->sslopts->engineId)
+                free((void*)m->c->sslopts->engineId);
+        }
 		free((void*)m->c->sslopts);
 		m->c->sslopts = NULL;
 	}
@@ -806,6 +811,11 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 				m->c->sslopts->protos = (const unsigned char*)MQTTStrdup((const char*)options->ssl->protos);
 			m->c->sslopts->protos_len = options->ssl->protos_len;
 		}
+        if (m->c->sslopts->struct_version >= 6) 
+        {
+            if (options->ssl->engineId)
+                m->c->sslopts->engineId = MQTTStrdup(options->ssl->engineId);
+        }
 	}
 #else
 	if (options->struct_version != 0 && options->ssl)
