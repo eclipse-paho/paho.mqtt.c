@@ -950,7 +950,7 @@ void MQTTAsync_checkDisconnect(MQTTAsync handle, MQTTAsync_command* command)
 			if (m->cl && was_connected)
 			{
 				Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
-				(*(m->cl))(m->clContext, NULL);
+				(*(m->cl))(m->clContext, "DISCONNECT");
 			}
 			MQTTAsync_startConnectRetry(m);
 		}
@@ -1612,7 +1612,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 		if (m->cl && was_connected)
 		{
 			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
-				(*(m->cl))(m->clContext, NULL);
+				(*(m->cl))(m->clContext, message);
 			connectionLost_called = 1;
 		}
 		/* put the connect command back to the head of the command queue, using the next serverURI */
@@ -1671,7 +1671,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 		if (connectionLost_called == 0 && m->cl && was_connected)
 		{
 			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
-				(*(m->cl))(m->clContext, NULL);
+				(*(m->cl))(m->clContext, message);
 		}
 		MQTTAsync_startConnectRetry(m);
 	}
