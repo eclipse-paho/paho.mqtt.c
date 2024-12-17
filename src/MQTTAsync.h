@@ -430,6 +430,25 @@ typedef void MQTTAsync_connectionLost(void* context, char* cause);
 typedef void MQTTAsync_connected(void* context, char* cause);
 
 /**
+ * This is a callback function, which will be called when the client library
+ * have some errors during connection process. This is superfluous when the
+ * connection is made in response to a MQTTAsync_connect call, because the
+ * onFailure callback can be used.  It is intended for use when automatic
+ * reconnect is enabled or after MQTTAsync_reconnect() function, so that when
+ * a connection attempt failed in the background, the application is notified
+ * and can take any required actions.
+ *
+ * <b>Note:</b> Neither MQTTAsync_create() nor MQTTAsync_destroy() should be
+ * called within this callback.
+ * @param context A pointer to any application-specific context. The
+ * the <i>context</i> pointer is passed to each of the callback functions to
+ * provide access to the context information in the callback.
+ * @param code A numeric code identifying the error.
+ * @param cause Optional text explaining the error. Can be NULL.
+ */
+typedef void MQTTAsync_connectionError(void* context, int code, char *cause);
+
+/**
  * This is a callback function, which will be called when the client
  * library receives a disconnect packet from the server. This applies to MQTT V5 and above only.
  *
@@ -889,6 +908,21 @@ LIBMQTT_API int MQTTAsync_setDeliveryCompleteCallback(MQTTAsync handle, void* co
  */
 LIBMQTT_API int MQTTAsync_setConnected(MQTTAsync handle, void* context, MQTTAsync_connected* co);
 
+/**
+ * This function sets the callback function for a situation when there is
+ * a problem connecting to the broker after calling the MQTTAsync_connect(),
+ * MQTTAsync_reconnect() or automatic reconnection functions.
+ * @param handle A valid client handle from a successful call to
+ * MQTTAsync_create().
+ * @param context A pointer to any application-specific context. The
+ * the <i>context</i> pointer is passed to each of the callback functions to
+ * provide access to the context information in the callback.
+ * @param ce A pointer to an MQTTAsync_connectionError() callback
+ * function.  NULL removes the callback setting.
+ * @return ::MQTTASYNC_SUCCESS if the callbacks were correctly set,
+ * ::MQTTASYNC_FAILURE if an error occurred.
+ */
+LIBMQTT_API int MQTTAsync_setConnectionError(MQTTAsync handle, void* context, MQTTAsync_connectionError* ce);
 
 /**
  * Reconnects a client with the previously used connect options.  Connect

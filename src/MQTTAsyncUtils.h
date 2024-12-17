@@ -104,6 +104,9 @@ typedef struct MQTTAsync_struct
 	MQTTAsync_connected* connected;
 	void* connected_context; /* the context to be associated with the connected callback*/
 
+	MQTTAsync_connectionError* connection_error;
+	void* connection_error_context; /* the context to be associated with the connection error callback*/
+
 	MQTTAsync_disconnected* disconnected;
 	void* disconnected_context; /* the context to be associated with the disconnected callback*/
 

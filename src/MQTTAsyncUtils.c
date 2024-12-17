@@ -1504,6 +1504,11 @@ static int MQTTAsync_processCommand(void)
 					command->client->connect.onFailure5 = NULL;
 					command->client->connect.onSuccess5 = NULL;
 				}
+				if (command->client->connection_error) {
+					Log(TRACE_MIN, -1, "Calling connection error for client %s", command->client->c->clientID);
+					(*(command->client->connection_error))(command->client->connection_error_context,
+														   MQTTASYNC_OPERATION_INCOMPLETE, NULL);
+				}      
 			}
 			command->client->c->connect_state = DISCONNECTING;
 			MQTTAsync_checkDisconnect(command->client, &command->command);
@@ -1576,6 +1581,10 @@ static int MQTTAsync_processCommand(void)
 				data.code = rc;
 				Log(TRACE_MIN, -1, "Calling command failure for client %s", command->client->c->clientID);
 				(*(command->command.onFailure5))(command->command.context, &data);
+			}
+			if (command->client->connection_error) {
+				Log(TRACE_MIN, -1, "Calling connection error for client %s", command->client->c->clientID);
+				(*(command->client->connection_error))(command->client->connection_error_context, rc, NULL);
 			}
 			if (command->command.type == CONNECT)
 			{
@@ -1667,6 +1676,10 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			/* Null out callback pointers so they aren't accidentally called again */
 			m->connect.onFailure5 = NULL;
 			m->connect.onSuccess5 = NULL;
+		}
+		if (m->connection_error) {
+			Log(TRACE_MIN, -1, "Calling connection error for client %s", m->c->clientID);
+			(*(m->connection_error))(m->connection_error_context, rc, message);
 		}
 		if (connectionLost_called == 0 && m->cl && was_connected)
 		{
