@@ -1131,7 +1131,10 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 		{
 			address6.sin6_port = htons(port);
 			address6.sin6_family = family = AF_INET6;
-			memcpy(&address6.sin6_addr, &((struct sockaddr_in6*)(res->ai_addr))->sin6_addr, sizeof(address6.sin6_addr));
+			struct sockaddr_in6* res6 = (struct sockaddr_in6*)(res->ai_addr);
+			memcpy(&address6.sin6_addr, &res6->sin6_addr, sizeof(address6.sin6_addr));
+			memcpy(&address6.sin6_scope_id, &res6->sin6_scope_id, sizeof(address6.sin6_scope_id));
+			memcpy(&address6.sin6_flowinfo, &res6->sin6_flowinfo, sizeof(address6.sin6_flowinfo));
 		}
 		else
 #endif
