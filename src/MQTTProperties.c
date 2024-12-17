@@ -117,7 +117,16 @@ int MQTTProperties_add(MQTTProperties* props, const MQTTProperty* prop)
   else if (props->count == props->max_count)
   {
     props->max_count += 10;
-    props->array = realloc(props->array, sizeof(MQTTProperty) * props->max_count);
+    void* newPtr = realloc(props->array, sizeof(MQTTProperty) * props->max_count);
+    if (newPtr == NULL)
+    {
+      free(props->array);
+      props->array = NULL;
+    }
+    else
+    {
+      props->array = newPtr;
+    }
   }
 
   if (props->array)
@@ -318,7 +327,18 @@ int MQTTProperties_read(MQTTProperties* properties, char** pptr, char* enddata)
     	if (properties->max_count == 10)
     	  properties->array = malloc(sizeof(MQTTProperty) * properties->max_count);
     	else
-    	  properties->array = realloc(properties->array, sizeof(MQTTProperty) * properties->max_count);
+      {
+        void* newPtr = realloc(properties->array, sizeof(MQTTProperty) * properties->max_count);
+        if (newPtr == NULL)
+        {
+          free(properties->array);
+        	properties->array = NULL;
+        }
+        else
+        {
+          properties->array = newPtr;
+        }
+      }
       }
       if (properties->array == NULL)
       {

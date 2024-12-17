@@ -405,7 +405,18 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 	if (net->websocket_key == NULL)
 		net->websocket_key = malloc(25u);
 	else
-		net->websocket_key = realloc(net->websocket_key, 25u);
+	{
+		void* newPtr = realloc(net->websocket_key, 25u);
+		if (newPtr == NULL)
+		{
+			free(net->websocket_key);
+			net->websocket_key = NULL;
+		}
+		else
+		{
+			net->websocket_key = newPtr;
+		}
+	}
 	if (net->websocket_key == NULL)
 	{
 		rc = PAHO_MEMORY_ERROR;
@@ -850,7 +861,19 @@ char *WebSocket_getRawSocketData(networkHandles *net, size_t bytes, size_t* actu
 		// resize buffer
 		else
 		{
-			frame_buffer = realloc(frame_buffer, frame_buffer_data_len + *actual_len);
+			void* newPtr = realloc(frame_buffer, frame_buffer_data_len + *actual_len);
+			if (newPtr == NULL)
+			{
+				free(frame_buffer);
+				frame_buffer = NULL;
+
+				rv = NULL;
+				goto exit;
+			}
+			else
+			{
+				frame_buffer = newPtr;
+			}
 			frame_buffer_len = frame_buffer_data_len + *actual_len;
 
 			memcpy(frame_buffer + frame_buffer_data_len, rv, *actual_len);
@@ -1173,10 +1196,18 @@ int WebSocket_receiveFrame(networkHandles *net, size_t *actual_len)
 					res->pos = 0u;
 				} else
 				{
-					if ((res = realloc( res, sizeof(struct ws_frame) + cur_len + len )) == NULL)
+					void* newPtr = realloc( res, sizeof(struct ws_frame) + cur_len + len );
+					if (newPtr == NULL)
 					{
+						free(res);
+						res = NULL;
+
 						rc = PAHO_MEMORY_ERROR;
 						goto exit;
+					}
+					else
+					{
+						res = newPtr;
 					}
 				}
 				if (in_frames && in_frames->first)

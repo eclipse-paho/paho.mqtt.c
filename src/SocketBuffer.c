@@ -207,7 +207,19 @@ char* SocketBuffer_getQueuedData(SOCKET socket, size_t bytes, size_t* actual_len
 			}
 		}
 		else
-			queue->buf = realloc(queue->buf, bytes);
+		{
+			void* newmem = realloc(queue->buf, bytes);
+			if (newmem)
+			{
+				queue->buf = newmem;
+			}
+			else
+			{
+				free(queue->buf);
+				queue->buf = NULL;
+				goto exit;
+			}
+		}
 		queue->buflen = bytes;
 	}
 exit:
