@@ -491,7 +491,7 @@ typedef struct
 #define MQTTAsync_connectData_initializer {{'M', 'Q', 'C', 'D'}, 0, NULL, {0, NULL}}
 
 /**
- * This is a callback function which will allow the client application to update the 
+ * This is a callback function which will allow the client application to update the
  * connection data.
  * @param data The connection data which can be modified by the application.
  * @return Return a non-zero value to update the connect data, zero to keep the same data.
@@ -1073,12 +1073,13 @@ typedef struct
 	/** The eyecatcher for this structure.  Must be MQTS */
 	char struct_id[4];
 
-	/** The version number of this structure. Must be 0, 1, 2, 3, 4 or 5.
+	/** The version number of this structure. Must be [0-6].
 	 * 0 means no sslVersion
 	 * 1 means no verify, CApath
 	 * 2 means no ssl_error_context, ssl_error_cb
 	 * 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore
 	 * 4 means no protos, protos_len
+   * 5 means no providerName
 	 */
 	int struct_version;
 
@@ -1177,9 +1178,13 @@ typedef struct
 	 * Exists only if struct_version >= 5
 	 */
 	unsigned int protos_len;
+
+	/** OpenSSL provider to used, NULL if disabled. */
+	const char* providerName;
+
 } MQTTAsync_SSLOptions;
 
-#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 6, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL }
 
 /** Utility structure where name/value pairs are needed */
 typedef struct

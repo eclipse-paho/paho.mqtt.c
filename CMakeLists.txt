@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-project("Eclipse Paho C" 
+project("Eclipse Paho C"
   VERSION 1.3.13
   LANGUAGES C
 )
@@ -29,7 +29,7 @@ set(CMAKE_SCRIPTS "${CMAKE_SOURCE_DIR}/cmake")
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 ## Project Version
-## Previously we read in the version from these files, but now we use the 
+## Previously we read in the version from these files, but now we use the
 ## CMake project setting. We just make sure the files and CMake match.
 file(READ version.major PAHO_VERSION_MAJOR)
 file(READ version.minor PAHO_VERSION_MINOR)
@@ -64,6 +64,7 @@ option(PAHO_ENABLE_TESTING "Build tests and run" TRUE)
 option(PAHO_ENABLE_CPACK "Enable CPack" TRUE)
 option(PAHO_HIGH_PERFORMANCE "Disable tracing and heap tracking" FALSE)
 option(PAHO_USE_SELECT "Revert to select system call instead of poll" FALSE)
+option(PAHO_SSL_PROVIDERS "Enable provider option for OpenSSL" FALSE)
 
 if(PAHO_HIGH_PERFORMANCE)
   add_definitions(-DHIGH_PERFORMANCE=1)
@@ -71,6 +72,10 @@ endif()
 
 if(PAHO_USE_SELECT)
   add_definitions(-DUSE_SELECT=1)
+endif()
+
+if(PAHO_SSL_PROVIDERS)
+  add_definitions(-DOPENSSL_PROVIDERS=1)
 endif()
 
 if(PAHO_WITH_LIBUUID)
