@@ -240,6 +240,7 @@ int MQTTProperty_read(MQTTProperty* prop, char** pptr, char* enddata)
   int type = -1,
     len = -1;
 
+  memset(prop, 0, sizeof(MQTTProperty));
   prop->identifier = readChar(pptr);
   type = MQTTProperty_getType(prop->identifier);
   if (type >= MQTTPROPERTY_TYPE_BYTE && type <= MQTTPROPERTY_TYPE_UTF_8_STRING_PAIR)
