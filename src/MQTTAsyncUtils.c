@@ -894,7 +894,27 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 					if (command->client->c->persistence)
 						MQTTAsync_unpersistCommand(first_publish);
 	#endif
+					if (first_publish->command.onFailure)
+					{
+							MQTTAsync_failureData data;
 
+							data.token = first_publish->command.token;
+							data.code = MQTTASYNC_MAX_BUFFERED_MESSAGES;
+							data.message = NULL;
+							Log(TRACE_MIN, -1, "Cache is full, messages have been removed.");
+							(*(first_publish->command.onFailure))(first_publish->command.context, &data);
+					}
+					else if (first_publish->command.onFailure5)
+					{
+							MQTTAsync_failureData5 data;
+
+							data.token = first_publish->command.token;
+							data.code = MQTTASYNC_MAX_BUFFERED_MESSAGES;
+							data.message = NULL;
+							data.packet_type = PUBLISH;
+							Log(TRACE_MIN, -1, "Cache is full, messages have been removed.");
+							(*(first_publish->command.onFailure5))(first_publish->command.context, &data);
+					} 
 					MQTTAsync_freeCommand(first_publish);
 				}
 			}
