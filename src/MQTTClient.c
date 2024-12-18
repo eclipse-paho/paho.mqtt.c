@@ -1595,6 +1595,8 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 			free((void*)m->c->sslopts->privateKeyPassword);
 		if (m->c->sslopts->enabledCipherSuites)
 			free((void*)m->c->sslopts->enabledCipherSuites);
+		if (m->c->sslopts->engine)
+			free((void*)m->c->sslopts->engine);
 		if (m->c->sslopts->struct_version >= 2)
 		{
 			if (m->c->sslopts->CApath)
@@ -1623,6 +1625,8 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 			m->c->sslopts->privateKeyPassword = MQTTStrdup(options->ssl->privateKeyPassword);
 		if (options->ssl->enabledCipherSuites)
 			m->c->sslopts->enabledCipherSuites = MQTTStrdup(options->ssl->enabledCipherSuites);
+		if (options->ssl->engine)
+			m->c->sslopts->engine = MQTTStrdup(options->ssl->engine);
 		m->c->sslopts->enableServerCertAuth = options->ssl->enableServerCertAuth;
 		if (m->c->sslopts->struct_version >= 1)
 			m->c->sslopts->sslVersion = options->ssl->sslVersion;

@@ -489,7 +489,7 @@ typedef struct
 #define MQTTAsync_connectData_initializer {{'M', 'Q', 'C', 'D'}, 0, NULL, {0, NULL}}
 
 /**
- * This is a callback function which will allow the client application to update the 
+ * This is a callback function which will allow the client application to update the
  * connection data.
  * @param data The connection data which can be modified by the application.
  * @return Return a non-zero value to update the connect data, zero to keep the same data.
@@ -1174,6 +1174,11 @@ typedef struct
 	 * Exists only if struct_version >= 5
 	 */
 	unsigned int protos_len;
+
+  /**
+   * The name of the OpenSSL engine that we should use.
+   */
+  char *engine;
 } MQTTAsync_SSLOptions;
 
 #define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }

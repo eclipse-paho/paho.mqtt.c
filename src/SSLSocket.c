@@ -44,6 +44,11 @@
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
 
+#if defined(OPENSSL_ENGINE)
+// Use an engine.
+#include <openssl/engine.h>
+#endif
+
 extern Sockets mod_s;
 
 static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*cb)(const char *str, size_t len, void *u), void* u);
@@ -462,6 +467,11 @@ int SSLSocket_initialize(void)
 
 		OpenSSL_add_all_algorithms();
 
+#if defined(OPENSSL_ENGINE)
+		Log(LOG_PROTOCOL, -1, "Loading built-in engines...");
+		ENGINE_load_builtin_engines();
+#endif
+
 		lockMemSize = CRYPTO_num_locks() * sizeof(ssl_mutex_type);
 
 		sslLocks = malloc(lockMemSize);
@@ -484,7 +494,6 @@ int SSLSocket_initialize(void)
 		CRYPTO_set_id_callback(SSLThread_id);
 #endif
 		CRYPTO_set_locking_callback(SSLLocks_callback);
-
 	}
 
 	SSL_create_mutex(&sslCoreMutex);
@@ -505,6 +514,12 @@ void SSLSocket_terminate(void)
 		CRYPTO_set_locking_callback(NULL);
 		ERR_free_strings();
 		EVP_cleanup();
+
+#if defined(OPENSSL_ENGINE)
+		Log(LOG_PROTOCOL, -1, "Cleaning up engine...");
+		ENGINE_cleanup();
+#endif
+
 		if (sslLocks)
 		{
 			int i = 0;
@@ -547,9 +562,18 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 {
 	int rc = 1;
 
+#if defined(OPENSSL_ENGINE)
+	ENGINE *engine = NULL;
+#endif
+	EVP_PKEY *evp_key = NULL;
+
 	FUNC_ENTRY;
 	if (net->ctx == NULL)
 	{
+#if defined(OPENSSL_ENGINE)
+		net->using_engine = 0;
+#endif
+
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 		net->ctx = SSL_CTX_new(TLS_client_method());
 #else
@@ -591,6 +615,30 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 				SSLSocket_error("SSL_CTX_new", NULL, net->socket, rc, NULL, NULL);
 			goto exit;
 		}
+
+#if defined(OPENSSL_ENGINE)
+		if (opts->engine){
+				Log(LOG_PROTOCOL, -1, "Loading engine: %s", opts->engine);
+				net->engine = ENGINE_by_id(opts->engine);
+				if (!net->engine){
+						if (opts->struct_version >= 3)
+								SSLSocket_error("ENGINE_by_id", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+						else
+								SSLSocket_error("ENGINE_by_id", NULL, net->socket, rc, NULL, NULL);
+						goto exit;
+				}
+				if (!ENGINE_init(net->engine)){
+						if (opts->struct_version >= 3)
+								SSLSocket_error("ENGINE_init", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+						else
+								SSLSocket_error("ENGINE_init", NULL, net->socket, rc, NULL, NULL);
+						goto exit;
+				}
+				ENGINE_set_default(net->engine, ENGINE_METHOD_ALL);
+				ENGINE_free(net->engine);
+				net->using_engine = 1;
+		}
+#endif
 	}
 
 /*
@@ -610,27 +658,52 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 			goto free_ctx; /*If we can't load the certificate (chain) file then loading the privatekey won't work either as it needs a matching cert already loaded */
 		}
 
-		if (opts->privateKey == NULL)
-			opts->privateKey = opts->keyStore;   /* the privateKey can be included in the keyStore */
+#if defined(OPENSSL_ENGINE)
+		if (net->using_engine == 0) {
+#endif
+			if (opts->privateKey == NULL)
+				opts->privateKey = opts->keyStore;   /* the privateKey can be included in the keyStore */
 
-		if (opts->privateKeyPassword != NULL)
-		{
-			SSL_CTX_set_default_passwd_cb(net->ctx, pem_passwd_cb);
-			SSL_CTX_set_default_passwd_cb_userdata(net->ctx, (void*)opts->privateKeyPassword);
-		}
+			if (opts->privateKeyPassword != NULL)
+			{
+				SSL_CTX_set_default_passwd_cb(net->ctx, pem_passwd_cb);
+				SSL_CTX_set_default_passwd_cb_userdata(net->ctx, (void*)opts->privateKeyPassword);
+			}
 
-		/* support for ASN.1 == DER format? DER can contain only one certificate? */
-		rc = SSL_CTX_use_PrivateKey_file(net->ctx, opts->privateKey, SSL_FILETYPE_PEM);
-		if (opts->privateKey == opts->keyStore)
-			opts->privateKey = NULL;
-		if (rc != 1)
-		{
-			if (opts->struct_version >= 3)
-				SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
-			else
-				SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, NULL, NULL);
-			goto free_ctx;
+			/* support for ASN.1 == DER format? DER can contain only one certificate? */
+			rc = SSL_CTX_use_PrivateKey_file(net->ctx, opts->privateKey, SSL_FILETYPE_PEM);
+			if (opts->privateKey == opts->keyStore)
+				opts->privateKey = NULL;
+			if (rc != 1)
+			{
+				if (opts->struct_version >= 3)
+					SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				else
+					SSLSocket_error("SSL_CTX_use_PrivateKey_file", NULL, net->socket, rc, NULL, NULL);
+				goto free_ctx;
+			}
+#if defined(OPENSSL_ENGINE)
 		}
+		else
+		{
+			evp_key = ENGINE_load_private_key(net->engine, opts->privateKey, NULL, NULL);
+			if (!evp_key) {
+				if (opts->struct_version >= 3)
+					SSLSocket_error("ENGINE_load_private_key", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				else
+					SSLSocket_error("ENGINE_load_private_key", NULL, net->socket, rc, NULL, NULL);
+				goto free_ctx;
+			}
+
+			if (SSL_CTX_use_PrivateKey(net->ctx, evp_key) != 1) {
+				if (opts->struct_version >= 3)
+					SSLSocket_error("SSL_CTX_use_PrivateKey", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+				else
+					SSLSocket_error("SSL_CTX_use_PrivateKey", NULL, net->socket, rc, NULL, NULL);
+				goto free_ctx;
+			}
+		}
+#endif
 	}
 
 	if (opts->trustStore || opts->CApath)
@@ -698,6 +771,12 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 
 	goto exit;
 free_ctx:
+#if defined(OPENSSL_ENGINE)
+	if (net->engine) {
+		ENGINE_finish(net->engine);
+	}
+#endif
+
 	SSL_CTX_free(net->ctx);
 	net->ctx = NULL;
 
@@ -1042,7 +1121,7 @@ int SSLSocket_putdatas(SSL* ssl, SOCKET socket, char* buf0, size_t buf0len, Pack
 		    	free(bufs.buffers[i]);
 		    	bufs.buffers[i] = NULL;
 		    }
-		}	
+		}
 	}
 exit:
 	FUNC_EXIT_RC(rc);
