@@ -24,6 +24,7 @@
 #define URI_MQTT "mqtt://"
 #define URI_WS   "ws://"
 #define URI_WSS  "wss://"
+#define URI_UNIX "unix://"
 
 enum MQTTAsync_threadStates
 {
@@ -89,6 +90,7 @@ typedef struct
 typedef struct MQTTAsync_struct
 {
 	char* serverURI;
+	int unixsock;
 	int ssl;
 	int websocket;
 	Clients* c;

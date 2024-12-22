@@ -65,6 +65,14 @@ option(PAHO_ENABLE_CPACK "Enable CPack" TRUE)
 option(PAHO_HIGH_PERFORMANCE "Disable tracing and heap tracking" FALSE)
 option(PAHO_USE_SELECT "Revert to select system call instead of poll" FALSE)
 
+if(NOT WIN32)
+    option(PAHO_WITH_UNIX_SOCKETS "Flag that defines whether to enable Unix-domain sockets" FALSE)
+
+    if(PAHO_WITH_UNIX_SOCKETS)
+      add_definitions(-DUNIXSOCK=1)
+    endif()
+endif()
+
 if(PAHO_HIGH_PERFORMANCE)
   add_definitions(-DHIGH_PERFORMANCE=1)
 endif()

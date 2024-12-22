@@ -40,18 +40,18 @@ size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, 
 void MQTTProtocol_reconnect(const char* ip_address, Clients* client);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout);
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties);
 #endif
 #else
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout);
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* ip_address, Clients* acClients, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties);
 #endif
 #endif
