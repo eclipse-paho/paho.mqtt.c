@@ -1206,7 +1206,10 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 	int sessionPresent = 0;
 	MQTTResponse resp = MQTTResponse_initializer;
 
+
 	FUNC_ENTRY;
+	m->c->nodelay =options->nodelay;
+
 	resp.reasonCode = SOCKET_ERROR;
 	if (m->ma && !running)
 	{
@@ -1759,7 +1762,7 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 		goto exit;
 	}
 
-	if (strncmp(options->struct_id, "MQTC", 4) != 0 || options->struct_version < 0 || options->struct_version > 8)
+	if (strncmp(options->struct_id, "MQTC", 4) != 0 || options->struct_version < 0 || options->struct_version > 9)
 	{
 		rc.reasonCode = MQTTCLIENT_BAD_STRUCTURE;
 		goto exit;

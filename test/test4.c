@@ -1741,6 +1741,112 @@ exit:
 	return failures;
 }
 
+/*********************************************************************
+
+Test9: Socket option(s)
+
+*********************************************************************/
+
+void test9_onConnect(void* context, MQTTAsync_successData* response)
+{
+	MyLog(LOGA_DEBUG, "In connect onSuccess callback, context %p", context);
+	test_finished = 1;
+}
+
+void test9_onConnectFailure(void* context, MQTTAsync_failureData* response)
+{
+	MyLog(LOGA_DEBUG, "In connect onFailure callback, context %p", context);
+	MyLog(LOGA_INFO, "Connack rc is %d", response ? response->code : -999);
+	test_finished = 1;
+}
+
+void test9_onDisconnect(void* context, MQTTAsync_successData* response)
+{
+	MyLog(LOGA_DEBUG, "In onDisconnect callback %p", context);
+	test_finished = 1;
+}
+
+
+int test9(struct Options options)
+{
+	MQTTAsync c;
+	MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
+	MQTTAsync_willOptions wopts = MQTTAsync_willOptions_initializer;
+	MQTTAsync_disconnectOptions dopts = MQTTAsync_disconnectOptions_initializer;
+	int rc = 0;
+	char* test_topic = "C client test9";
+
+	MyLog(LOGA_INFO, "Starting test 9 - socket options");
+	fprintf(xml, "<testcase classname=\"test4\" name=\"socket options\"");
+	global_start_time = start_clock();
+
+	rc = MQTTAsync_create(&c, options.connection, "async_test",
+			MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
+	assert("good rc from create",  rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+	{
+		MQTTAsync_destroy(&c);
+		goto exit;
+	}
+
+	opts.keepAliveInterval = 20;
+	opts.cleansession = 1;
+	opts.username = "testuser";
+	opts.password = "testpassword";
+	opts.MQTTVersion = options.MQTTVersion;
+
+	opts.will = &wopts;
+	opts.will->message = "will message";
+	opts.will->qos = 1;
+	opts.will->retained = 0;
+	opts.will->topicName = "will topic";
+	opts.will = NULL;
+
+	opts.onSuccess = test9_onConnect;
+	opts.onFailure = test9_onConnectFailure;
+	opts.context = c;
+
+	opts.nodelay = 1;
+
+	test_finished = 0;
+
+	MyLog(LOGA_DEBUG, "Connecting");
+	rc = MQTTAsync_connect(c, &opts);
+	rc = 0;
+	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto exit;
+
+	while (!test_finished)
+		#if defined(_WIN32)
+			Sleep(100);
+		#else
+			usleep(10000L);
+		#endif
+
+	test_finished = 0;
+	dopts.timeout = 0;
+	dopts.onSuccess = test8_onDisconnect;
+	dopts.context = c;
+	rc = MQTTAsync_disconnect(c, &dopts);
+	assert("Good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+	while (!test_finished)
+#if defined(_WIN32)
+		Sleep(100);
+#else
+		usleep(10000L);
+#endif
+
+	MQTTAsync_destroy(&c);
+
+exit:
+	MyLog(LOGA_INFO, "TEST1: test %s. %d tests run, %d failures.",
+			(failures == 0) ? "passed" : "failed", tests, failures);
+	write_test_result();
+	return failures;
+}
+
 
 
 void trace_callback(enum MQTTASYNC_TRACE_LEVELS level, char* message)
@@ -1754,7 +1860,7 @@ void trace_callback(enum MQTTASYNC_TRACE_LEVELS level, char* message)
 int main(int argc, char** argv)
 {
 	int rc = 0;
- 	int (*tests[])() = {NULL, test1, test2, test3, test4, test5, test6, test7, test8}; /* indexed starting from 1 */
+ 	int (*tests[])() = {NULL, test1, test2, test3, test4, test5, test6, test7, test8, test9}; /* indexed starting from 1 */
 	MQTTAsync_nameValue* info;
 	int i;
 

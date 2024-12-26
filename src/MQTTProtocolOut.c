@@ -265,9 +265,9 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		if (timeout < 0)
 			rc = -1;
 		else
-			rc = Socket_new(aClient->net.http_proxy, addr_len, port, &(aClient->net.socket), timeout);
+			rc = Socket_new(aClient->net.http_proxy, addr_len, port, aClient->nodelay, &(aClient->net.socket), timeout);
 #else
-		rc = Socket_new(aClient->net.http_proxy, addr_len, port, &(aClient->net.socket));
+		rc = Socket_new(aClient->net.http_proxy, addr_len, port, aClient->nodelay, &(aClient->net.socket));
 #endif
 	}
 #if defined(OPENSSL)
@@ -277,9 +277,9 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		if (timeout < 0)
 			rc = -1;
 		else
-			rc = Socket_new(aClient->net.https_proxy, addr_len, port, &(aClient->net.socket), timeout);
+			rc = Socket_new(aClient->net.https_proxy, addr_len, port, aClient->nodelay, &(aClient->net.socket), timeout);
 #else
-		rc = Socket_new(aClient->net.https_proxy, addr_len, port, &(aClient->net.socket));
+		rc = Socket_new(aClient->net.https_proxy, addr_len, port, aClient->nodelay, &(aClient->net.socket));
 #endif
 	}
 #endif
@@ -295,9 +295,9 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		if (timeout < 0)
 			rc = -1;
 		else
-			rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket), timeout);
+			rc = Socket_new(ip_address, addr_len, port, aClient->nodelay, &(aClient->net.socket), timeout);
 #else
-		rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket));
+		rc = Socket_new(ip_address, addr_len, port, aClient->nodelay, &(aClient->net.socket));
 #endif
 	}
 	if (rc == EINPROGRESS || rc == EWOULDBLOCK)

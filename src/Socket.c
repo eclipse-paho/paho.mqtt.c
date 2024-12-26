@@ -44,6 +44,13 @@
 
 #include "Heap.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+#define SOL_TCP IPPROTO_TCP
+#elif !defined(SOL_TCP) && defined(IPPROTO_TCP)
+#define SOL_TCP IPPROTO_TCP
+#endif
+
+
 #if defined(USE_SELECT)
 int isReady(int socket, fd_set* read_set, fd_set* write_set);
 int Socket_continueWrites(fd_set* pwset, SOCKET* socket, mutex_type mutex);
@@ -1049,9 +1056,9 @@ exit:
  *  @return completion code 0=good, SOCKET_ERROR=fail
  */
 #if defined(__GNUC__) && defined(__linux__)
-int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock, long timeout)
+int Socket_new(const char* addr, size_t addr_len, int port, int nodelay, SOCKET* sock, long timeout)
 #else
-int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
+int Socket_new(const char* addr, size_t addr_len, int port, int nodelay, SOCKET* sock)
 #endif
 {
 	int type = SOCK_STREAM;
@@ -1181,6 +1188,13 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 						Log(LOG_ERROR, -1, "Could not set SO_SNDBUF for socket %d", *sock);
 				}
 #endif
+			if (nodelay)
+			{
+				int opt = 1;
+				if (setsockopt(*sock, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt)) != 0)
+					Log(LOG_ERROR, -1, "Could not set TCP_NODELAY for socket %d", *sock);
+
+			}
 			Log(TRACE_MIN, -1, "New socket %d for %s, port %d",	*sock, addr, port);
 			if (Socket_addSocket(*sock) == SOCKET_ERROR)
 				rc = Socket_error("addSocket", *sock);

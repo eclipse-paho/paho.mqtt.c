@@ -1168,10 +1168,85 @@ exit:
 	return failures;
 }
 
+/*********************************************************************
+
+Test7: Socket options
+
+*********************************************************************/
+
+int test7(struct Options options)
+{
+	MQTTClient c;
+	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
+	MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
+	int rc = 0;
+	char* test_topic = "C client test7";
+
+	fprintf(xml, "<testcase classname=\"test1\" name=\"socket options\"");
+	global_start_time = start_clock();
+	failures = 0;
+	MyLog(LOGA_INFO, "Starting test 7 - socket options");
+
+	rc = MQTTClient_create(&c, options.connection, "sockopt_test",
+			MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
+	assert("good rc from create",  rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTCLIENT_SUCCESS)
+	{
+		MQTTClient_destroy(&c);
+		goto exit;
+	}
+
+	opts.keepAliveInterval = 20;
+	opts.cleansession = 1;
+	opts.username = "testuser";
+	opts.password = "testpassword";
+	opts.MQTTVersion = options.MQTTVersion;
+	if (options.haconnections != NULL)
+	{
+		opts.serverURIs = options.haconnections;
+		opts.serverURIcount = options.hacount;
+	}
+
+	opts.will = &wopts;
+	opts.will->message = "will message";
+	opts.will->qos = 1;
+	opts.will->retained = 0;
+	opts.will->topicName = "will topic";
+	opts.will = NULL;
+
+	opts.nodelay = 1;
+
+	/* Test with the socket option(s) */
+	MyLog(LOGA_DEBUG, "Connecting");
+	rc = MQTTClient_connect(c, &opts);
+	assert("Good rc from connect", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
+	if (rc != MQTTCLIENT_SUCCESS)
+		goto exit;
+
+	rc = MQTTClient_disconnect(c, 0);
+	assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
+
+	/* Try to reconnect */
+	rc = MQTTClient_connect(c, &opts);
+	assert("Connect successful",  rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
+
+	rc = MQTTClient_disconnect(c, 0);
+	assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
+
+	MQTTClient_destroy(&c);
+
+exit:
+	MyLog(LOGA_INFO, "TEST1: test %s. %d tests run, %d failures.",
+			(failures == 0) ? "passed" : "failed", tests, failures);
+	write_test_result();
+	return failures;
+}
+
+
 int main(int argc, char** argv)
 {
 	int rc = 0;
- 	int (*tests[])() = {NULL, test1, test2, test3, test4, test5, test6, test6a};
+ 	int (*tests[])() = {NULL, test1, test2, test3, test4, test5, test6, test6a, test7};
 	int i;
 
 	xml = fopen("TEST-test1.xml", "w");

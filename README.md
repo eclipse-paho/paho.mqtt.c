@@ -220,7 +220,7 @@ $ ctest -VV
 
 ### Cross compilation
 
-Cross compilation using CMake is performed by using so called "toolchain files" (see: http://www.vtk.org/Wiki/CMake_Cross_Compiling).
+Cross compilation using CMake is performed by using so called "toolchain files" (see: https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html).
 
 The path to the toolchain file can be specified by using CMake's `-DCMAKE_TOOLCHAIN_FILE` option. In case no toolchain file is specified, the build is performed for the native build platform.
 
@@ -331,5 +331,4 @@ As is normal for C programs on Windows, the calling convention is __cdecl.  See 
 https://docs.microsoft.com/en-us/cpp/cpp/cdecl?view=vs-2019
 
 If you call this library from another language, you may need to take this into account.
-
 

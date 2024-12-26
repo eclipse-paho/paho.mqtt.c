@@ -145,9 +145,9 @@ int Socket_putdatas(SOCKET socket, char* buf0, size_t buf0len, PacketBuffers buf
 int Socket_close(SOCKET socket);
 #if defined(__GNUC__) && defined(__linux__)
 /* able to use GNU's getaddrinfo_a to make timeouts possible */
-int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket, long timeout);
+int Socket_new(const char* addr, size_t addr_len, int port, int nodelay, SOCKET* socket, long timeout);
 #else
-int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket);
+int Socket_new(const char* addr, size_t addr_len, int port, int nodelay, SOCKET* socket);
 #endif
 
 int Socket_noPendingWrites(SOCKET socket);
