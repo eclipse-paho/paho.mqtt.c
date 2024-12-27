@@ -58,7 +58,8 @@ IF (NOT PAHO_HIGH_PERFORMANCE)
 ENDIF()
 
 IF (WIN32)
-    SET(LIBS_SYSTEM ws2_32 crypt32 RpcRT4)
+    # use all lowercase names for mingw compatibility
+    SET(LIBS_SYSTEM ws2_32 crypt32 rpcrt4)
 ELSEIF (UNIX)
     IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
         SET(LIBS_SYSTEM c dl pthread rt)

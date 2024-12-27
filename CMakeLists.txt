@@ -55,6 +55,15 @@ SET(PAHO_ENABLE_CPACK TRUE CACHE BOOL "Enable CPack")
 SET(PAHO_HIGH_PERFORMANCE FALSE CACHE BOOL "Disable tracing and heap tracking")
 SET(PAHO_USE_SELECT FALSE CACHE BOOL "Revert to select system call instead of poll")
 
+IF (MINGW)
+  ADD_DEFINITIONS(-D_WINDOWS)
+  # Require at least Windows Vista (0x0600) for poll support
+  ## https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170#remarks
+  IF (NOT PAHO_SELECT_USE_SELECT)
+    ADD_DEFINITIONS(-DWINVER=0x0600 -D_WIN32_WINNT=0x0600)
+  ENDIF()
+ENDIF()
+
 IF (PAHO_HIGH_PERFORMANCE)
   ADD_DEFINITIONS(-DHIGH_PERFORMANCE=1)
 ENDIF()
