@@ -44,6 +44,7 @@
 #if !defined(min)
 #define min(A,B) ( (A) < (B) ? (A):(B))
 #endif
+#define max_payload_size 20
 
 extern MQTTProtocol state;
 extern ClientStates* bstate;
@@ -325,14 +326,17 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 	Publish* publish = (Publish*)pack;
 	Clients* client = NULL;
 	char* clientid = NULL;
+	char payload[max_payload_size * 3 + 1] = { 0 };
 	int rc = TCPSOCKET_COMPLETE;
 	int socketHasPendingWrites = 0;
 
 	FUNC_ENTRY;
 	client = (Clients*)(ListFindItem(bstate->clients, &sock, clientSocketCompare)->content);
 	clientid = client->clientID;
+	for (int i, n = 0; i < min(max_payload_size, publish->payloadlen); ++i)
+		n += sprintf(&payload[n], " %02x", publish->payload[i]);
 	Log(LOG_PROTOCOL, 11, NULL, sock, clientid, publish->msgId, publish->header.bits.qos,
-					publish->header.bits.retain, publish->payloadlen, min(20, publish->payloadlen), publish->payload);
+					publish->header.bits.retain, publish->payloadlen, strlen(payload), payload);
 
 	if (publish->header.bits.qos == 0)
 	{

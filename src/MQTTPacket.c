@@ -43,6 +43,7 @@
 #if !defined(min)
 #define min(A,B) ( (A) < (B) ? (A):(B))
 #endif
+#define max_payload_size 20
 
 /**
  * List of the predefined MQTT v3/v5 packet names.
@@ -857,6 +858,7 @@ int MQTTPacket_send_publish(Publish* pack, int dup, int qos, int retained, netwo
 	Header header;
 	char *topiclen;
 	int rc = SOCKET_ERROR;
+	char payload[max_payload_size * 3 + 1] = { 0 };
 
 	FUNC_ENTRY;
 	topiclen = malloc(2);
@@ -903,12 +905,16 @@ int MQTTPacket_send_publish(Publish* pack, int dup, int qos, int retained, netwo
 		rc = MQTTPacket_sends(net, header, &packetbufs, pack->MQTTVersion);
 		memcpy(pack->mask, packetbufs.mask, sizeof(pack->mask));
 	}
+
+	for (int i, n = 0; i < min(max_payload_size, pack->payloadlen); ++i)
+		n += sprintf(&payload[n], " %02x", pack->payload[i]);
+
 	if (qos == 0)
 		Log(LOG_PROTOCOL, 27, NULL, net->socket, clientID, retained, rc, pack->payloadlen,
-				min(20, pack->payloadlen), pack->payload);
+				strlen(payload), payload);
 	else
 		Log(LOG_PROTOCOL, 10, NULL, net->socket, clientID, pack->msgId, qos, retained, rc, pack->payloadlen,
-				min(20, pack->payloadlen), pack->payload);
+				strlen(payload), payload);
 exit_free:
 	if (rc != TCPSOCKET_INTERRUPTED)
 		free(topiclen);
