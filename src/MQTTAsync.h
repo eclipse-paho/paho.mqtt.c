@@ -444,6 +444,16 @@ typedef void MQTTAsync_connected(void* context, char* cause);
 typedef void MQTTAsync_disconnected(void* context, MQTTProperties* properties,
 		enum MQTTReasonCodes reasonCode);
 
+
+/**
+ * This is a callback function, which will be called when the oldest message is deleted before processing.
+ *
+ * @param context A pointer to the <i>context</i> value originally passed to
+ * MQTTAsync_setMessageDeletedCallback(), which contains any application-specific context.
+ * @param token A request identifier
+ */
+typedef void MQTTAsync_messageDeleted(void* context, MQTTAsync_token token);
+
 /**
  * Sets the MQTTAsync_disconnected() callback function for a client.
  * @param handle A valid client handle from a successful call to
@@ -874,6 +884,29 @@ LIBMQTT_API int MQTTAsync_setMessageArrivedCallback(MQTTAsync handle, void* cont
  */
 LIBMQTT_API int MQTTAsync_setDeliveryCompleteCallback(MQTTAsync handle, void* context,
 													MQTTAsync_deliveryComplete* dc);
+
+
+/**
+ * This function sets the callback function for a message deleted event
+ * for a specific client. If you do not set a messageDeleted callback
+ * function, you will not be notified of any message that is dropped before processing
+ * when the maxBufferedMessages limit is reached.
+ *
+ * <b>Note:</b> This callback is called when <i>deleteOldestMessages</i> flag is set during
+ * client creation
+ * @param handle A valid client handle from a successful call to
+ * MQTTAsync_create() or MQTTAsync_createWithOptions()
+ * @param context A pointer to any application-specific context. The
+ * <i>context</i> pointer is passed to the callback functions to provide
+ * access to the context information in the callback.
+ * @param md A pointer to an MQTTAsync_messageDeleted() callback
+ * function. You can set this to NULL if you do not want notification for the deleted message.
+ * @return ::MQTTASYNC_SUCCESS if the callbacks were correctly set,
+ * ::MQTTASYNC_FAILURE if an error occurred.
+ */
+LIBMQTT_API int MQTTAsync_setMessageDeletedCallback(MQTTAsync handle, void* context,
+                                                    MQTTAsync_messageDeleted* md);
+
 
 /**
  * Sets the MQTTAsync_connected() callback function for a client.

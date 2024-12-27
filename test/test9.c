@@ -2685,12 +2685,132 @@ exit:
 	return failures;
 }
 
+/**************************************************************************
+
+Test11: Invoke callback for oldest buffered messages first on buffer full
+
+****************************************************************************/
+int test11Finished = 0;
+int test11cConnected = 0;
+int test11OnFailureCalled = 0;
+int test11MessagesToSend = 6;
+int test11messagedeleted = 0;
+
+void test11cOnConnect(void* context, MQTTAsync_successData* response)
+{
+    MQTTAsync c = (MQTTAsync)context;
+    int rc;
+
+    MyLog(LOGA_DEBUG, "In connect onSuccess callback for client c, context %p\n", context);
+    test11cConnected = 1;
+
+    /* send more messages than max buffer */
+    for (int i = 0; i < test11MessagesToSend; ++i)
+    {
+        char buf[50];
+
+        MQTTAsync_message pubmsg = MQTTAsync_message_initializer;
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        pubmsg.qos = i % 3;
+        sprintf(buf, "%d message no, QoS %d", i, pubmsg.qos);
+        pubmsg.payload = buf;
+        pubmsg.payloadlen = (int)(strlen(pubmsg.payload) + 1);
+        pubmsg.retained = 0;
+        rc = MQTTAsync_sendMessage(c, test_topic, &pubmsg, &opts);
+        assert("Good rc from sendMessage", rc == MQTTASYNC_SUCCESS, "rc was %d ", rc);
+    }
+}
+
+void test11_messageDeleted(void* context, MQTTAsync_token token)
+{
+    MQTTAsync c = (MQTTAsync)context;
+    MyLog(LOGA_INFO, "Message %d token deleted", token);
+    test11messagedeleted++;
+}
+
+void test11OnFailure(void* context, MQTTAsync_failureData* response)
+{
+    MyLog(LOGA_DEBUG, "In connect onFailure callback, context %p", context);
+
+    test11OnFailureCalled++;
+    test11Finished = 1;
+}
+
+int test11(struct Options options)
+{
+    char* testname = "test11";
+    int subsqos = 2;
+    MQTTAsync c;
+    MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
+    MQTTAsync_willOptions wopts = MQTTAsync_willOptions_initializer;
+    MQTTAsync_createOptions createOptions = MQTTAsync_createOptions_initializer;
+    int rc = 0;
+    int count = 0;
+    char clientidc[70];
+    int i = 0;
+
+    sprintf(willTopic, "paho-test9-11-%s", unique);
+    sprintf(clientidc, "paho-test9-11-c-%s", unique);
+    sprintf(test_topic, "paho-test9-11-test topic %s", unique);
+
+    test11Finished = 0;
+    failures = 0;
+    MyLog(LOGA_INFO, "Starting Offline buffering 11 - delete oldest buffered messages first");
+    fprintf(xml, "<testcase classname=\"test9\" name=\"%s\"", testname);
+    global_start_time = start_clock();
+
+    createOptions.maxBufferedMessages = 3;
+    createOptions.deleteOldestMessages = 1;
+    rc = MQTTAsync_createWithOptions(&c, options.connection, clientidc, MQTTCLIENT_PERSISTENCE_DEFAULT,
+                                     NULL, &createOptions);
+    assert("good rc from create", rc == MQTTASYNC_SUCCESS, "rc was %d \n", rc);
+    if (rc != MQTTASYNC_SUCCESS)
+    {
+        MQTTAsync_destroy(&c);
+        goto exit;
+    }
+
+    rc = MQTTAsync_setMessageDeletedCallback (c, c, test11_messageDeleted);
+    assert("Good rc from setMessageDeletedCallback", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+    opts.onSuccess = test11cOnConnect;
+    opts.onFailure = test11OnFailure;
+    opts.context = c;
+    opts.cleansession = 0;
+
+    MyLog(LOGA_DEBUG, "Connecting client c");
+    rc = MQTTAsync_connect(c, &opts);
+    assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d ", rc);
+    if (rc != MQTTASYNC_SUCCESS)
+    {
+        failures++;
+        goto exit;
+    }
+
+    /* wait for the first 3 messages to be deleted  */
+    count = 0;
+    while (test11messagedeleted < 3 && ++count < 1000)
+        MySleep(100);
+
+    assert("Test number of messages deleted:",test11messagedeleted == 3, "test11messagedeleted was %d", test11messagedeleted);
+    rc = MQTTAsync_disconnect(c, NULL);
+    assert("Good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d ", rc);
+
+exit:
+    MySleep(200);
+    MQTTAsync_destroy(&c);
+    MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+          (failures == 0) ? "passed" : "failed", testname, tests, failures);
+    write_test_result();
+    return failures;
+
+}
 
 int main(int argc, char** argv)
 {
 	int* numtests = &tests;
 	int rc = 0;
-	int (*tests[])() = { NULL, test1, test2, test3, test4, test5, test6, test7, test8, test9, test10};
+	int (*tests[])() = { NULL, test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11};
 	time_t randtime;
 
 	srand((unsigned) time(&randtime));
