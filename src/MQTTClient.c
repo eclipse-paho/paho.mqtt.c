@@ -80,6 +80,7 @@
 #define URI_MQTT "mqtt://"
 #define URI_WS   "ws://"
 #define URI_WSS  "wss://"
+#define URI_UNIX "unix://"
 
 #include "VersionInfo.h"
 #include "WebSocket.h"
@@ -294,6 +295,7 @@ typedef struct
 {
 	char* serverURI;
 	const char* currentServerURI; /* when using HA options, set the currently used serverURI */
+	int unixsock;
 #if defined(OPENSSL)
 	int ssl;
 #endif
@@ -407,6 +409,9 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
          && strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) != 0
 		 && strncmp(URI_WSS, serverURI, strlen(URI_WSS)) != 0
 #endif
+#if defined(UNIXSOCK)
+		 && strncmp(URI_UNIX, serverURI, strlen(URI_UNIX)) != 0
+#endif
 			)
 		{
 			rc = MQTTCLIENT_BAD_PROTOCOL;
@@ -486,6 +491,13 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 		goto exit;
 #endif
 	}
+#if defined(UNIXSOCK)
+	else if (strncmp(URI_UNIX, serverURI, strlen(URI_UNIX)) == 0)
+	{
+		serverURI += strlen(URI_UNIX);
+		m->unixsock = 1;
+	}
+#endif
 	m->serverURI = MQTTStrdup(serverURI);
 	ListAppend(handles, m, sizeof(MQTTClients));
 
@@ -1238,17 +1250,17 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 	Log(TRACE_MIN, -1, "Connecting to serverURI %s with MQTT version %d", serverURI, MQTTVersion);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
-	rc = MQTTProtocol_connect(serverURI, m->c, m->ssl, m->websocket, MQTTVersion, connectProperties, willProperties,
+	rc = MQTTProtocol_connect(serverURI, m->c, m->unixsock, m->ssl, m->websocket, MQTTVersion, connectProperties, willProperties,
 			millisecsTimeout - MQTTTime_elapsed(start));
 #else
-	rc = MQTTProtocol_connect(serverURI, m->c, m->ssl, m->websocket, MQTTVersion, connectProperties, willProperties);
+	rc = MQTTProtocol_connect(serverURI, m->c, m->unixsock, m->ssl, m->websocket, MQTTVersion, connectProperties, willProperties);
 #endif
 #else
 #if defined(__GNUC__) && defined(__linux__)
-	rc = MQTTProtocol_connect(serverURI, m->c, m->websocket, MQTTVersion, connectProperties, willProperties,
+	rc = MQTTProtocol_connect(serverURI, m->c, m->unixsock, m->websocket, MQTTVersion, connectProperties, willProperties,
 			millisecsTimeout - MQTTTime_elapsed(start));
 #else
-	rc = MQTTProtocol_connect(serverURI, m->c, m->websocket, MQTTVersion, connectProperties, willProperties);
+	rc = MQTTProtocol_connect(serverURI, m->c, m->unixsock, m->websocket, MQTTVersion, connectProperties, willProperties);
 #endif
 #endif
 	if (rc == SOCKET_ERROR)
@@ -1899,6 +1911,13 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 				serverURI += strlen(URI_WSS);
 				m->ssl = 1;
 				m->websocket = 1;
+			}
+#endif
+#if defined(UNIXSOCK)
+			else if (strncmp(URI_UNIX, serverURI, strlen(URI_UNIX)) == 0)
+			{
+				serverURI += strlen(URI_UNIX);
+				m->unixsock = 1;
 			}
 #endif
 			rc = MQTTClient_connectURI(handle, options, serverURI, connectProperties, willProperties);

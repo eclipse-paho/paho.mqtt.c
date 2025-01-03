@@ -202,27 +202,33 @@ exit:
 
 /**
  * MQTT outgoing connect processing for a client
- * @param ip_address the TCP address:port to connect to
+ * @param address The address of the server. For TCP this is in the form
+ *  			  'address:port; for a UNIX socket it's the path to the
+ *  			  socket file, etc.
  * @param aClient a structure with all MQTT data needed
- * @param int ssl
- * @param int MQTTVersion the MQTT version to connect with (3 or 4)
- * @param long timeout how long to wait for a new socket to be created
+ * @param unixsock Whether the address if for a UNIX-domain socket
+ * @param ssl Whether we're connecting with SSL/TLS
+ * @param websocket Whether we should use a websocket for the connection
+ * @param MQTTVersion the MQTT version to connect with (3, 4, or 5)
+ * @param connectProperties The connection properties
+ * @param willProperties Properties for the LWT
+ * @param timeout how long to wait for a new socket to be created
  * @return return code
  */
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout)
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties)
 #endif
 #else
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout)
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties)
 #endif
 #endif
@@ -319,21 +325,27 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 #endif
 	}
 #endif
+#if defined(UNIXSOCK)
+	else if (unixsock) {
+		addr_len = strlen(address);
+		rc = Socket_unix_new(address, addr_len, &(aClient->net.socket));
+	}
+#endif
 	else {
 #if defined(OPENSSL)
-		addr_len = MQTTProtocol_addressPort(ip_address, &port, NULL, ssl ?
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, ssl ?
 				(websocket ? WSS_DEFAULT_PORT : SECURE_MQTT_DEFAULT_PORT) :
 				(websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT) );
 #else
-		addr_len = MQTTProtocol_addressPort(ip_address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
 #endif
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
 			rc = -1;
 		else
-			rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket), timeout);
+			rc = Socket_new(address, addr_len, port, &(aClient->net.socket), timeout);
 #else
-		rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket));
+		rc = Socket_new(address, addr_len, port, &(aClient->net.socket));
 #endif
 	}
 	if (rc == EINPROGRESS || rc == EWOULDBLOCK)
@@ -345,14 +357,14 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		{
 			if (aClient->net.https_proxy) {
 				aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-				rc = Proxy_connect( &aClient->net, 1, ip_address);
+				rc = Proxy_connect( &aClient->net, 1, address);
 			}
-			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, ip_address, addr_len) == 1)
+			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, address, addr_len) == 1)
 			{
 				rc = aClient->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, ip_address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, aClient->sslopts->ssl_error_cb, aClient->sslopts->ssl_error_context) :
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, ip_address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
@@ -365,14 +377,14 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		if (aClient->net.http_proxy) {
 #endif
 			aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-			rc = Proxy_connect( &aClient->net, 0, ip_address);
+			rc = Proxy_connect( &aClient->net, 0, address);
 		}
 		if ( websocket )
 		{
 #if defined(OPENSSL)
-			rc = WebSocket_connect(&aClient->net, ssl, ip_address);
+			rc = WebSocket_connect(&aClient->net, ssl, address);
 #else
-			rc = WebSocket_connect(&aClient->net, 0, ip_address);
+			rc = WebSocket_connect(&aClient->net, 0, address);
 #endif
 			if ( rc == TCPSOCKET_INTERRUPTED )
 				aClient->connect_state = WEBSOCKET_IN_PROGRESS; /* Websocket connect called - wait for completion */

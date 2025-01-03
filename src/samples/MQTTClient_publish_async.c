@@ -65,7 +65,10 @@ int main(int argc, char* argv[])
     MQTTClient_deliveryToken token;
     int rc;
 
-    if ((rc = MQTTClient_create(&client, ADDRESS, CLIENTID,
+    const char* uri = (argc > 1) ? argv[1] : ADDRESS;
+    printf("Using server at %s\n", uri);
+
+    if ((rc = MQTTClient_create(&client, uri, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
     {
         printf("Failed to create client, return code %d\n", rc);

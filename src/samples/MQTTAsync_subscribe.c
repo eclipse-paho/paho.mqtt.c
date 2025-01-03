@@ -137,7 +137,10 @@ int main(int argc, char* argv[])
 	int rc;
 	int ch;
 
-	if ((rc = MQTTAsync_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL))
+	const char* uri = (argc > 1) ? argv[1] : ADDRESS;
+	printf("Using server at %s\n", uri);
+
+	if ((rc = MQTTAsync_create(&client, uri, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL))
 			!= MQTTASYNC_SUCCESS)
 	{
 		printf("Failed to create client, return code %d\n", rc);
