@@ -185,8 +185,6 @@ int Proxy_noProxy(const char* dest, char* no_proxy)
 	int rc = 1;
 	char* no_proxy_list = NULL;
 
-	printf("dest: %s\n", dest);
-	printf("no_proxy list: %s\n", no_proxy);
 	if ((no_proxy_list = MQTTStrdup(no_proxy)) == NULL)
 	{
 		rc = PAHO_MEMORY_ERROR;
@@ -201,7 +199,6 @@ int Proxy_noProxy(const char* dest, char* no_proxy)
 		int pos = 1;
 		const char* topic;
 
-		printf("no_proxy to match against: %s\n", host);
 		if (curtok == NULL)
 			break;
 		if (host[0] == '.')
@@ -236,7 +233,7 @@ int Proxy_noProxy(const char* dest, char* no_proxy)
 		{
 			if (pos == hostlen) /* reached the beginning of the no_proxy definition */
 			{
-				if (pos == desthostlen || dest[desthostlen - pos - 1] == '.')
+				if ((pos == desthostlen || dest[desthostlen - pos - 1] == '.') && port_matches)
 					matched = 1;
 				break;
 			}
@@ -251,9 +248,10 @@ int Proxy_noProxy(const char* dest, char* no_proxy)
 		}
 		curtok = strtok_r(NULL, ",", &saveptr);
 	}
+	if (rc == 0)
+		Log(TRACE_PROTOCOL, -1, "Matched destination %s against no_proxy %s. Don't use proxy.", dest, curtok);
 	free(no_proxy_list);
 exit:
-	printf("matched %d\n", !rc);
 	return rc;
 }
 
