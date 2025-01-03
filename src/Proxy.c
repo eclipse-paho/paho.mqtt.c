@@ -21,6 +21,8 @@
 #include <time.h>
 #if defined(_WIN32) || defined(_WIN64)
 	#include <windows.h>
+	/* Windows doesn't have strtok_r, so remap it to strtok_s */
+	#define strtok_r strtok_s
 	#if defined(_MSC_VER) && _MSC_VER < 1900
 		#define snprintf _snprintf
 	#endif
