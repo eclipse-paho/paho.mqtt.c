@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2021 Diehl Metering.
+ * Copyright (c) 2009, 2024 Diehl Metering, Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -20,6 +20,10 @@
 #include "Clients.h"
 
 /* Notify the IP address and port of the endpoint to proxy, and wait connection to endpoint */
-int Proxy_connect(networkHandles *net, int ssl, const char *hostname );
+int Proxy_connect(networkHandles *net, int ssl, const char *hostname);
+
+int Proxy_noProxy(const char* dest, char* no_proxy);
+
+int Proxy_setHTTPProxy(Clients* aClient, char* source, char** dest, char** auth_dest, char* prefix);
 
 #endif /* PROXY_H */

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2021 Diehl Metering.
+ * Copyright (c) 2009, 2024 Diehl Metering, Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -38,6 +38,9 @@
 #include <openssl/rand.h>
 #endif /* defined(OPENSSL) */
 #include "Socket.h"
+#include "Base64.h"
+#include "ctype.h"
+
 
 /**
  * Notify the IP address and port of the endpoint to proxy, and wait connection to endpoint.
@@ -150,5 +153,201 @@ int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
 
 exit:
 	FUNC_EXIT_RC(rc);
+	return rc;
+}
+
+
+/**
+ * Check the dest parameter against the no_proxy blacklist
+ *
+ * no_proxy:
+ *  1. Use lowercase form.
+ *  2. Use comma-separated hostname:port values.
+ *  3. IP addresses are okay, but hostnames are never resolved.
+ *  4. Suffixes are always matched (e.g. example.com will match test.example.com).
+ *  5. If top-level domains need to be matched, leading dots are accepted e.g. .com
+ *
+ * @param dest the destination hostname/ip address
+ * @param no_proxy the no_proxy list, probably from the environment
+ * @return 1 - use the proxy, 0 - don't use the proxy
+ */
+int Proxy_noProxy(const char* dest, char* no_proxy)
+{
+	char* saveptr = NULL;
+	char* curtok = NULL;
+	int port = 0;
+	int destport = 0;
+	int port_matches = 0;
+	size_t hostlen = 0;
+	size_t desthostlen = 0;
+	int rc = 1;
+	char* no_proxy_list = NULL;
+
+	printf("dest: %s\n", dest);
+	printf("no_proxy list: %s\n", no_proxy);
+	if ((no_proxy_list = MQTTStrdup(no_proxy)) == NULL)
+	{
+		rc = PAHO_MEMORY_ERROR;
+		goto exit;
+	}
+
+	curtok = strtok_r(no_proxy_list, ",", &saveptr);
+	while (curtok)
+	{
+		char* host = curtok;
+		int matched = 0;
+		int pos = 1;
+		const char* topic;
+
+		printf("no_proxy to match against: %s\n", host);
+		if (curtok == NULL)
+			break;
+		if (host[0] == '.')
+			host++;
+
+		hostlen = MQTTProtocol_addressPort(host, &port, &topic, -99);
+
+		desthostlen = MQTTProtocol_addressPort(dest, &destport, &topic, -99);
+		if (dest[desthostlen] == '/')
+			desthostlen--;
+
+		/* check if port matches */
+		if (port == -99)
+			port_matches = 1; /* no_proxy port absence matches any */
+		else if (destport != -99)
+		{
+			if (destport == port)
+				port_matches = 1;
+		}
+		if (memcmp(host, "*", 1) == 0) /* * matches anything */
+		{
+			/* match any host or address */
+			if (port_matches == 1)
+			{
+				rc = 0;
+				break;
+			}
+		}
+		/* now see if .host matches the end of the dest string */
+		/* match backwards from the end */
+		while (host[hostlen - pos] == dest[desthostlen - pos])
+		{
+			if (pos == hostlen) /* reached the beginning of the no_proxy definition */
+			{
+				if (pos == desthostlen || dest[desthostlen - pos - 1] == '.')
+					matched = 1;
+				break;
+			}
+			else if (pos == desthostlen) /* reached the beginning of the destination string */
+				break;
+			pos++;
+		}
+		if (matched)
+		{
+			rc = 0;
+			break;
+		}
+		curtok = strtok_r(NULL, ",", &saveptr);
+	}
+	free(no_proxy_list);
+exit:
+	printf("matched %d\n", !rc);
+	return rc;
+}
+
+
+/**
+ * Allow user or password characters to be expressed in the form of %XX, XX being the
+ * hexadecimal value of the character. This will avoid problems when a user code or a password
+ * contains a '@' or another special character ('%' included)
+ * @param p0 output string
+ * @param p1 input string
+ * @param basic_auth_in_len
+ */
+void Proxy_specialChars(char* p0, char* p1, b64_size_t *basic_auth_in_len)
+{
+	while (*p1 != '@')
+	{
+		if (*p1 != '%')
+		{
+			*p0++ = *p1++;
+		}
+		else if (isxdigit(*(p1 + 1)) && isxdigit(*(p1 + 2)))
+		{
+			/* next 2 characters are hexa digits */
+			char hex[3];
+			p1++;
+			hex[0] = *p1++;
+			hex[1] = *p1++;
+			hex[2] = '\0';
+			*p0++ = (char)strtol(hex, 0, 16);
+			/* 3 input char => 1 output char */
+			*basic_auth_in_len -= 2;
+		}
+	}
+	*p0 = 0x0;
+}
+
+
+/**
+ * Set the HTTP proxy for connecting
+ * Examples of proxy settings:
+ *   http://your.proxy.server:8080/
+ *   http://user:pass@my.proxy.server:8080/
+ *
+ * @param aClient pointer to Clients object
+ * @param source the proxy setting from environment or API
+ * @param [out] dest pointer to output proxy info
+ * @param [out] auth_dest pointer to output authentication material
+ * @param prefix expected URI prefix: http:// or https://
+ * @return 0 on success, non-zero otherwise
+ */
+int Proxy_setHTTPProxy(Clients* aClient, char* source, char** dest, char** auth_dest, char* prefix)
+{
+	b64_size_t basic_auth_in_len, basic_auth_out_len;
+	b64_data_t *basic_auth;
+	char *p1;
+	int rc = 0;
+
+	if (*auth_dest)
+	{
+		free(*auth_dest);
+		*auth_dest = NULL;
+	}
+
+	if (source)
+	{
+		if ((p1 = strstr(source, prefix)) != NULL) /* skip http:// prefix, if any */
+			source += strlen(prefix);
+		*dest = source;
+		if ((p1 = strchr(source, '@')) != NULL) /* find user.pass separator */
+			*dest = p1 + 1;
+
+		if (p1)
+		{
+			/* basic auth len is string between http:// and @ */
+			basic_auth_in_len = (b64_size_t)(p1 - source);
+			if (basic_auth_in_len > 0)
+			{
+				basic_auth = (b64_data_t *)malloc(sizeof(char)*(basic_auth_in_len+1));
+				if (!basic_auth)
+				{
+					rc = PAHO_MEMORY_ERROR;
+					goto exit;
+				}
+				Proxy_specialChars((char*)basic_auth, source, &basic_auth_in_len);
+				basic_auth_out_len = Base64_encodeLength(basic_auth, basic_auth_in_len) + 1; /* add 1 for trailing NULL */
+				if ((*auth_dest = (char *)malloc(sizeof(char)*basic_auth_out_len)) == NULL)
+				{
+					free(basic_auth);
+					rc = PAHO_MEMORY_ERROR;
+					goto exit;
+				}
+				Base64_encode(*auth_dest, basic_auth_out_len, basic_auth, basic_auth_in_len);
+				free(basic_auth);
+			}
+		}
+	}
+exit:
 	return rc;
 }
