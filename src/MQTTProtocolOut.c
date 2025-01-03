@@ -104,125 +104,34 @@ size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, 
 
 
 /**
- * Allow user or password characters to be expressed in the form of %XX, XX being the
- * hexadecimal value of the character. This will avoid problems when a user code or a password
- * contains a '@' or another special character ('%' included)
- * @param p0 output string
- * @param p1 input string
- * @param basic_auth_in_len
- */
-void MQTTProtocol_specialChars(char* p0, char* p1, b64_size_t *basic_auth_in_len)
-{
-	while (*p1 != '@')
-	{
-		if (*p1 != '%')
-		{
-			*p0++ = *p1++;
-		}
-		else if (isxdigit(*(p1 + 1)) && isxdigit(*(p1 + 2)))
-		{
-			/* next 2 characters are hexa digits */
-			char hex[3];
-			p1++;
-			hex[0] = *p1++;
-			hex[1] = *p1++;
-			hex[2] = '\0';
-			*p0++ = (char)strtol(hex, 0, 16);
-			/* 3 input char => 1 output char */
-			*basic_auth_in_len -= 2;
-		}
-	}
-	*p0 = 0x0;
-}
-
-
-/**
- * Set the HTTP proxy for connecting
- * Examples of proxy settings:
- *   http://your.proxy.server:8080/
- *   http://user:pass@my.proxy.server:8080/
- *
- * @param aClient pointer to Clients object
- * @param source the proxy setting from environment or API
- * @param [out] dest pointer to output proxy info
- * @param [out] auth_dest pointer to output authentication material
- * @param prefix expected URI prefix: http:// or https://
- * @return 0 on success, non-zero otherwise
- */
-int MQTTProtocol_setHTTPProxy(Clients* aClient, char* source, char** dest, char** auth_dest, char* prefix)
-{
-	b64_size_t basic_auth_in_len, basic_auth_out_len;
-	b64_data_t *basic_auth;
-	char *p1;
-	int rc = 0;
-
-	if (*auth_dest)
-	{
-		free(*auth_dest);
-		*auth_dest = NULL;
-	}
-
-	if (source)
-	{
-		if ((p1 = strstr(source, prefix)) != NULL) /* skip http:// prefix, if any */
-			source += strlen(prefix);
-		*dest = source;
-		if ((p1 = strchr(source, '@')) != NULL) /* find user.pass separator */
-			*dest = p1 + 1;
-
-		if (p1)
-		{
-			/* basic auth len is string between http:// and @ */
-			basic_auth_in_len = (b64_size_t)(p1 - source);
-			if (basic_auth_in_len > 0)
-			{
-				basic_auth = (b64_data_t *)malloc(sizeof(char)*(basic_auth_in_len+1));
-				if (!basic_auth)
-				{
-					rc = PAHO_MEMORY_ERROR;
-					goto exit;
-				}
-				MQTTProtocol_specialChars((char*)basic_auth, source, &basic_auth_in_len);
-				basic_auth_out_len = Base64_encodeLength(basic_auth, basic_auth_in_len) + 1; /* add 1 for trailing NULL */
-				if ((*auth_dest = (char *)malloc(sizeof(char)*basic_auth_out_len)) == NULL)
-				{
-					free(basic_auth);
-					rc = PAHO_MEMORY_ERROR;
-					goto exit;
-				}
-				Base64_encode(*auth_dest, basic_auth_out_len, basic_auth, basic_auth_in_len);
-				free(basic_auth);
-			}
-		}
-	}
-exit:
-	return rc;
-}
-
-
-/**
  * MQTT outgoing connect processing for a client
- * @param ip_address the TCP address:port to connect to
+ * @param address The address of the server. For TCP this is in the form
+ *  			  'address:port; for a UNIX socket it's the path to the
+ *  			  socket file, etc.
  * @param aClient a structure with all MQTT data needed
- * @param int ssl
- * @param int MQTTVersion the MQTT version to connect with (3 or 4)
- * @param long timeout how long to wait for a new socket to be created
+ * @param unixsock Whether the address if for a UNIX-domain socket
+ * @param ssl Whether we're connecting with SSL/TLS
+ * @param websocket Whether we should use a websocket for the connection
+ * @param MQTTVersion the MQTT version to connect with (3, 4, or 5)
+ * @param connectProperties The connection properties
+ * @param willProperties Properties for the LWT
+ * @param timeout how long to wait for a new socket to be created
  * @return return code
  */
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout)
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int ssl, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int ssl, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties)
 #endif
 #else
 #if defined(__GNUC__) && defined(__linux__)
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties, long timeout)
 #else
-int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket, int MQTTVersion,
+int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, int websocket, int MQTTVersion,
 		MQTTProperties* connectProperties, MQTTProperties* willProperties)
 #endif
 #endif
@@ -235,61 +144,93 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 	FUNC_ENTRY;
 	aClient->good = 1;
 
-	if (aClient->httpProxy)
-		p0 = aClient->httpProxy;
-	else
+	if (!unixsock)
 	{
-		/* Don't use the environment HTTP proxy settings by default - for backwards compatibility */
-		char* use_proxy = getenv("PAHO_C_CLIENT_USE_HTTP_PROXY");
-		if (use_proxy)
+		if (aClient->httpProxy)
+			p0 = aClient->httpProxy;
+		else /* if the proxy isn't set in the API, then we can look in the environment */
 		{
-			if (strncmp(use_proxy, "TRUE", strlen("TRUE")) == 0)
-				p0 = getenv("http_proxy");
+			/* Don't use the environment HTTP proxy settings by default - for backwards compatibility */
+			char* use_proxy = getenv("PAHO_C_CLIENT_USE_HTTP_PROXY");
+			if (use_proxy)
+			{
+				if (strncmp(use_proxy, "TRUE", strlen("TRUE")) == 0)
+				{
+					char* http_proxy = getenv("http_proxy");
+					if (http_proxy)
+					{
+						char* no_proxy = getenv("no_proxy");
+						if (no_proxy)
+						{
+							if (Proxy_noProxy(address, no_proxy))
+								p0 = http_proxy;
+						}
+						else
+							p0 = http_proxy; /* no no_proxy set */
+					}
+				}
+			}
 		}
-	}
 
-	if (p0)
-	{
-		if ((rc = MQTTProtocol_setHTTPProxy(aClient, p0, &aClient->net.http_proxy, &aClient->net.http_proxy_auth, "http://")) != 0)
-			goto exit;
-		Log(TRACE_PROTOCOL, -1, "Setting http proxy to %s", aClient->net.http_proxy);
-		if (aClient->net.http_proxy_auth)
-			Log(TRACE_PROTOCOL, -1, "Setting http proxy auth to %s", aClient->net.http_proxy_auth);
+		if (p0)
+		{
+			if ((rc = Proxy_setHTTPProxy(aClient, p0, &aClient->net.http_proxy, &aClient->net.http_proxy_auth, "http://")) != 0)
+				goto exit;
+			Log(TRACE_PROTOCOL, -1, "Setting http proxy to %s", aClient->net.http_proxy);
+			if (aClient->net.http_proxy_auth)
+				Log(TRACE_PROTOCOL, -1, "Setting http proxy auth to %s", aClient->net.http_proxy_auth);
+		}
 	}
 
 #if defined(OPENSSL)
-	if (aClient->httpsProxy)
-		p0 = aClient->httpsProxy;
-	else
+	if (!unixsock)
 	{
-		/* Don't use the environment HTTP proxy settings by default - for backwards compatibility */
-		char* use_proxy = getenv("PAHO_C_CLIENT_USE_HTTP_PROXY");
-		if (use_proxy)
+		if (aClient->httpsProxy)
+			p0 = aClient->httpsProxy;
+		else /* if the proxy isn't set in the API then we can look in the environment */
 		{
-			if (strncmp(use_proxy, "TRUE", strlen("TRUE")) == 0)
-				p0 = getenv("https_proxy");
+			/* Don't use the environment HTTP proxy settings by default - for backwards compatibility */
+			char* use_proxy = getenv("PAHO_C_CLIENT_USE_HTTP_PROXY");
+			if (use_proxy)
+			{
+				if (strncmp(use_proxy, "TRUE", strlen("TRUE")) == 0)
+				{
+					char* https_proxy = getenv("https_proxy");
+					if (https_proxy)
+					{
+						char* no_proxy = getenv("no_proxy");
+						if (no_proxy)
+						{
+							if (Proxy_noProxy(address, no_proxy))
+								p0 = https_proxy;
+						}
+						else
+							p0 = https_proxy; /* no no_proxy set */
+					}
+				}
+			}
 		}
-	}
 
-	if (p0)
-	{
-		char* prefix = NULL;
-
-		if (memcmp(p0, "http://", 7) == 0)
-			prefix = "http://";
-		else if (memcmp(p0, "https://", 8) == 0)
-			prefix = "https://";
-		else
+		if (p0)
 		{
-			rc = -1;
-			goto exit;
-		}
+			char* prefix = NULL;
 
-		if ((rc = MQTTProtocol_setHTTPProxy(aClient, p0, &aClient->net.https_proxy, &aClient->net.https_proxy_auth, prefix)) != 0)
-			goto exit;
-		Log(TRACE_PROTOCOL, -1, "Setting https proxy to %s", aClient->net.https_proxy);
-		if (aClient->net.https_proxy_auth)
-			Log(TRACE_PROTOCOL, -1, "Setting https proxy auth to %s", aClient->net.https_proxy_auth);
+			if (memcmp(p0, "http://", 7) == 0)
+				prefix = "http://";
+			else if (memcmp(p0, "https://", 8) == 0)
+				prefix = "https://";
+			else
+			{
+				rc = -1;
+				goto exit;
+			}
+
+			if ((rc = Proxy_setHTTPProxy(aClient, p0, &aClient->net.https_proxy, &aClient->net.https_proxy_auth, prefix)) != 0)
+				goto exit;
+			Log(TRACE_PROTOCOL, -1, "Setting https proxy to %s", aClient->net.https_proxy);
+			if (aClient->net.https_proxy_auth)
+				Log(TRACE_PROTOCOL, -1, "Setting https proxy auth to %s", aClient->net.https_proxy_auth);
+		}
 	}
 
 	if (!ssl && aClient->net.http_proxy) {
@@ -319,21 +260,27 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 #endif
 	}
 #endif
+#if defined(UNIXSOCK)
+	else if (unixsock) {
+		addr_len = strlen(address);
+		rc = Socket_unix_new(address, addr_len, &(aClient->net.socket));
+	}
+#endif
 	else {
 #if defined(OPENSSL)
-		addr_len = MQTTProtocol_addressPort(ip_address, &port, NULL, ssl ?
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, ssl ?
 				(websocket ? WSS_DEFAULT_PORT : SECURE_MQTT_DEFAULT_PORT) :
 				(websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT) );
 #else
-		addr_len = MQTTProtocol_addressPort(ip_address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
 #endif
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
 			rc = -1;
 		else
-			rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket), timeout);
+			rc = Socket_new(address, addr_len, port, &(aClient->net.socket), timeout);
 #else
-		rc = Socket_new(ip_address, addr_len, port, &(aClient->net.socket));
+		rc = Socket_new(address, addr_len, port, &(aClient->net.socket));
 #endif
 	}
 	if (rc == EINPROGRESS || rc == EWOULDBLOCK)
@@ -345,14 +292,14 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		{
 			if (aClient->net.https_proxy) {
 				aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-				rc = Proxy_connect( &aClient->net, 1, ip_address);
+				rc = Proxy_connect( &aClient->net, 1, address);
 			}
-			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, ip_address, addr_len) == 1)
+			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, address, addr_len) == 1)
 			{
 				rc = aClient->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, ip_address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, aClient->sslopts->ssl_error_cb, aClient->sslopts->ssl_error_context) :
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, ip_address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
@@ -365,14 +312,14 @@ int MQTTProtocol_connect(const char* ip_address, Clients* aClient, int websocket
 		if (aClient->net.http_proxy) {
 #endif
 			aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-			rc = Proxy_connect( &aClient->net, 0, ip_address);
+			rc = Proxy_connect( &aClient->net, 0, address);
 		}
 		if ( websocket )
 		{
 #if defined(OPENSSL)
-			rc = WebSocket_connect(&aClient->net, ssl, ip_address);
+			rc = WebSocket_connect(&aClient->net, ssl, address);
 #else
-			rc = WebSocket_connect(&aClient->net, 0, ip_address);
+			rc = WebSocket_connect(&aClient->net, 0, address);
 #endif
 			if ( rc == TCPSOCKET_INTERRUPTED )
 				aClient->connect_state = WEBSOCKET_IN_PROGRESS; /* Websocket connect called - wait for completion */

@@ -1390,6 +1390,13 @@ static int MQTTAsync_processCommand(void)
 						serverURI += strlen(URI_TCP);
 					else if (strncmp(URI_MQTT, serverURI, strlen(URI_MQTT)) == 0)
 						serverURI += strlen(URI_MQTT);
+#if defined(UNIXSOCK)
+					else if (strncmp(URI_UNIX, serverURI, strlen(URI_UNIX)) == 0)
+					{
+						serverURI += strlen(URI_UNIX);
+						command->client->unixsock = 1;
+					}
+#endif
 					else if (strncmp(URI_WS, serverURI, strlen(URI_WS)) == 0)
 					{
 						serverURI += strlen(URI_WS);
@@ -1429,18 +1436,18 @@ static int MQTTAsync_processCommand(void)
 			Log(TRACE_PROTOCOL, -1, "Connecting to serverURI %s with MQTT version %d", serverURI, command->command.details.conn.MQTTVersion);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
-			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->ssl, command->client->websocket,
+			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->unixsock, command->client->ssl, command->client->websocket,
 					command->command.details.conn.MQTTVersion, command->client->connectProps, command->client->willProps, 100);
 #else
-			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->ssl, command->client->websocket,
+			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->unixsock, command->client->ssl, command->client->websocket,
 					command->command.details.conn.MQTTVersion, command->client->connectProps, command->client->willProps);
 #endif
 #else
 #if defined(__GNUC__) && defined(__linux__)
-			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->websocket,
+			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->unixsock, command->client->websocket,
 					command->command.details.conn.MQTTVersion, command->client->connectProps, command->client->willProps, 100);
 #else
-			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->websocket,
+			rc = MQTTProtocol_connect(serverURI, command->client->c, command->client->unixsock, command->client->websocket,
 					command->command.details.conn.MQTTVersion, command->client->connectProps, command->client->willProps);
 #endif
 #endif

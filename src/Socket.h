@@ -167,6 +167,7 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket, long
 #else
 int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket);
 #endif
+int Socket_unix_new(const char* addr, size_t addr_len, SOCKET* sock);
 
 int Socket_noPendingWrites(SOCKET socket);
 char* Socket_getpeer(SOCKET sock);

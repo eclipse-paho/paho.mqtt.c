@@ -146,7 +146,10 @@ int main(int argc, char* argv[])
 	MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
 	int rc;
 
-	if ((rc = MQTTAsync_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTASYNC_SUCCESS)
+	const char* uri = (argc > 1) ? argv[1] : ADDRESS;
+	printf("Using server at %s\n", uri);
+
+	if ((rc = MQTTAsync_create(&client, uri, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTASYNC_SUCCESS)
 	{
 		printf("Failed to create client object, return code %d\n", rc);
 		exit(EXIT_FAILURE);

@@ -38,8 +38,8 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <direct.h>
-	/* Windows doesn't have strtok_r, so remap it to strtok */
-	#define strtok_r( A, B, C ) strtok( A, B )
+	/* Windows doesn't have strtok_r, so remap it to strtok_s */
+	#define strtok_r strtok_s
 	#define snprintf _snprintf
 	int keysWin32(char *, char ***, int *);
 	int clearWin32(char *);
