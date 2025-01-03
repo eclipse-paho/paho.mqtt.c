@@ -358,7 +358,7 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 	if (publish->header.bits.qos == 1)
 	{
 		Protocol_processPublication(publish, client, 1);
-  
+
 		if (socketHasPendingWrites)
 			rc = MQTTProtocol_queueAck(client, PUBACK, publish->msgId);
 		else
@@ -994,8 +994,13 @@ void MQTTProtocol_freeClient(Clients* client)
 			if (client->sslopts->protos)
 				free((void*)client->sslopts->protos);
 		}
+		if (client->sslopts->struct_version >= 6)
+		{
+			if(client->sslopts->providerName)
+				free((void*)client->sslopts->providerName);
+		}
 		free(client->sslopts);
-			client->sslopts = NULL;
+		client->sslopts = NULL;
 	}
 #endif
 	/* don't free the client structure itself... this is done elsewhere */
