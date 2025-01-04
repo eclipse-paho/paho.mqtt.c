@@ -142,6 +142,22 @@ int Socket_error(char* aString, SOCKET sock)
 	return err;
 }
 
+#if !defined(_WIN32) && !defined(_WIN64)
+void SIGPIPE_ignore()
+{
+#if defined(PAHO_IGNORE_WITH_SIGNAL)
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		Log(LOG_ERROR, -1, "Failed to ignore SIG_PIPE, errno %d", errno);
+#else
+	struct sigaction action;
+	if (sigaction(SIGPIPE, NULL, &action) != 0) /* get current action */
+		Log(LOG_ERROR, -1, "sigaction failed to get SIG_PIPE action8, errno %d", errno);
+	action.sa_handler = SIG_IGN;
+	if (sigaction(SIGPIPE, &action, NULL) != 0)
+		Log(LOG_ERROR, -1, "sigaction failed to ignore SIG_PIPE, errno %d", errno);
+#endif
+}
+#endif
 
 /**
  * Initialize the socket module
@@ -156,7 +172,7 @@ void Socket_outInitialize(void)
 	WSAStartup(winsockVer, &wsd);
 #else
 	FUNC_ENTRY;
-	signal(SIGPIPE, SIG_IGN);
+	SIGPIPE_ignore();
 #endif
 
 	SocketBuffer_initialize();
