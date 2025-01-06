@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -29,7 +29,7 @@
  * @cond MQTTAsync_main
  * @mainpage Asynchronous MQTT client library for C (MQTTAsync)
  *
- * &copy; Copyright 2009, 2022 IBM Corp., Ian Craggs and others
+ * &copy; Copyright 2009, 2025 IBM Corp., Ian Craggs and others
  *
  * @brief An Asynchronous MQTT client library for C.
  *
@@ -2437,8 +2437,13 @@ exit:
   * of the ::MQTTAsync_connectOptions structure override any settings in the environment.
   *
   * If the environment variable PAHO_C_CLIENT_USE_HTTP_PROXY is set to TRUE, then the
-  * http_proxy or https_proxy environment variables are used, for plain TCP and TLS-secured
-  * connections respectively.
+  * http_proxy or https_proxy (lower case only) environment variables are used, for plain
+  * TCP and TLS-secured connections respectively.
+  *
+  * The no_proxy environment variable can be used to exclude certain hosts from using an
+  * environment variable chosen proxy. This does not apply to a proxy selected through the API.
+  * The no_proxy environment variable is lower case only, and is a list of comma-separated
+  * hostname:port values. Suffixes are matched (e.g. example.com will match test.example.com).
   *
   */
 
