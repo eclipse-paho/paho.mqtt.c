@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -2445,6 +2445,10 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 					rc = MQTTProtocol_handleDisconnects(pack, m->c->net.socket);
 					m->c->connected = 0; /* don't send disconnect packet back */
 					nextOrClose(m, discrc, "Received disconnect");
+				}
+				else
+				{
+					Log(LOG_ERROR, -1, "An unexpected packet type %u has been received", pack->header.bits.type);
 				}
 			}
 		}
