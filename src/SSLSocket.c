@@ -47,6 +47,7 @@
 extern Sockets mod_s;
 
 static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*cb)(const char *str, size_t len, void *u), void* u);
+static int SSLSocket_certificate_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx);
 char* SSL_get_verify_result_string(int rc);
 void SSL_CTX_info_callback(const SSL* ssl, int where, int ret);
 char* SSLSocket_get_version_string(int version);
@@ -78,6 +79,8 @@ static ssl_mutex_type sslCoreMutex;
 
 /* Used to store MQTTClient_SSLOptions for TLS-PSK callback */
 static int tls_ex_index_ssl_opts;
+/* Used to store MQTTClient_SSLOptions for TLS Certificate verify callback */
+static int tls_ex_index_ssl_opts_for_verify_cb;
 
 #if defined(_WIN32) || defined(_WIN64)
 #define iov_len len
@@ -120,6 +123,92 @@ static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*c
     }
     FUNC_EXIT_RC(error);
     return error;
+}
+
+static int SSLSocket_certificate_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
+{
+    int error = X509_STORE_CTX_get_error(x509_ctx);
+    FUNC_ENTRY;
+
+    int iVerifyOK = 0;
+
+    /* depth==0 server certificate */
+    int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
+	Log(TRACE_MIN, -1, "preverify_ok=%d depth=%d", preverify_ok, depth);
+    if (depth == 0)
+    {
+        /* 1. Extracting the public key from a certificate. */
+        X509* cert = X509_STORE_CTX_get_current_cert(x509_ctx);
+        if (cert == NULL)
+            goto exit;
+
+        EVP_PKEY* pubkey_from_cert = X509_get_pubkey(cert);
+        if (pubkey_from_cert == NULL)
+        {
+            Log(TRACE_MIN, -1, "Error extracting public key from certificate");
+            goto exit;
+        }
+
+        /* 2. The public key from the configuration. */
+        SSL* ssl = X509_STORE_CTX_get_ex_data(x509_ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+        if (ssl == NULL)
+        {
+            Log(TRACE_MIN, -1, "Error SSL get_ex_data");
+            goto exit;
+        }
+        SSL_CTX* ssl_ctx = SSL_get_SSL_CTX(ssl);
+        if (ssl_ctx == NULL)
+        {
+            Log(TRACE_MIN, -1, "Error SSL_CTX get_ex_data");
+            goto exit;
+        }
+
+        MQTTClient_SSLOptions* opts = SSL_CTX_get_ex_data(ssl_ctx, tls_ex_index_ssl_opts_for_verify_cb);
+        if (opts == NULL)
+        {
+            Log(TRACE_MIN, -1, "Error opts get_ex_data");
+            goto exit;
+        }
+
+        if (opts->publicKey == NULL || strlen(opts->publicKey) <= 0 )
+        {
+            Log(TRACE_MIN, -1, "Error opts pubKey invalid");
+            goto exit;
+        }
+
+        FILE* pubkey_file = fopen(opts->publicKey, "r");
+        if (pubkey_file == NULL)
+        {
+            Log(TRACE_MIN, -1,"Error opening public key file");
+            goto exit;
+        }
+
+        EVP_PKEY* pubkey_from_file = PEM_read_PUBKEY(pubkey_file, NULL, NULL, NULL);
+        fclose(pubkey_file);
+        if (pubkey_from_file == NULL)
+        {
+            Log(TRACE_MIN, -1, "Error reading public key file");
+            goto exit;
+        }
+
+        // 3. compare
+#if (OPENSSL_VERSION_NUMBER >= 0x030000000) /* 3.0.0 and later */
+        if (EVP_PKEY_eq(pubkey_from_file, pubkey_from_cert) == 1)
+#else
+        if (EVP_PKEY_cmp(pubkey_from_file, pubkey_from_cert) == 1)
+#endif
+            iVerifyOK = 1;
+
+        // 4. cleanup
+        EVP_PKEY_free(pubkey_from_cert);
+        EVP_PKEY_free(pubkey_from_file);
+    }
+    else
+        iVerifyOK = preverify_ok;
+
+exit:
+    FUNC_EXIT_RC(error);
+    return iVerifyOK;
 }
 
 static struct
@@ -490,6 +579,7 @@ int SSLSocket_initialize(void)
 	SSL_create_mutex(&sslCoreMutex);
 
 	tls_ex_index_ssl_opts = SSL_get_ex_new_index(0, "paho ssl options", NULL, NULL, NULL);
+	tls_ex_index_ssl_opts_for_verify_cb = SSL_get_ex_new_index(0, "paho ssl options", NULL, NULL, NULL);
 
 exit:
 	FUNC_EXIT_RC(rc);
@@ -675,6 +765,8 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 		SSL_CTX_set_psk_client_callback(net->ctx, call_ssl_psk_cb);
 	}
 #endif
+	if (opts->publicKey !=NULL )
+		SSL_CTX_set_ex_data(net->ctx, tls_ex_index_ssl_opts_for_verify_cb, opts);
 
 #if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
 	if (opts->protos != NULL && opts->protos_len > 0)
@@ -722,7 +814,7 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 		SSL_CTX_set_info_callback(net->ctx, SSL_CTX_info_callback);
 		SSL_CTX_set_msg_callback(net->ctx, SSL_CTX_msg_callback);
    		if (opts->enableServerCertAuth)
-			SSL_CTX_set_verify(net->ctx, SSL_VERIFY_PEER, NULL);
+			SSL_CTX_set_verify(net->ctx, SSL_VERIFY_PEER, opts->publicKey != NULL ? SSLSocket_certificate_verify_cb : NULL);
 
 		net->ssl = SSL_new(net->ctx);
 
