@@ -325,6 +325,21 @@ The user-defined argument optionally defined by SSL_CTX_set_msg_callback_arg() o
 		content_type, (int)len);
 }
 
+void SSL_CTX_keylog_callback(const SSL *ssl, const char *line)
+{
+	const char* sslkeylogfile = getenv("SSLKEYLOGFILE");
+	if (sslkeylogfile)
+	{
+		FILE *fptr;
+
+		fptr = fopen(sslkeylogfile, "at");
+		if (fptr)
+		{
+			fprintf(fptr, "%s\n", line);
+			fclose(fptr);
+		}
+	}
+}
 
 int pem_passwd_cb(char* buf, int size, int rwflag, void* userdata)
 {
@@ -719,6 +734,9 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 		char *hostname_plus_null;
 		int i;
 
+		#if (OPENSSL_VERSION_NUMBER >= 0x010101000) /* 1.1.1 and later */
+			SSL_CTX_set_keylog_callback(net->ctx, SSL_CTX_keylog_callback);
+		#endif
 		SSL_CTX_set_info_callback(net->ctx, SSL_CTX_info_callback);
 		SSL_CTX_set_msg_callback(net->ctx, SSL_CTX_msg_callback);
    		if (opts->enableServerCertAuth)
