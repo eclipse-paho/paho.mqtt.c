@@ -38,7 +38,7 @@
 #include <OsWrapper.h>
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define snprintf _snprintf
 #endif
 

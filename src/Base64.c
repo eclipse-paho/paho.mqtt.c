@@ -16,7 +16,7 @@
 
 #include "Base64.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #pragma comment(lib, "crypt32.lib")
 #include <windows.h>
 #include <wincrypt.h>
@@ -37,7 +37,7 @@ b64_size_t Base64_encode( char *out, b64_size_t out_len, const b64_data_t *in, b
 		ret = (b64_size_t)dw_out_len;
 	return ret;
 }
-#else /* if defined(_WIN32) || defined(_WIN64) */
+#else /* if defined(_WIN32) */
 
 #if defined(OPENSSL)
 #include <openssl/bio.h>
@@ -234,7 +234,7 @@ b64_size_t Base64_encode( char *out, b64_size_t out_len, const b64_data_t *in, b
 	return ret;
 }
 #endif /* else if defined(OPENSSL) */
-#endif /* if else defined(_WIN32) || defined(_WIN64) */
+#endif /* if else defined(_WIN32) */
 
 b64_size_t Base64_decodeLength( const char *in, b64_size_t in_len )
 {

@@ -323,7 +323,7 @@ int test_sem(struct Options options)
 	return failures;
 }
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 thread_return_type cond_secondary(void* n)
 {
 	int rc = 0;
@@ -494,7 +494,7 @@ int main(int argc, char** argv)
  	int (*tests[])(struct Options) = {NULL,
  		test_mutex,
  		test_sem,
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 		test_cond
 #endif
  	}; /* indexed starting from 1 */

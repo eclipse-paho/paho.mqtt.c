@@ -182,7 +182,7 @@ void MQTTAsync_NULLPublishResponses(MQTTAsyncs* m);
 void MQTTAsync_NULLPublishCommands(MQTTAsyncs* m);
 struct Socket_interface_choice MQTTAsync_selectSocketInterface(SOCKET socket, int count, struct Socket_interface* interfaces);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #else
 #define WINAPI
 #endif

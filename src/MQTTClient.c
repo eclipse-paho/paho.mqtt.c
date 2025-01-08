@@ -46,7 +46,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	#include <sys/time.h>
 #else
 	#if defined(_MSC_VER) && _MSC_VER < 1900
@@ -114,7 +114,7 @@ ClientStates* bstate = &ClientState;
 
 MQTTProtocol state;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 static mutex_type mqttclient_mutex = NULL;
 mutex_type socket_mutex = NULL;
 static mutex_type subscribe_mutex = NULL;
@@ -373,7 +373,7 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 	int rc = 0;
 	MQTTClients *m = NULL;
 
-#if (defined(_WIN32) || defined(_WIN64)) && defined(PAHO_MQTT_STATIC)
+#if (defined(_WIN32)) && defined(PAHO_MQTT_STATIC)
 	/* intializes mutexes once.  Must come before FUNC_ENTRY */
 	BOOL bStatus = InitOnceExecuteOnce(&g_InitOnce, InitOnceFunction, NULL, NULL);
 #endif
@@ -1029,7 +1029,7 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 	running = tostop = 0;
 	Paho_thread_unlock_mutex(mqttclient_mutex);
 	FUNC_EXIT;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	ExitThread(0);
 #endif
 	return 0;

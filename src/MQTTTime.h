@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #include <windows.h>
 #if WINVER >= _WIN32_WINNT_VISTA
 #define START_TIME_TYPE ULONGLONG
