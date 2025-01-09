@@ -38,7 +38,7 @@
 #define FUNC_EXIT_MED_RC(x)
 #define FUNC_EXIT_MAX_RC(x)
 #else
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define inline __inline
 #define FUNC_ENTRY StackTrace_entry(__FUNCTION__, __LINE__, TRACE_MINIMUM)
 #define FUNC_ENTRY_NOLOG StackTrace_entry(__FUNCTION__, __LINE__, -1)

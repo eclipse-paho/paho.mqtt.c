@@ -17,7 +17,7 @@
 #include "SHA1.h"
 
 #if !defined(OPENSSL)
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #pragma comment(lib, "crypt32.lib")
 
 int SHA1_Init(SHA_CTX *c)
@@ -52,7 +52,7 @@ int SHA1_Final(unsigned char *md, SHA_CTX *c)
 	return rv;
 }
 
-#else /* if defined(_WIN32) || defined(_WIN64) */
+#else /* if defined(_WIN32) */
 #if defined(__linux__) || defined(__CYGWIN__)
 #  include <endian.h>
 #elif defined(__APPLE__)
@@ -195,7 +195,7 @@ int SHA1_Update(SHA_CTX *ctx, const void *data, size_t len)
 	return 1;
 }
 
-#endif /* else if defined(_WIN32) || defined(_WIN64) */
+#endif /* else if defined(_WIN32) */
 #endif /* elif !defined(OPENSSL) */
 
 #if defined(SHA1_TEST)

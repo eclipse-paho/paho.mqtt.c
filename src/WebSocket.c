@@ -47,7 +47,7 @@
 #  define be64toh(x) OSSwapBigToHostInt64(x)
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 #  include <sys/endian.h>
-#elif defined(_WIN32) || defined(_WIN64)
+#elif defined(_WIN32)
 #  pragma comment(lib, "rpcrt4.lib")
 #  include <rpc.h>
 #  if !(defined(__MINGW32__))
@@ -92,7 +92,7 @@
 
 #define HTTP_PROTOCOL(x) x ? "https" : "http"
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !(defined(_WIN32))
 #if defined(USE_LIBUUID)
 #include <uuid/uuid.h>
 #else /* if defined(USE_LIBUUID) */
@@ -142,7 +142,7 @@ static void uuid_unparse( uuid_t uu, char *out )
 }
 #endif
 #endif /* else if defined(USE_LIBUUID) */
-#endif /* if !(defined(_WIN32) || defined(_WIN64)) */
+#endif /* if !(defined(_WIN32)) */
 
 #include "Heap.h"
 
@@ -394,11 +394,11 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 	size_t hostname_len;
 	int port = 80;
 	const char *topic = NULL;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	UUID uuid;
-#else /* if defined(_WIN32) || defined(_WIN64) */
+#else /* if defined(_WIN32) */
 	uuid_t uuid;
-#endif /* else if defined(_WIN32) || defined(_WIN64) */
+#endif /* else if defined(_WIN32) */
 
 	FUNC_ENTRY;
 	/* Generate UUID */
@@ -422,14 +422,14 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 		rc = PAHO_MEMORY_ERROR;
 		goto exit;
 	}
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	ZeroMemory( &uuid, sizeof(UUID) );
 	UuidCreate( &uuid );
 	Base64_encode( net->websocket_key, 25u, (const b64_data_t*)&uuid, sizeof(UUID) );
-#else /* if defined(_WIN32) || defined(_WIN64) */
+#else /* if defined(_WIN32) */
 	uuid_generate( uuid );
 	Base64_encode( net->websocket_key, 25u, uuid, sizeof(uuid_t) );
-#endif /* else if defined(_WIN32) || defined(_WIN64) */
+#endif /* else if defined(_WIN32) */
 
 	hostname_len = MQTTProtocol_addressPort(uri, &port, &topic, ssl ? WSS_DEFAULT_PORT : WS_DEFAULT_PORT);
 

@@ -334,7 +334,7 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 
 	/* Format and print publish data to trace */
 	{
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 		#define buflen 30
 #else
 		const int buflen = 30;

@@ -177,7 +177,7 @@ void MQTTAsync_writeComplete(SOCKET socket, int rc);
 void setRetryLoopInterval(int keepalive);
 void MQTTAsync_NULLPublishResponses(MQTTAsyncs* m);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #else
 #define WINAPI
 #endif

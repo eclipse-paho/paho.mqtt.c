@@ -38,7 +38,7 @@
 #undef realloc
 #undef free
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -58,7 +58,7 @@
  */
 void Paho_thread_start(thread_fn fn, void* parameter)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	thread_type thread = NULL;
 #else
 	thread_type thread = 0;
@@ -66,7 +66,7 @@ void Paho_thread_start(thread_fn fn, void* parameter)
 #endif
 
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	thread = CreateThread(NULL, 0, fn, parameter, 0, NULL);
     CloseHandle(thread);
 #else
@@ -83,13 +83,13 @@ void Paho_thread_start(thread_fn fn, void* parameter)
 int Thread_set_name(const char* thread_name)
 {
 	int rc = 0;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define MAX_THREAD_NAME_LENGTH 30
 	wchar_t wchars[MAX_THREAD_NAME_LENGTH];
 #endif
 	FUNC_ENTRY;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 /* Using NTDDI_VERSION rather than WINVER for more detailed version targeting */
 /* Can't get this conditional compilation to work so remove it for now */
 /*#if NTDDI_VERSION >= NTDDI_WIN10_RS1
@@ -124,7 +124,7 @@ mutex_type Paho_thread_create_mutex(int* rc)
 
 	FUNC_ENTRY;
 	*rc = -1;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		mutex = CreateMutex(NULL, 0, NULL);
 		*rc = (mutex == NULL) ? GetLastError() : 0;
 	#else
@@ -146,7 +146,7 @@ int Paho_thread_lock_mutex(mutex_type mutex)
 	int rc = -1;
 
 	/* don't add entry/exit trace points as the stack log uses mutexes - recursion beckons */
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		/* WaitForSingleObject returns WAIT_OBJECT_0 (0), on success */
 		rc = WaitForSingleObject(mutex, INFINITE);
 	#else
@@ -167,7 +167,7 @@ int Paho_thread_unlock_mutex(mutex_type mutex)
 	int rc = -1;
 
 	/* don't add entry/exit trace points as the stack log uses mutexes - recursion beckons */
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		/* if ReleaseMutex fails, the return value is 0 */
 		if (ReleaseMutex(mutex) == 0)
 			rc = GetLastError();
@@ -190,7 +190,7 @@ int Paho_thread_destroy_mutex(mutex_type mutex)
 	int rc = 0;
 
 	FUNC_ENTRY;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		rc = CloseHandle(mutex);
 	#else
 		rc = pthread_mutex_destroy(mutex);
@@ -207,7 +207,7 @@ int Paho_thread_destroy_mutex(mutex_type mutex)
  */
 thread_id_type Paho_thread_getid(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		return GetCurrentThreadId();
 	#else
 		return pthread_self();
@@ -226,7 +226,7 @@ sem_type Thread_create_sem(int *rc)
 
 	FUNC_ENTRY;
 	*rc = -1;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		sem = CreateEvent(
 		        NULL,               /* default security attributes */
 		        FALSE,              /* manual-reset event? */
@@ -259,7 +259,7 @@ int Thread_wait_sem(sem_type sem, int timeout)
  * so I've used trywait in a loop instead. Ian Craggs 23/7/2010
  */
 	int rc = -1;
-#if !defined(_WIN32) && !defined(_WIN64) && !defined(OSX)
+#if !defined(_WIN32) && !defined(OSX)
 #define USE_TRYWAIT
 #if defined(USE_TRYWAIT)
 	int i = 0;
@@ -271,7 +271,7 @@ int Thread_wait_sem(sem_type sem, int timeout)
 #endif
 
 	FUNC_ENTRY;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
 		rc = WaitForSingleObject(sem, timeout < 0 ? 0 : timeout);
 		if (rc == WAIT_TIMEOUT)
@@ -317,7 +317,7 @@ int Thread_wait_sem(sem_type sem, int timeout)
  */
 int Thread_check_sem(sem_type sem)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	/* if the return value is not 0, the semaphore will not have been decremented */
 	return WaitForSingleObject(sem, 0) == WAIT_OBJECT_0;
 #elif defined(OSX)
@@ -341,7 +341,7 @@ int Thread_post_sem(sem_type sem)
 	int rc = 0;
 
 	FUNC_ENTRY;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		if (SetEvent(sem) == 0)
 			rc = GetLastError();
 	#elif defined(OSX)
@@ -369,7 +369,7 @@ int Thread_destroy_sem(sem_type sem)
 	int rc = 0;
 
 	FUNC_ENTRY;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 		rc = CloseHandle(sem);
 	#elif defined(OSX)
 	  dispatch_release(sem);
@@ -382,7 +382,7 @@ int Thread_destroy_sem(sem_type sem)
 }
 
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 
 /**
  * Create a new condition variable

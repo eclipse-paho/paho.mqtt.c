@@ -24,7 +24,7 @@
 #include <openssl/ssl.h>
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	typedef WSABUF iobuf;
 #else
 	typedef struct iovec iobuf;

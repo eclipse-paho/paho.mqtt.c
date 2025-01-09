@@ -25,7 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define snprintf _snprintf
 #endif
 
@@ -66,7 +66,7 @@ static int thread_count = 0;
 static threadEntry threads[MAX_THREADS];
 static threadEntry *my_thread = NULL;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 mutex_type stack_mutex;
 #else
 static pthread_mutex_t stack_mutex_store = PTHREAD_MUTEX_INITIALIZER;

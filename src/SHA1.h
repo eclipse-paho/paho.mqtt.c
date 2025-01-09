@@ -25,7 +25,7 @@
 
 #else /* if defined(OPENSSL) */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #include <windows.h>
 #include <wincrypt.h>
 typedef struct SHA_CTX_S
@@ -33,7 +33,7 @@ typedef struct SHA_CTX_S
 	HCRYPTPROV hProv;
 	HCRYPTHASH hHash;
 } SHA_CTX;
-#else /* if defined(_WIN32) || defined(_WIN64) */
+#else /* if defined(_WIN32) */
 
 #include <stdint.h>
 typedef struct SHA_CTX_S {
@@ -45,7 +45,7 @@ typedef struct SHA_CTX_S {
 	unsigned int size;
 	unsigned int total;
 } SHA_CTX;
-#endif /* else if defined(_WIN32) || defined(_WIN64) */
+#endif /* else if defined(_WIN32) */
 
 #include <stddef.h>
 

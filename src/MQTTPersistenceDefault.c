@@ -36,7 +36,7 @@
 #include <string.h>
 #include <errno.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#include <direct.h>
 	/* Windows doesn't have strtok_r, so remap it to strtok_s */
 	#define strtok_r strtok_s
@@ -167,7 +167,7 @@ int pstmkdir( char *pPathname )
 	int rc = 0;
 
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	if ( _mkdir( pPathname ) != 0 )
 	{
 #else
@@ -346,7 +346,7 @@ int pstremove(void* handle, char* key)
 		rc = MQTTCLIENT_PERSISTENCE_ERROR;
 	else
 	{
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 		if ( _unlink(file) != 0 )
 		{
 #else
@@ -380,7 +380,7 @@ int pstclose(void* handle)
 		goto exit;
 	}
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	if ( _rmdir(clientDir) != 0 )
 	{
 #else
@@ -414,7 +414,7 @@ int pstcontainskey(void *handle, char *key)
 		goto exit;
 	}
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	rc = containskeyWin32(clientDir, key);
 #else
 	rc = containskeyUnix(clientDir, key);
@@ -426,13 +426,13 @@ exit:
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 int containskeyWin32(char *dirname, char *key)
 {
 	int notFound = MQTTCLIENT_PERSISTENCE_ERROR;
 	int fFinished = 0;
 	char *filekey, *ptraux;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define DIRSIZE MAX_PATH+1
 #else
 	const size_t DIRSIZE = MAX_PATH+1;
@@ -552,7 +552,7 @@ int pstclear(void *handle)
 		goto exit;
 	}
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	rc = clearWin32(clientDir);
 #else
 	rc = clearUnix(clientDir);
@@ -564,7 +564,7 @@ exit:
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 int clearWin32(char *dirname)
 {
 	int rc = 0;
@@ -668,7 +668,7 @@ int pstkeys(void *handle, char ***keys, int *nkeys)
 		goto exit;
 	}
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	rc = keysWin32(clientDir, keys, nkeys);
 #else
 	rc = keysUnix(clientDir, keys, nkeys);
@@ -680,7 +680,7 @@ exit:
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 int keysWin32(char *dirname, char ***keys, int *nkeys)
 {
 	int rc = 0;

@@ -49,7 +49,7 @@ char* Broker_recordFFDC(char* symptoms);
 #undef realloc
 #undef free
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 mutex_type heap_mutex;
 #else
 static pthread_mutex_t heap_mutex_store = PTHREAD_MUTEX_INITIALIZER;

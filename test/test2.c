@@ -279,7 +279,7 @@ void myassert(char* filename, int lineno, char* description, int value, char* fo
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 mutex_type deliveryCompleted_mutex = NULL;
 #else
 pthread_mutex_t deliveryCompleted_mutex_store = PTHREAD_MUTEX_INITIALIZER;
@@ -679,7 +679,7 @@ int main(int argc, char** argv)
  	int (*tests[])(struct Options) = {NULL, test1};
 	int i;
 
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(_WIN32)
 	deliveryCompleted_mutex = CreateMutex(NULL, 0, NULL);
 	#endif
 

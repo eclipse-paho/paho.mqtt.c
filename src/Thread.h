@@ -20,7 +20,7 @@
 #if !defined(THREAD_H)
 #define THREAD_H
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 #if defined(__GNUC__) && defined(__linux__)
 #if !defined(_GNU_SOURCE)
 // for pthread_setname
@@ -35,7 +35,7 @@
 
 #include "mutex_type.h" /* Needed for mutex_type */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#include <windows.h>
 	#define thread_type HANDLE
 	#define thread_id_type DWORD

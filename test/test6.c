@@ -212,7 +212,7 @@ void MyLog(int LOGA_level, char* format, ...)
 
 void MySleep(long milliseconds)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	Sleep(milliseconds);
 #else
 	usleep(milliseconds*1000);
