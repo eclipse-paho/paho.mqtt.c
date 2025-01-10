@@ -116,6 +116,33 @@ int Thread_set_name(const char* thread_name)
 	return rc;
 }
 
+struct timespec Thread_time_from_now(int ms)
+{
+	struct timespec from_now;
+	struct timespec interval;
+	interval.tv_sec = ms / 1000;
+	interval.tv_nsec = (ms % 1000) * 1000000L;
+
+#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
+	struct timeval cur_time;
+	gettimeofday(&cur_time, NULL);
+	from_now.tv_sec = cur_time.tv_sec;
+	from_now.tv_nsec = cur_time.tv_usec * 1000;
+#else
+	clock_gettime(CLOCK_REALTIME, &from_now);
+#endif
+
+	from_now.tv_sec += interval.tv_sec;
+	from_now.tv_nsec += interval.tv_sec;
+
+	if (from_now.tv_nsec >= 1000000000L)
+	{
+		from_now.tv_sec++;
+		from_now.tv_nsec -= 1000000000L;
+	}
+
+	return from_now;
+}
 
 /**
  * Create a new mutex
@@ -218,183 +245,13 @@ thread_id_type Paho_thread_getid(void)
 	#endif
 }
 
-
 /**
- * Create a new semaphore
- * @param rc return code: 0 for success, negative otherwise
- * @return the new condition variable
+ * Create a new event
+ * @return the event struct
  */
-sem_type Thread_create_sem(int *rc)
+evt_type Thread_create_evt(int *rc)
 {
-	sem_type sem = NULL;
-
-	FUNC_ENTRY;
-	*rc = -1;
-	#if defined(_WIN32)
-		sem = CreateEvent(
-		        NULL,               /* default security attributes */
-		        FALSE,              /* manual-reset event? */
-		        FALSE,              /* initial state is nonsignaled */
-		        NULL                /* object name */
-		        );
-		*rc = (sem == NULL) ? GetLastError() : 0;
-	#elif defined(OSX)
-		sem = dispatch_semaphore_create(0L);
-		*rc = (sem == NULL) ? -1 : 0;
-	#else
-		sem = malloc(sizeof(sem_t));
-		if (sem)
-			*rc = sem_init(sem, 0, 0);
-	#endif
-	FUNC_EXIT_RC(*rc);
-	return sem;
-}
-
-
-/**
- * Wait for a semaphore to be posted, or timeout.
- * @param sem the semaphore
- * @param timeout the maximum time to wait, in milliseconds
- * @return completion code
- */
-int Thread_wait_sem(sem_type sem, int timeout)
-{
-/* sem_timedwait is the obvious call to use, but seemed not to work on the Viper,
- * so I've used trywait in a loop instead. Ian Craggs 23/7/2010
- */
-	int rc = -1;
-#if !defined(_WIN32) && !defined(OSX)
-#define USE_TRYWAIT
-#if defined(USE_TRYWAIT)
-	int i = 0;
-	useconds_t interval = 10000; /* 10000 microseconds: 10 milliseconds */
-	int count = (1000 * timeout) / interval; /* how many intervals in timeout period */
-#else
-	struct timespec ts;
-#endif
-#endif
-
-	FUNC_ENTRY;
-	#if defined(_WIN32)
-		/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
-		rc = WaitForSingleObject(sem, timeout < 0 ? 0 : timeout);
-		if (rc == WAIT_TIMEOUT)
-			rc = ETIMEDOUT;
-	#elif defined(OSX)
-		/* returns 0 on success, non-zero if timeout occurred */
-		rc = (int)dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout*1000000L));
-		if (rc != 0)
-			rc = ETIMEDOUT;
-	#elif defined(USE_TRYWAIT)
-		while (++i < count && (rc = sem_trywait(sem)) != 0)
-		{
-			if (rc == -1 && ((rc = errno) != EAGAIN))
-			{
-				rc = 0;
-				break;
-			}
-			usleep(interval); /* microseconds - .1 of a second */
-		}
-	#else
-		/* We have to use CLOCK_REALTIME rather than MONOTONIC for sem_timedwait interval.
-		 * Does this make it susceptible to system clock changes?
-		 * The intervals are small enough, and repeated, that I think it's not an issue.
-		 */
-		if (clock_gettime(CLOCK_REALTIME, &ts) != -1)
-		{
-			ts.tv_sec += timeout;
-			rc = sem_timedwait(sem, &ts);
-		}
-	#endif
-
- 	FUNC_EXIT_RC(rc);
- 	return rc;
-}
-
-
-/**
- * Check to see if a semaphore has been posted, without waiting
- * The semaphore will be unchanged, if the return value is false.
- * The semaphore will have been decremented, if the return value is true.
- * @param sem the semaphore
- * @return 0 (false) or 1 (true)
- */
-int Thread_check_sem(sem_type sem)
-{
-#if defined(_WIN32)
-	/* if the return value is not 0, the semaphore will not have been decremented */
-	return WaitForSingleObject(sem, 0) == WAIT_OBJECT_0;
-#elif defined(OSX)
-	/* if the return value is not 0, the semaphore will not have been decremented */
-	return dispatch_semaphore_wait(sem, DISPATCH_TIME_NOW) == 0;
-#else
-	/* If the call was unsuccessful, the state of the semaphore shall be unchanged,
-	 * and the function shall return a value of -1 */
-	return sem_trywait(sem) == 0;
-#endif
-}
-
-
-/**
- * Post a semaphore
- * @param sem the semaphore
- * @return 0 on success
- */
-int Thread_post_sem(sem_type sem)
-{
-	int rc = 0;
-
-	FUNC_ENTRY;
-	#if defined(_WIN32)
-		if (SetEvent(sem) == 0)
-			rc = GetLastError();
-	#elif defined(OSX)
-		rc = (int)dispatch_semaphore_signal(sem);
-	#else
-		int val;
-		int rc1 = sem_getvalue(sem, &val);
-		if (rc1 != 0)
-			rc = errno;
-		else if (val == 0 && sem_post(sem) == -1)
-			rc = errno;
-	#endif
-
- 	FUNC_EXIT_RC(rc);
- 	return rc;
-}
-
-
-/**
- * Destroy a semaphore which has already been created
- * @param sem the semaphore
- */
-int Thread_destroy_sem(sem_type sem)
-{
-	int rc = 0;
-
-	FUNC_ENTRY;
-	#if defined(_WIN32)
-		rc = CloseHandle(sem);
-	#elif defined(OSX)
-	  dispatch_release(sem);
-	#else
-		rc = sem_destroy(sem);
-		free(sem);
-	#endif
-	FUNC_EXIT_RC(rc);
-	return rc;
-}
-
-
-#if !defined(_WIN32)
-
-/**
- * Create a new condition variable
- * @return the condition variable struct
- */
-cond_type Thread_create_cond(int *rc)
-{
-	cond_type condvar = NULL;
+	evt_type evt = NULL;
 	pthread_condattr_t attr;
 
 	FUNC_ENTRY;
@@ -411,29 +268,31 @@ cond_type Thread_create_cond(int *rc)
 		Log(LOG_ERROR, -1, "Error %d calling pthread_condattr_setclock(CLOCK_MONOTONIC)", rc);
 #endif
 
-	condvar = malloc(sizeof(cond_type_struct));
-	if (condvar)
+	evt = malloc(sizeof(evt_type_struct));
+	if (evt)
 	{
-		*rc = pthread_cond_init(&condvar->cond, &attr);
-		*rc = pthread_mutex_init(&condvar->mutex, NULL);
+		*rc = pthread_cond_init(&evt->cond, &attr);
+		*rc = pthread_mutex_init(&evt->mutex, NULL);
+		evt->val = 0;
 	}
 
 	FUNC_EXIT_RC(*rc);
-	return condvar;
+	return evt;
 }
 
 /**
- * Signal a condition variable
+ * Signal an event
  * @return completion code
  */
-int Thread_signal_cond(cond_type condvar)
+int Thread_signal_evt(evt_type evt)
 {
 	int rc = 0;
 
 	FUNC_ENTRY;
-	pthread_mutex_lock(&condvar->mutex);
-	rc = pthread_cond_signal(&condvar->cond);
-	pthread_mutex_unlock(&condvar->mutex);
+	pthread_mutex_lock(&evt->mutex);
+    evt->val = 1;
+	rc = pthread_cond_signal(&evt->cond);
+	pthread_mutex_unlock(&evt->mutex);
 
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -443,40 +302,22 @@ int Thread_signal_cond(cond_type condvar)
  * Wait with a timeout (ms) for condition variable
  * @return 0 for success, ETIMEDOUT otherwise
  */
-int Thread_wait_cond(cond_type condvar, int timeout_ms)
+int Thread_wait_evt(evt_type evt, int timeout_ms)
 {
 	int rc = 0;
-	struct timespec cond_timeout;
+	struct timespec evt_timeout;
 
 	FUNC_ENTRY;
-#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
-	struct timeval cur_time;
-    gettimeofday(&cur_time, NULL);
-    cond_timeout.tv_sec = cur_time.tv_sec;
-    cond_timeout.tv_nsec = cur_time.tv_usec * 1000;
-#else
-	clock_gettime(CLOCK_REALTIME, &cond_timeout);
-#endif
+	evt_timeout = Thread_time_from_now(timeout_ms);
 
-	if (timeout_ms > 0) {
-		struct timespec interval;
-
-		interval.tv_sec = timeout_ms / 1000;
-		interval.tv_nsec = (timeout_ms % 1000) * 1000000L;
-
-		cond_timeout.tv_sec += interval.tv_sec;
-		cond_timeout.tv_nsec += interval.tv_nsec;
-
-		while (cond_timeout.tv_nsec >= NSEC_PER_SEC)
-		{
-			cond_timeout.tv_sec++;
-			cond_timeout.tv_nsec -= NSEC_PER_SEC;
-		}
+	pthread_mutex_lock(&evt->mutex);
+	while (evt->val == 0 &&
+		   (rc = pthread_cond_timedwait(&evt->cond, &evt->mutex, &evt_timeout)) == 0)
+		;
+	if (rc == 0) {
+		evt->val = 0;
 	}
-
-	pthread_mutex_lock(&condvar->mutex);
-	rc = pthread_cond_timedwait(&condvar->cond, &condvar->mutex, &cond_timeout);
-	pthread_mutex_unlock(&condvar->mutex);
+	pthread_mutex_unlock(&evt->mutex);
 
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -486,16 +327,83 @@ int Thread_wait_cond(cond_type condvar, int timeout_ms)
  * Destroy a condition variable
  * @return completion code
  */
-int Thread_destroy_cond(cond_type condvar)
+int Thread_destroy_evt(evt_type evt)
 {
 	int rc = 0;
 
-	rc = pthread_mutex_destroy(&condvar->mutex);
-	rc = pthread_cond_destroy(&condvar->cond);
-	free(condvar);
+	rc = pthread_mutex_destroy(&evt->mutex);
+	rc = pthread_cond_destroy(&evt->cond);
+	free(evt);
 
 	return rc;
 }
+
+#else
+
+/**
+ * Create a new semaphore
+ * @param rc return code: 0 for success, negative otherwise
+ * @return the new condition variable
+ */
+sem_type Thread_create_evt(int *rc)
+{
+	FUNC_ENTRY;
+	sem_type sem = CreateEvent(
+		NULL,     /* default security attributes */
+		FALSE,    /* manual-reset event? */
+		FALSE,    /* initial state is nonsignaled */
+		NULL      /* object name */
+	);
+	if (rc)
+		*rc = (sem == NULL) ? GetLastError() : 0;
+	FUNC_EXIT_RC(*rc);
+	return sem;
+}
+
+/**
+ * Wait for an event to be signaled, or timeout.
+ * @param evt the event
+ * @param timeout the maximum time to wait, in milliseconds
+ * @return completion code
+ */
+int Thread_wait_sem(sem_type sem, int timeout)
+{
+	FUNC_ENTRY;
+	/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
+	int rc = WaitForSingleObject(sem, timeout < 0 ? 0 : timeout);
+	if (rc == WAIT_TIMEOUT)
+		rc = ETIMEDOUT;
+ 	FUNC_EXIT_RC(rc);
+ 	return rc;
+}
+
+/**
+ * Post a semaphore
+ * @param sem the semaphore
+ * @return 0 on success
+ */
+int Thread_post_sem(sem_type sem)
+{
+	FUNC_ENTRY;
+	int rc = 0;
+	if (SetEvent(sem) == 0)
+		rc = GetLastError();
+ 	FUNC_EXIT_RC(rc);
+ 	return rc;
+}
+
+/**
+ * Destroy a semaphore which has already been created
+ * @param sem the semaphore
+ */
+int Thread_destroy_evt(evt_type evt)
+{
+	FUNC_ENTRY;
+	int rc = CloseHandle(sem);
+	FUNC_EXIT_RC(rc);
+	return rc;
+}
+
 #endif
 
 

@@ -53,8 +53,8 @@
 	#define thread_id_type pthread_t
 	#define thread_return_type void*
 	typedef thread_return_type (*thread_fn)(void*);
-	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; } cond_type_struct;
-	typedef cond_type_struct *cond_type;
+	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; int val; } evt_type_struct;
+	typedef evt_type_struct *evt_type;
 	#if defined(OSX)
 	  #include <dispatch/dispatch.h>
 	  typedef dispatch_semaphore_t sem_type;
@@ -62,11 +62,6 @@
 	  #include <semaphore.h>
 	  typedef sem_t *sem_type;
 	#endif
-
-	cond_type Thread_create_cond(int*);
-	int Thread_signal_cond(cond_type);
-	int Thread_wait_cond(cond_type condvar, int timeout);
-	int Thread_destroy_cond(cond_type);
 #endif
 
 LIBMQTT_API void Paho_thread_start(thread_fn, void*);
@@ -78,6 +73,11 @@ LIBMQTT_API int Paho_thread_unlock_mutex(mutex_type);
 int Paho_thread_destroy_mutex(mutex_type);
 
 LIBMQTT_API thread_id_type Paho_thread_getid();
+
+evt_type Thread_create_evt(int*);
+int Thread_signal_evt(evt_type);
+int Thread_wait_evt(evt_type condvar, int timeout);
+int Thread_destroy_evt(evt_type);
 
 sem_type Thread_create_sem(int*);
 int Thread_wait_sem(sem_type sem, int timeout);

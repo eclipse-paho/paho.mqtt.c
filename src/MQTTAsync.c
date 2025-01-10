@@ -264,8 +264,8 @@ mutex_type socket_mutex = &socket_mutex_store;
 static pthread_mutex_t mqttcommand_mutex_store = PTHREAD_MUTEX_INITIALIZER;
 mutex_type mqttcommand_mutex = &mqttcommand_mutex_store;
 
-static cond_type_struct send_cond_store = { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
-cond_type send_cond = &send_cond_store;
+static evt_type_struct send_evt_store = { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, 0 };
+evt_type send_evt = &send_evt_store;
 
 int MQTTAsync_init(void)
 {
@@ -284,10 +284,10 @@ int MQTTAsync_init(void)
 		printf("MQTTAsync: error %d initializing command_mutex\n", rc);
 	else if ((rc = pthread_mutex_init(socket_mutex, &attr)) != 0)
 		printf("MQTTClient: error %d initializing socket_mutex\n", rc);
-	else if ((rc = pthread_cond_init(&send_cond->cond, NULL)) != 0)
-		printf("MQTTAsync: error %d initializing send_cond cond\n", rc);
-	else if ((rc = pthread_mutex_init(&send_cond->mutex, &attr)) != 0)
-		printf("MQTTAsync: error %d initializing send_cond mutex\n", rc);
+	else if ((rc = pthread_cond_init(&send_evt->cond, NULL)) != 0)
+		printf("MQTTAsync: error %d initializing send_evt cond\n", rc);
+	else if ((rc = pthread_mutex_init(&send_evt->mutex, &attr)) != 0)
+		printf("MQTTAsync: error %d initializing send_evt mutex\n", rc);
 
 	return rc;
 }

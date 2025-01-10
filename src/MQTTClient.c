@@ -91,7 +91,7 @@ const char *client_timestamp_eye = "MQTTClientV3_Timestamp " BUILD_TIMESTAMP;
 const char *client_version_eye = "MQTTClientV3_Version " CLIENT_VERSION;
 
 struct conlost_sync_data {
-	sem_type sem;
+	evt_type evt;
 	void *m;
 };
 
@@ -318,11 +318,11 @@ typedef struct
 	void* auth_handle_context; /* the context to be associated with the authHandle callback*/
 #endif
 
-	sem_type connect_sem;
 	int rc; /* getsockopt return code in connect */
-	sem_type connack_sem;
-	sem_type suback_sem;
-	sem_type unsuback_sem;
+	evt_type connect_evt;
+	evt_type connack_evt;
+	evt_type suback_evt;
+	evt_type unsuback_evt;
 	MQTTPacket* pack;
 
 	unsigned long commandTimeout;
@@ -524,10 +524,11 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 	m->c->messageQueue = ListInitialize();
 	m->c->outboundQueue = ListInitialize();
 	m->c->clientID = MQTTStrdup(clientId);
-	m->connect_sem = Thread_create_sem(&rc);
-	m->connack_sem = Thread_create_sem(&rc);
-	m->suback_sem = Thread_create_sem(&rc);
-	m->unsuback_sem = Thread_create_sem(&rc);
+	// TODO (fmp): None of these events are being checked for failure
+	m->connect_evt = Thread_create_evt(&rc);
+	m->connack_evt = Thread_create_evt(&rc);
+	m->suback_evt = Thread_create_evt(&rc);
+	m->unsuback_evt = Thread_create_evt(&rc);
 
 #if !defined(NO_PERSISTENCE)
 	rc = MQTTPersistence_create(&(m->c->persistence), persistence_type, persistence_context);
@@ -625,10 +626,10 @@ void MQTTClient_destroy(MQTTClient* handle)
 	}
 	if (m->serverURI)
 		free(m->serverURI);
-	Thread_destroy_sem(m->connect_sem);
-	Thread_destroy_sem(m->connack_sem);
-	Thread_destroy_sem(m->suback_sem);
-	Thread_destroy_sem(m->unsuback_sem);
+	Thread_destroy_evt(m->connect_evt);
+	Thread_destroy_evt(m->connack_evt);
+	Thread_destroy_evt(m->suback_evt);
+	Thread_destroy_evt(m->unsuback_evt);
 	if (!ListRemove(handles, m))
 		Log(LOG_ERROR, -1, "free error");
 	*handle = NULL;
@@ -734,7 +735,7 @@ static thread_return_type WINAPI connectionLost_call(void* context)
 
 	(*(m->cl))(m->context, NULL);
 
-	Thread_post_sem(data->sem);
+	Thread_signal_evt(data->evt);
 	return 0;
 }
 
@@ -889,15 +890,15 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 			{
 				if (m->c->connect_state == SSL_IN_PROGRESS)
 				{
-					Log(TRACE_MIN, -1, "Posting connect semaphore for client %s", m->c->clientID);
+					Log(TRACE_MIN, -1, "Signaling connect event for client %s", m->c->clientID);
 					m->c->connect_state = NOT_IN_PROGRESS;
-					Thread_post_sem(m->connect_sem);
+					Thread_signal_evt(m->connect_evt);
 				}
 				if (m->c->connect_state == WAIT_FOR_CONNACK)
 				{
-					Log(TRACE_MIN, -1, "Posting connack semaphore for client %s", m->c->clientID);
+					Log(TRACE_MIN, -1, "Signaling connack event for client %s", m->c->clientID);
 					m->c->connect_state = NOT_IN_PROGRESS;
-					Thread_post_sem(m->connack_sem);
+					Thread_signal_evt(m->connack_evt);
 				}
 			}
 		}
@@ -936,21 +937,21 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 			{
 				if (pack->header.bits.type == CONNACK)
 				{
-					Log(TRACE_MIN, -1, "Posting connack semaphore for client %s", m->c->clientID);
+					Log(TRACE_MIN, -1, "Signaling connack event for client %s", m->c->clientID);
 					m->pack = pack;
-					Thread_post_sem(m->connack_sem);
+					Thread_signal_evt(m->connack_evt);
 				}
 				else if (pack->header.bits.type == SUBACK)
 				{
-					Log(TRACE_MIN, -1, "Posting suback semaphore for client %s", m->c->clientID);
+					Log(TRACE_MIN, -1, "Signaling suback event for client %s", m->c->clientID);
 					m->pack = pack;
-					Thread_post_sem(m->suback_sem);
+					Thread_signal_evt(m->suback_evt);
 				}
 				else if (pack->header.bits.type == UNSUBACK)
 				{
-					Log(TRACE_MIN, -1, "Posting unsuback semaphore for client %s", m->c->clientID);
+					Log(TRACE_MIN, -1, "Signaling unsuback event for client %s", m->c->clientID);
 					m->pack = pack;
-					Thread_post_sem(m->unsuback_sem);
+					Thread_signal_evt(m->unsuback_evt);
 				}
 				else if (m->c->MQTTVersion >= MQTTVERSION_5)
 				{
@@ -1000,9 +1001,9 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 
 				if ((m->rc = getsockopt(m->c->net.socket, SOL_SOCKET, SO_ERROR, (char*)&error, &len)) == 0)
 					m->rc = error;
-				Log(TRACE_MIN, -1, "Posting connect semaphore for client %s rc %d", m->c->clientID, m->rc);
+				Log(TRACE_MIN, -1, "Signaling connect event for client %s rc %d", m->c->clientID, m->rc);
 				m->c->connect_state = NOT_IN_PROGRESS;
-				Thread_post_sem(m->connect_sem);
+				Thread_signal_evt(m->connect_evt);
 			}
 #if defined(OPENSSL)
 			else if (m->c->connect_state == SSL_IN_PROGRESS)
@@ -1017,9 +1018,9 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 					if (rc == 1 && (m->c->cleansession == 0 && m->c->cleanstart == 0) && m->c->session == NULL)
 						m->c->session = SSL_get1_session(m->c->net.ssl);
 					m->rc = rc;
-					Log(TRACE_MIN, -1, "Posting connect semaphore for SSL client %s rc %d", m->c->clientID, m->rc);
+					Log(TRACE_MIN, -1, "Signaling connect event for SSL client %s rc %d", m->c->clientID, m->rc);
 					m->c->connect_state = NOT_IN_PROGRESS;
-					Thread_post_sem(m->connect_sem);
+					Thread_signal_evt(m->connect_evt);
 				}
 			}
 #endif
@@ -1027,9 +1028,9 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 			{
 				if (rc != TCPSOCKET_INTERRUPTED)
 				{
-					Log(TRACE_MIN, -1, "Posting websocket handshake for client %s rc %d", m->c->clientID, m->rc);
+					Log(TRACE_MIN, -1, "Signaling websocket handshake for client %s rc %d", m->c->clientID, m->rc);
 					m->c->connect_state = WAIT_FOR_CONNACK;
-					Thread_post_sem(m->connect_sem);
+					Thread_signal_evt(m->connect_evt);
 				}
 			}
 		}
@@ -2008,11 +2009,11 @@ exit:
 		MQTTClient_stop();
 	if (call_connection_lost && m->cl && was_connected)
 	{
-		sync.sem = Thread_create_sem(&rc);
+		sync.evt = Thread_create_evt(&rc);
 		Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
 		Paho_thread_start(connectionLost_call, &sync);
-		Thread_wait_sem(sync.sem, 5000);
-		Thread_destroy_sem(sync.sem);
+		Thread_wait_evt(sync.evt, 5000);
+		Thread_destroy_evt(sync.evt);
 	}
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -2728,15 +2729,15 @@ static MQTTPacket* MQTTClient_waitfor(MQTTClient handle, int packet_type, int* r
 	{
 		if (packet_type == CONNECT)
 		{
-			if ((*rc = Thread_wait_sem(m->connect_sem, (int)timeout)) == 0)
+			if ((*rc = Thread_wait_evt(m->connect_evt, (int)timeout)) == 0)
 				*rc = m->rc;
 		}
 		else if (packet_type == CONNACK)
-			*rc = Thread_wait_sem(m->connack_sem, (int)timeout);
+			*rc = Thread_wait_evt(m->connack_evt, (int)timeout);
 		else if (packet_type == SUBACK)
-			*rc = Thread_wait_sem(m->suback_sem, (int)timeout);
+			*rc = Thread_wait_evt(m->suback_evt, (int)timeout);
 		else if (packet_type == UNSUBACK)
-			*rc = Thread_wait_sem(m->unsuback_sem, (int)timeout);
+			*rc = Thread_wait_evt(m->unsuback_evt, (int)timeout);
 		if (*rc == 0 && packet_type != CONNECT && m->pack == NULL)
 			Log(LOG_ERROR, -1, "waitfor unexpectedly is NULL for client %s, packet_type %d, timeout %ld", m->c->clientID, packet_type, timeout);
 		pack = m->pack;
