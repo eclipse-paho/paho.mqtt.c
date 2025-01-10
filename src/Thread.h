@@ -33,10 +33,10 @@
 
 #include "MQTTClient.h"
 
-#include "mutex_type.h" /* Needed for mutex_type */
-
 #if defined(_WIN32)
 	#include <windows.h>
+
+	#define mutex_type HANDLE
 	#define thread_type HANDLE
 	#define thread_id_type DWORD
 	#define thread_return_type DWORD
@@ -48,6 +48,7 @@
 #else
 	#include <pthread.h>
 
+	#define mutex_type pthread_mutex_t*
 	#define thread_type pthread_t
 	#define thread_id_type pthread_t
 	#define thread_return_type void*
