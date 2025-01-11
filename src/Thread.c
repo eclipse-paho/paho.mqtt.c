@@ -247,6 +247,8 @@ thread_id_type Paho_thread_getid(void)
 	#endif
 }
 
+#if !defined(_WIN32)
+
 /**
  * Create a new event
  * @return the event struct

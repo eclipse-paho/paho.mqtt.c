@@ -142,52 +142,47 @@ int MQTTAsync_init(void)
 
 	if (mqttasync_mutex == NULL)
 	{
-		if ((mqttasync_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        mqttasync_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("mqttasync_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((mqttcommand_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        mqttcommand_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("mqttcommand_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((send_evt = CreateEvent(
-				NULL,               /* default security attributes */
-				FALSE,              /* manual-reset event? */
-				FALSE,              /* initial state is nonsignaled */
-				NULL                /* object name */
-				)) == NULL)
+        send_evt = Thread_create_evt(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("send_evt error %d\n", rc);
 			goto exit;
 		}
 #if !defined(NO_HEAP_TRACKING)
-		if ((stack_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        stack_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("stack_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((heap_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        heap_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("heap_mutex error %d\n", rc);
 			goto exit;
 		}
 #endif
-		if ((log_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        log_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("log_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((socket_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        socket_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("socket_mutex error %d\n", rc);
 			goto exit;
 		}
@@ -203,19 +198,19 @@ exit:
 void MQTTAsync_cleanup(void)
 {
 	if (send_evt)
-		CloseHandle(send_evt);
+		Thread_destroy_evt(send_evt);
 #if !defined(NO_HEAP_TRACKING)
 	if (stack_mutex)
-		CloseHandle(stack_mutex);
+		Paho_thread_destroy_mutex(stack_mutex);
 	if (heap_mutex)
-		CloseHandle(heap_mutex);
+		Paho_thread_destroy_mutex(heap_mutex);
 #endif
 	if (log_mutex)
-		CloseHandle(log_mutex);
+		Paho_thread_destroy_mutex(log_mutex);
 	if (socket_mutex)
-		CloseHandle(socket_mutex);
+		Paho_thread_destroy_mutex(socket_mutex);
 	if (mqttasync_mutex)
-		CloseHandle(mqttasync_mutex);
+		Paho_thread_destroy_mutex(mqttasync_mutex);
 }
 
 #if defined(PAHO_MQTT_STATIC)

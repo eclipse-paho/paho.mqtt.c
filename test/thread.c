@@ -272,11 +272,7 @@ int test_evt(struct Options options)
 
 	MyLog(LOGA_DEBUG, "Check timeout");
 	start = start_clock();
-<<<<<<< HEAD
-	rc = Thread_wait_cond(cond, 2000);
-=======
 	rc = Thread_wait_evt(evt, 2000);
->>>>>>> 1ed408e (Started merging semaphores and condition variables into a single 'event' type.)
 	duration = elapsed(start);
 	assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
@@ -400,14 +396,7 @@ int main(int argc, char** argv)
  	int (*tests[])(struct Options) = {
 		NULL,
  		test_mutex,
-<<<<<<< HEAD
- 		test_sem,
-#if !defined(_WIN32)
-		test_cond
-#endif
-=======
 		test_evt
->>>>>>> 1ed408e (Started merging semaphores and condition variables into a single 'event' type.)
  	}; /* indexed starting from 1 */
 	int i;
 
