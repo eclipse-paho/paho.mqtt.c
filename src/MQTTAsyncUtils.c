@@ -88,7 +88,6 @@ extern int MQTTAsync_tostop;
 extern mutex_type mqttasync_mutex;
 extern mutex_type socket_mutex;
 extern mutex_type mqttcommand_mutex;
-extern evt_type send_evt;
 #if !defined(NO_HEAP_TRACKING)
 extern mutex_type stack_mutex;
 extern mutex_type heap_mutex;
@@ -98,8 +97,9 @@ extern mutex_type log_mutex;
 extern mutex_type mqttasync_mutex;
 extern mutex_type socket_mutex;
 extern mutex_type mqttcommand_mutex;
-extern evt_type send_evt;
 #endif
+
+extern evt_type send_evt;
 
 #if !defined(min)
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -938,13 +938,6 @@ exit:
 	MQTTAsync_unlock_mutex(mqttcommand_mutex);
 	if ((rc1 = Thread_signal_evt(send_evt)) != 0)
 		Log(LOG_ERROR, 0, "Error %d from signal event", rc1);
-<<<<<<< HEAD
-=======
-#else
-	if ((rc1 = Thread_signal_evt(send_evt)) != 0)
-		Log(LOG_ERROR, 0, "Error %d from signal cond", rc1);
-#endif
->>>>>>> 3137b57 ('event' type working on Windows)
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -1864,13 +1857,6 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 		}
 		if ((rc = Thread_wait_evt(send_evt, timeout)) != 0 && rc != ETIMEDOUT)
 			Log(LOG_ERROR, -1, "Error %d waiting for send event", rc);
-<<<<<<< HEAD
-=======
-#else
-		if ((rc = Thread_wait_evt(send_evt, timeout)) != 0 && rc != ETIMEDOUT)
-			Log(LOG_ERROR, -1, "Error %d waiting for semaphore", rc);
-#endif
->>>>>>> 3137b57 ('event' type working on Windows)
 		timeout = 1000; /* 1 second for follow on waits */
 		MQTTAsync_checkTimeouts();
 	}
@@ -2076,12 +2062,6 @@ static int MQTTAsync_completeConnection(MQTTAsyncs* m, Connack* connack)
 		}
 		m->pack = NULL;
 		Thread_signal_evt(send_evt);
-<<<<<<< HEAD
-=======
-#else
-		Thread_signal_evt(send_evt);
-#endif
->>>>>>> 3137b57 ('event' type working on Windows)
 	}
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -2407,13 +2387,8 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 	receiveThread_state = STOPPED;
 	receiveThread_id = 0;
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
-#if !defined(_WIN32)
 	if (sendThread_state != STOPPED)
 		Thread_signal_evt(send_evt);
-#else
-	if (sendThread_state != STOPPED)
-		Thread_signal_evt(send_evt);
-#endif
 
 #if defined(OPENSSL)
 #if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER))
