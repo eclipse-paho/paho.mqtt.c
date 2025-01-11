@@ -116,6 +116,7 @@ int Thread_set_name(const char* thread_name)
 	return rc;
 }
 
+#if !defined(_WIN32)
 struct timespec Thread_time_from_now(int ms)
 {
 	struct timespec from_now;
@@ -143,6 +144,7 @@ struct timespec Thread_time_from_now(int ms)
 
 	return from_now;
 }
+#endif
 
 /**
  * Create a new mutex
@@ -366,11 +368,11 @@ sem_type Thread_create_evt(int *rc)
  * @param timeout the maximum time to wait, in milliseconds
  * @return completion code
  */
-int Thread_wait_sem(sem_type sem, int timeout)
+int Thread_wait_evt(evt_type evt, int timeout)
 {
 	FUNC_ENTRY;
 	/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
-	int rc = WaitForSingleObject(sem, timeout < 0 ? 0 : timeout);
+	int rc = WaitForSingleObject(evt, timeout < 0 ? 0 : timeout);
 	if (rc == WAIT_TIMEOUT)
 		rc = ETIMEDOUT;
  	FUNC_EXIT_RC(rc);
@@ -378,15 +380,15 @@ int Thread_wait_sem(sem_type sem, int timeout)
 }
 
 /**
- * Post a semaphore
- * @param sem the semaphore
+ * Post an event
+ * @param evt the event
  * @return 0 on success
  */
-int Thread_post_sem(sem_type sem)
+int Thread_signal_evt(evt_type evt)
 {
 	FUNC_ENTRY;
 	int rc = 0;
-	if (SetEvent(sem) == 0)
+	if (SetEvent(evt) == 0)
 		rc = GetLastError();
  	FUNC_EXIT_RC(rc);
  	return rc;
@@ -399,7 +401,7 @@ int Thread_post_sem(sem_type sem)
 int Thread_destroy_evt(evt_type evt)
 {
 	FUNC_ENTRY;
-	int rc = CloseHandle(sem);
+	int rc = CloseHandle(evt);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -497,29 +499,29 @@ void myassert(char* filename, int lineno, char* description, int value, char* fo
 thread_return_type cond_secondary(void* n)
 {
 	int rc = 0;
-	cond_type cond = n;
+	evt_type evt = n;
 
 	printf("This should return immediately as it was posted already\n");
-	rc = Thread_wait_cond(cond, 99999);
-	assert("rc 1 from wait_cond", rc == 1, "rc was %d", rc);
+	rc = Thread_wait_evt(evt, 99999);
+	assert("rc 1 from wait_evt", rc == 1, "rc was %d", rc);
 
 	printf("This should hang around a few seconds\n");
-	rc = Thread_wait_cond(cond, 99999);
-	assert("rc 1 from wait_cond", rc == 1, "rc was %d", rc);
+	rc = Thread_wait_evt(evt, 99999);
+	assert("rc 1 from wait_evt", rc == 1, "rc was %d", rc);
 
-	printf("Secondary cond thread ending\n");
+	printf("Secondary evt thread ending\n");
 	return 0;
 }
 
 
-int cond_test()
+int evt_test()
 {
 	int rc = 0;
-	cond_type cond = Thread_create_cond();
+	evt_type evt = Thread_create_evt();
 
 	printf("Post secondary so it should return immediately\n");
-	rc = Thread_signal_cond(cond);
-	assert("rc 0 from signal cond", rc == 0, "rc was %d", rc);
+	rc = Thread_signal_evt(evt);
+	assert("rc 0 from signal evt", rc == 0, "rc was %d", rc);
 
 	printf("Starting secondary thread\n");
 	Thread_start(cond_secondary, (void*)cond);
@@ -527,8 +529,8 @@ int cond_test()
 	sleep(3);
 
 	printf("post secondary\n");
-	rc = Thread_signal_cond(cond);
-	assert("rc 1 from signal cond", rc == 1, "rc was %d", rc);
+	rc = Thread_signal_evt(evt);
+	assert("rc 1 from signal evt", rc == 1, "rc was %d", rc);
 
 	sleep(3);
 
@@ -536,67 +538,6 @@ int cond_test()
 
 	return failures;
 }
-
-
-thread_return_type sem_secondary(void* n)
-{
-	int rc = 0;
-	sem_type sem = n;
-
-	printf("Secondary semaphore pointer %p\n", sem);
-
-	rc = Thread_check_sem(sem);
-	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
-
-	printf("Secondary thread about to wait\n");
-	rc = Thread_wait_sem(sem, 99999);
-	printf("Secondary thread returned from wait %d\n", rc);
-
-	printf("Secondary thread about to wait\n");
-	rc = Thread_wait_sem(sem, 99999);
-	printf("Secondary thread returned from wait %d\n", rc);
-	printf("Secondary check sem %d\n", Thread_check_sem(sem));
-
-	printf("Secondary thread ending\n");
-	return 0;
-}
-
-
-int sem_test()
-{
-	int rc = 0;
-	sem_type sem = Thread_create_sem();
-
-	printf("Primary semaphore pointer %p\n", sem);
-
-	rc = Thread_check_sem(sem);
-	assert("rc 0 from check_sem", rc == 0, "rc was %d\n", rc);
-
-	printf("post secondary so then check should be 1\n");
-	rc = Thread_post_sem(sem);
-	assert("rc 0 from post_sem", rc == 0, "rc was %d\n", rc);
-
-	rc = Thread_check_sem(sem);
-	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
-
-	printf("Starting secondary thread\n");
-	Thread_start(sem_secondary, (void*)sem);
-
-	sleep(3);
-	rc = Thread_check_sem(sem);
-	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
-
-	printf("post secondary\n");
-	rc = Thread_post_sem(sem);
-	assert("rc 1 from post_sem", rc == 1, "rc was %d", rc);
-
-	sleep(3);
-
-	printf("Main thread ending\n");
-
-	return failures;
-}
-
 
 int main(int argc, char *argv[])
 {

@@ -42,6 +42,7 @@
 	#define thread_return_type DWORD
 	#define thread_fn LPTHREAD_START_ROUTINE
 	#define cond_type HANDLE
+	#define evt_type HANDLE
 	#define sem_type HANDLE
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
@@ -78,12 +79,5 @@ evt_type Thread_create_evt(int*);
 int Thread_signal_evt(evt_type);
 int Thread_wait_evt(evt_type condvar, int timeout);
 int Thread_destroy_evt(evt_type);
-
-sem_type Thread_create_sem(int*);
-int Thread_wait_sem(sem_type sem, int timeout);
-int Thread_check_sem(sem_type sem);
-int Thread_post_sem(sem_type sem);
-int Thread_destroy_sem(sem_type sem);
-
 
 #endif

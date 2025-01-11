@@ -129,7 +129,7 @@ void MQTTAsync_init_rand(void)
 mutex_type mqttasync_mutex = NULL;
 mutex_type socket_mutex = NULL;
 mutex_type mqttcommand_mutex = NULL;
-sem_type send_sem = NULL;
+sem_type send_evt = NULL;
 #if !defined(NO_HEAP_TRACKING)
 extern mutex_type stack_mutex;
 extern mutex_type heap_mutex;
@@ -154,7 +154,7 @@ int MQTTAsync_init(void)
 			printf("mqttcommand_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((send_sem = CreateEvent(
+		if ((send_evt = CreateEvent(
 				NULL,               /* default security attributes */
 				FALSE,              /* manual-reset event? */
 				FALSE,              /* initial state is nonsignaled */
@@ -162,7 +162,7 @@ int MQTTAsync_init(void)
 				)) == NULL)
 		{
 			rc = GetLastError();
-			printf("send_sem error %d\n", rc);
+			printf("send_evt error %d\n", rc);
 			goto exit;
 		}
 #if !defined(NO_HEAP_TRACKING)
@@ -202,8 +202,8 @@ exit:
 
 void MQTTAsync_cleanup(void)
 {
-	if (send_sem)
-		CloseHandle(send_sem);
+	if (send_evt)
+		CloseHandle(send_evt);
 #if !defined(NO_HEAP_TRACKING)
 	if (stack_mutex)
 		CloseHandle(stack_mutex);
