@@ -51,6 +51,8 @@
 
 #include "OsWrapper.h"
 
+#define NSEC_PER_SEC 1000000000L
+
 /**
  * Start a new thread
  * @param fn the function to run, must be of the correct signature
@@ -443,12 +445,8 @@ int Thread_wait_cond(cond_type condvar, int timeout_ms)
 {
 	int rc = 0;
 	struct timespec cond_timeout;
-	struct timespec interval;
 
 	FUNC_ENTRY;
-	interval.tv_sec = timeout_ms / 1000;
-	interval.tv_nsec = (timeout_ms % 1000) * 1000000L;
-
 #if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
 	struct timeval cur_time;
     gettimeofday(&cur_time, NULL);
@@ -458,13 +456,20 @@ int Thread_wait_cond(cond_type condvar, int timeout_ms)
 	clock_gettime(CLOCK_REALTIME, &cond_timeout);
 #endif
 
-	cond_timeout.tv_sec += interval.tv_sec;
-	cond_timeout.tv_nsec += (timeout_ms % 1000) * 1000000L;
+	if (timeout_ms > 0) {
+		struct timespec interval;
 
-	if (cond_timeout.tv_nsec >= 1000000000L)
-	{
-		cond_timeout.tv_sec++;
-		cond_timeout.tv_nsec += (cond_timeout.tv_nsec - 1000000000L);
+		interval.tv_sec = timeout_ms / 1000;
+		interval.tv_nsec = (timeout_ms % 1000) * 1000000L;
+
+		cond_timeout.tv_sec += interval.tv_sec;
+		cond_timeout.tv_nsec += interval.tv_nsec;
+
+		while (cond_timeout.tv_nsec >= NSEC_PER_SEC)
+		{
+			cond_timeout.tv_sec++;
+			cond_timeout.tv_nsec -= NSEC_PER_SEC;
+		}
 	}
 
 	pthread_mutex_lock(&condvar->mutex);
