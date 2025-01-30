@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Wind River Systems, Inc. All Rights Reserved.
+ * Copyright (c) 2018, 2025 Wind River Systems, Inc. and others 
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -51,9 +51,8 @@ int SHA1_Final(unsigned char *md, SHA_CTX *c)
 	CryptReleaseContext(c->hProv, 0);
 	return rv;
 }
-
 #else /* if defined(_WIN32) */
-#if defined(__linux__) || defined(__CYGWIN__)
+#if defined(__linux__) || defined(__CYGWIN__) || defined(__GNU__)
 #  include <endian.h>
 #elif defined(__APPLE__)
 #  include <libkern/OSByteOrder.h>
