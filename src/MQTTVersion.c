@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2020 IBM Corp.
+ * Copyright (c) 2012, 2025 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -96,7 +96,7 @@ char* FindString(char* filename, const char* eyecatcher_input)
 					char* ptr = value;
 					c = fgetc(infile); /* skip space */
 					c = fgetc(infile);
-					while (isprint(c))
+					while (isprint((unsigned char)c))
 					{
 						*ptr++ = c;
 						c = fgetc(infile);

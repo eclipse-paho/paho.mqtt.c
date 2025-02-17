@@ -272,7 +272,7 @@ void Proxy_specialChars(char* p0, char* p1, b64_size_t *basic_auth_in_len)
 		{
 			*p0++ = *p1++;
 		}
-		else if (isxdigit(*(p1 + 1)) && isxdigit(*(p1 + 2)))
+		else if (isxdigit((unsigned char)*(p1 + 1)) && isxdigit((unsigned char)*(p1 + 2)))
 		{
 			/* next 2 characters are hexa digits */
 			char hex[3];
