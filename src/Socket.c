@@ -1146,7 +1146,7 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 	sa_family_t family = AF_INET;
 #endif
 	struct addrinfo *result = NULL;
-	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
+	struct addrinfo hints = {AI_ADDRCONFIG, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
 
 	FUNC_ENTRY;
 	*sock = SOCKET_ERROR;
