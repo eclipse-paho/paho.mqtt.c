@@ -740,10 +740,16 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 			else
 				SSLSocket_error("SSL_set_fd", net->ssl, net->socket, rc, NULL, NULL);
 		}
+		/* If servername is set in the options, use that for the hostname */
+		if (opts->struct_version >= 6 && opts->serverName != NULL) {
+			hostname = opts->serverName;
+			hostname_len = strnlen(hostname, MAXHOSTNAMELEN);
+		}
 		hostname_plus_null = malloc(hostname_len + 1u );
 		if (hostname_plus_null)
 		{
 			MQTTStrncpy(hostname_plus_null, hostname, hostname_len + 1u);
+			Log(TRACE_PROTOCOL, -1, "SNI server/host name is %s", hostname_plus_null);
 			if ((rc = SSL_set_tlsext_host_name(net->ssl, hostname_plus_null)) != 1) {
 				if (opts->struct_version >= 3)
 					SSLSocket_error("SSL_set_tlsext_host_name", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
