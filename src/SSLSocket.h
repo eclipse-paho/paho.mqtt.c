@@ -3,15 +3,15 @@
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
- * and Eclipse Distribution License v1.0 which accompany this distribution. 
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
- * The Eclipse Public License is available at 
+ * The Eclipse Public License is available at
  *    https://www.eclipse.org/legal/epl-2.0/
- * and the Eclipse Distribution License is available at 
+ * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
- *    Ian Craggs, Allan Stockdill-Mander - initial implementation 
+ *    Ian Craggs, Allan Stockdill-Mander - initial implementation
  *    Ian Craggs - SNI support
  *    Ian Craggs - post connect checks and CApath
  *******************************************************************************/
@@ -31,6 +31,7 @@
 #include "Clients.h"
 
 #define URI_SSL   "ssl://"
+#define URI_TLS   "tls://"
 #define URI_MQTTS "mqtts://"
 
 /** if we should handle openssl initialization (bool_value == 1) or depend on it to be initalized externally (bool_value == 0) */

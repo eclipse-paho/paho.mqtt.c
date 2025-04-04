@@ -1408,6 +1408,11 @@ static int MQTTAsync_processCommand(void)
 						serverURI += strlen(URI_SSL);
 						command->client->ssl = 1;
 					}
+					else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+					{
+						serverURI += strlen(URI_TLS);
+						command->client->ssl = 1;
+					}
 					else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
 					{
 						serverURI += strlen(URI_MQTTS);
@@ -2952,6 +2957,11 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 		else if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0)
 		{
 			serverURI += strlen(URI_SSL);
+			default_port = SECURE_MQTT_DEFAULT_PORT;
+		}
+		else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+		{
+			serverURI += strlen(URI_TLS);
 			default_port = SECURE_MQTT_DEFAULT_PORT;
 		}
 		else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)

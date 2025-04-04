@@ -335,6 +335,7 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		 && strncmp(URI_WS, serverURI, strlen(URI_WS)) != 0
 #if defined(OPENSSL)
 		 && strncmp(URI_SSL, serverURI, strlen(URI_SSL)) != 0
+		 && strncmp(URI_TLS, serverURI, strlen(URI_TLS)) != 0
 		 && strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) != 0
 		 && strncmp(URI_WSS, serverURI, strlen(URI_WSS)) != 0
 #endif
@@ -403,6 +404,11 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 	else if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0)
 	{
 		serverURI += strlen(URI_SSL);
+		m->ssl = 1;
+	}
+	else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+	{
+		serverURI += strlen(URI_TLS);
 		m->ssl = 1;
 	}
 	else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
