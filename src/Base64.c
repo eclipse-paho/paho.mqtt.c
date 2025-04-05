@@ -48,40 +48,45 @@ static b64_size_t Base64_encodeDecode(
 	b64_size_t ret = 0u;
 	if ( in_len > 0u )
 	{
-		int rv;
-		BIO *bio, *b64, *b_in, *b_out;
-
-		b64 = BIO_new(BIO_f_base64());
-		bio = BIO_new(BIO_s_mem());
-		b64 = BIO_push(b64, bio);
-		BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL); /* ignore new-lines */
-
 		if ( encode )
 		{
-			b_in = bio;
-			b_out = b64;
+			/* For encoding: output length is 4 * (input_length / 3) rounded up to nearest multiple of 4 */
+			b64_size_t required_len = ((in_len + 2) / 3) * 4;
+			if (out_len >= required_len + 1) /* +1 for null terminator */
+			{
+				int encoded_len = EVP_EncodeBlock((unsigned char*)out, (const unsigned char*)in, (int)in_len);
+				if (encoded_len > 0)
+				{
+					ret = (b64_size_t)encoded_len;
+					if (out_len > ret)
+						out[ret] = '\0';
+				}
+			}
 		}
 		else
 		{
-			b_in = b64;
-			b_out = bio;
-		}
-
-		rv = BIO_write(b_out, in, (int)in_len);
-		BIO_flush(b_out); /* indicate end of encoding */
-
-		if ( rv > 0 )
-		{
-			rv = BIO_read(b_in, out, (int)out_len);
-			if ( rv > 0 )
+			/* For decoding: output length is at most 3 * (input_length / 4) */
+			b64_size_t max_out_len = (in_len / 4) * 3;
+			if (out_len >= max_out_len + 1) /* +1 for null terminator */
 			{
-				ret = (b64_size_t)rv;
-				if ( out_len > ret )
-					out[ret] = '\0';
+				EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+				if (ctx)
+				{
+					int decoded_len = 0;
+					int final_len = 0;
+					unsigned char *temp_out = (unsigned char*)out;
+					
+					EVP_DecodeInit(ctx);
+					EVP_DecodeUpdate(ctx, temp_out, &decoded_len, (const unsigned char*)in, (int)in_len);
+					EVP_DecodeFinal(ctx, temp_out + decoded_len, &final_len);
+					EVP_ENCODE_CTX_free(ctx);
+					
+					ret = (b64_size_t)(decoded_len + final_len);
+					if (out_len > ret)
+						out[ret] = '\0';
+				}
 			}
 		}
-
-		BIO_free_all(b64);  /* free all used memory */
 	}
 	return ret;
 }

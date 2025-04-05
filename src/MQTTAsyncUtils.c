@@ -1864,7 +1864,7 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
 
 #if defined(OPENSSL)
-#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER))
+#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER)) || defined(OPENSSL_IS_BORINGSSL)
 	ERR_remove_state(0);
 #else
 	OPENSSL_thread_stop();
@@ -2397,7 +2397,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 #endif
 
 #if defined(OPENSSL)
-#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER))
+#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER)) || defined(OPENSSL_IS_BORINGSSL)
 	ERR_remove_state(0);
 #else
 	OPENSSL_thread_stop();
