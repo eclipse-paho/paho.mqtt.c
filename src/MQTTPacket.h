@@ -28,7 +28,9 @@
 #include "LinkedList.h"
 #include "Clients.h"
 
+#if defined __STDC__ && defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
 typedef unsigned int bool;
+#endif
 typedef void* (*pf)(int, unsigned char, char*, size_t);
 
 #include "MQTTProperties.h"
