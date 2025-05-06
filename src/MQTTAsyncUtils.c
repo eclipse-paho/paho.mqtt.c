@@ -1763,7 +1763,15 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			MQTTAsync_failureData5 data = MQTTAsync_failureData5_initializer;
 
 			data.token = 0;
-			data.code = rc;
+			if (rc > 0) /* MQTT Reason Codes are > 0; C client return codes are < 0 */
+			{
+				/* MQTT 5 reason codes >= 0x00 and < 0x80 are successful,
+				 * but in that case we should not get here but be calling
+				 * onSuccess instead. */
+				data.reasonCode = rc;
+				data.code = MQTTASYNC_FAILURE;
+			} else
+				data.code = rc;
 			data.message = message;
 			Log(TRACE_MIN, -1, "Calling connect failure for client %s", m->c->clientID);
 			(*(m->connect.onFailure5))(m->connect.context, &data);
