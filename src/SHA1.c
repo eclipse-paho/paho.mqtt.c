@@ -16,6 +16,13 @@
 
 #include "SHA1.h"
 
+// In the source files using endian functions (like SHA1.c):
+#ifdef QNX_OS
+#include <gulliver.h>
+#define be32toh(x) ENDIAN_BE32(x)
+#define htobe32(x) ENDIAN_BE32(x)
+#endif
+
 #if !defined(OPENSSL)
 #if defined(_WIN32) || defined(_WIN64)
 #pragma comment(lib, "crypt32.lib")

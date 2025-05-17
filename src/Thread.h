@@ -46,6 +46,10 @@
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
+    #if defined(QNX_OS)
+        #include <sys/neutrino.h>
+        #include <process.h>
+    #endif
 	#include <pthread.h>
 
 	#define thread_type pthread_t
