@@ -45,7 +45,7 @@
 #  define be16toh(x) OSSwapBigToHostInt16(x)
 #  define be32toh(x) OSSwapBigToHostInt32(x)
 #  define be64toh(x) OSSwapBigToHostInt64(x)
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #  include <sys/endian.h>
 #elif defined(_WIN32) || defined(_WIN64)
 #  pragma comment(lib, "rpcrt4.lib")

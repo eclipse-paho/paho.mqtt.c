@@ -59,7 +59,7 @@ int SHA1_Final(unsigned char *md, SHA_CTX *c)
 #  include <libkern/OSByteOrder.h>
 #  define htobe32(x) OSSwapHostToBigInt32(x)
 #  define be32toh(x) OSSwapBigToHostInt32(x)
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #  include <sys/endian.h>
 #endif
 #include <string.h>
