@@ -3008,7 +3008,7 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 
 exit:
 	if ((rc != 0 && rc != TCPSOCKET_INTERRUPTED && (m->c->connect_state != SSL_IN_PROGRESS && m->c->connect_state != WEBSOCKET_IN_PROGRESS)) || (rc == SSL_FATAL))
-		nextOrClose(m, MQTTASYNC_FAILURE, "TCP/TLS connect failure");
+		nextOrClose(m, MQTTASYNC_TLS_ERROR, "TCP/TLS connect failure");
 
 	FUNC_EXIT_RC(rc);
 	return rc;

@@ -202,6 +202,10 @@
   * Return code: maxBufferedMessages in the connect options must be >= 0
   */
  #define MQTTASYNC_MAX_BUFFERED -19
+/*
+ * Return code: connection failed due to TLS error
+ */
+#define MQTTASYNC_TLS_ERROR -20
 
 /**
  * Default MQTT version to connect with.  Use 3.1.1 then fall back to 3.1
