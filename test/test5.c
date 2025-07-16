@@ -17,7 +17,7 @@
 
 /**
  * @file
- * SSL tests for the Eclipse Paho Asynchronous MQTT C client
+ * SSL/QUIC tests for the Eclipse Paho Asynchronous MQTT C client
  */
 
 #include "MQTTAsync.h"
@@ -69,6 +69,7 @@ struct Options
 	int test_no;
 	int size;
 	int websockets;
+	int quic;
 	int message_count;
 	int start_port;
 } options =
@@ -87,6 +88,7 @@ struct Options
 	0,
 	0,
 	5000000,
+	0,
 	0,
 	3,
 	18883,
@@ -144,6 +146,14 @@ void getopts(int argc, char** argv)
 			else
 				usage();
 		}
+		else if (strcmp(argv[count], "--client_private_key") == 0)
+		{
+			if (++count < argc)
+				options.client_private_key_file = argv[count];
+			else
+				usage();
+		}
+
 		else if (strcmp(argv[count], "--capath") == 0)
 		{
 			if (++count < argc)
@@ -160,7 +170,14 @@ void getopts(int argc, char** argv)
 		{
 			if (++count < argc)
 			{
-				char* prefix = (options.websockets) ? "wss" : "ssl";
+				char* prefix = "";
+
+				if (options.websockets)
+					prefix = "wss";
+				else if (options.quic)
+					prefix = "quic";
+				else
+					prefix = "ssl";
 
 				sprintf(options.connection, "%s://%s:%d", prefix, argv[count],
 						options.start_port);
@@ -190,6 +207,12 @@ void getopts(int argc, char** argv)
 			options.websockets = 1;
 			printf("\nSetting websockets on\n");
 		}
+		else if (strcmp(argv[count], "--quic") == 0)
+		{
+			options.quic = 1;
+			printf("\nSetting QUIC on\n");
+		}
+
 		else if (strcmp(argv[count], "--size") == 0)
 		{
 			if (++count < argc)
@@ -334,6 +357,11 @@ START_TIME_TYPE global_start_time;
 char output[3000];
 char* cur_output = output;
 
+
+void handleTrace(enum MQTTASYNC_TRACE_LEVELS level, char* message)
+{
+	printf("%s\n", message);
+}
 
 void write_test_result(void)
 {
@@ -781,6 +809,7 @@ int test2a(struct Options options)
 
 	failures = 0;
 	MyLog(LOGA_INFO, "Starting test 2a - Mutual SSL authentication");
+
 	fprintf(xml, "<testcase classname=\"test5\" name=\"%s\"", testname);
 	global_start_time = start_clock();
 
@@ -818,6 +847,9 @@ int test2a(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 1;
 	opts.ssl->verify = 1;
@@ -932,6 +964,9 @@ int test2b(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 0;
 
@@ -1027,6 +1062,9 @@ int test2c(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 0;
 
@@ -1247,6 +1285,9 @@ int test2e(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 1;
 	opts.ssl->verify = 1;
@@ -1354,6 +1395,9 @@ int test3a(struct Options options)
 		opts.ssl->trustStore = options.server_key_file; /*file of certificates trusted by client*/
 	//opts.ssl->keyStore = options.client_key_file;  /*file of certificate for client to present to server*/
 	//if (options.client_key_pass != NULL) opts.ssl->privateKeyPassword = options.client_key_pass;
+	//	if (options.client_private_key_file != NULL)
+	//	opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 1;
 
@@ -1576,6 +1620,9 @@ int test4(struct Options options)
 	//opts.ssl->keyStore = options.client_key_file;  /*file of certificate for client to present to server*/
 	//if (options.client_key_pass != NULL) opts.ssl->privateKeyPassword = options.client_key_pass;
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
+	//	if (options.client_private_key_file != NULL)
+	//	opts.ssl->privateKey = options.client_private_key_file;
+
 	opts.ssl->enableServerCertAuth = 0;
 
 	rc = MQTTAsync_setCallbacks(c, &tc, NULL, asyncTestMessageArrived,
@@ -1689,6 +1736,9 @@ int test5a(struct Options options)
 	//opts.ssl->trustStore = /*file of certificates trusted by client*/
 	//opts.ssl->keyStore = options.client_key_file;  /*file of certificate for client to present to server*/
 	//if (options.client_key_pass != NULL) opts.ssl->privateKeyPassword = options.client_key_pass;
+	//	if (options.client_private_key_file != NULL)
+	//	opts.ssl->privateKey = options.client_private_key_file;
+
 	opts.ssl->enabledCipherSuites = "aNULL";
 	opts.ssl->enableServerCertAuth = 0;
 
@@ -2009,7 +2059,7 @@ int test6(struct Options options)
 	MyLog(LOGA_INFO, "Starting test 6 - multiple connections");
 	fprintf(xml, "<testcase classname=\"test5\" name=\"%s\"", testname);
 	global_start_time = start_clock();
-
+	//MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_MINIMUM);
 	for (i = 0; i < num_clients; ++i)
 	{
 		tc[i].maxmsgs = MAXMSGS;
@@ -2051,6 +2101,9 @@ int test6(struct Options options)
 		opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 		if (options.client_key_pass != NULL)
 			opts.ssl->privateKeyPassword = options.client_key_pass;
+		if (options.client_private_key_file != NULL)
+			opts.ssl->privateKey = options.client_private_key_file;
+
 		//opts.ssl->enabledCipherSuites = "DEFAULT";
 		//opts.ssl->enabledServerCertAuth = 1;
 
@@ -2274,6 +2327,9 @@ int test7(struct Options options)
 
 	test_finished = failures = 0;
 
+	MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_ERROR);
+	MQTTAsync_setTraceCallback(handleTrace);
+
 	MyLog(LOGA_INFO, "Starting test 7 - big messages");
 	fprintf(xml, "<testcase classname=\"test5\" name=\"%s\"", testname);
 	global_start_time = start_clock();
@@ -2320,6 +2376,9 @@ int test7(struct Options options)
 		opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	//opts.ssl->enabledCipherSuites = "DEFAULT";
 	//opts.ssl->enabledServerCertAuth = 1;
 
@@ -2534,6 +2593,9 @@ int test9(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	opts.ssl->CApath = options.capath;
 	opts.ssl->enableServerCertAuth = 1;
 	opts.ssl->verify = 1;
@@ -2655,6 +2717,9 @@ int test10(struct Options options)
 	opts.ssl->keyStore = options.client_key_file; /*file of certificate for client to present to server*/
 	if (options.client_key_pass != NULL)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file != NULL)
+		opts.ssl->privateKey = options.client_private_key_file;
+
 	opts.ssl->CApath = "DUMMY";
 	opts.ssl->enableServerCertAuth = 1;
 	opts.ssl->verify = 1;
@@ -2685,13 +2750,6 @@ int test10(struct Options options)
 	write_test_result();
 	return failures;
 }
-
-
-void handleTrace(enum MQTTASYNC_TRACE_LEVELS level, char* message)
-{
-	printf("%s\n", message);
-}
-
 
 int main(int argc, char** argv)
 {

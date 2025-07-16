@@ -266,6 +266,18 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 		rc = Socket_unix_new(address, addr_len, &(aClient->net.socket));
 	}
 #endif
+
+#if defined(OPENSSL) && defined(WITH_OPENSSL_QUIC)
+	else if (ssl == 2) {
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, MQTT_DEFAULT_PORT);
+		aClient->net.quic_mode = QUIC_MODE_PREFERRED;
+#if defined(__GNUC__) && defined(__linux__)
+		rc = Socket_dgram_new(address, addr_len, port, &(aClient->net.socket), timeout);
+#else
+		rc = Socket_dgram_new(address, addr_len, port, &(aClient->net.socket));
+#endif
+	}
+#endif
 	else {
 #if defined(OPENSSL)
 		addr_len = MQTTProtocol_addressPort(address, &port, NULL, ssl ?
@@ -283,10 +295,11 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 		rc = Socket_new(address, addr_len, port, &(aClient->net.socket));
 #endif
 	}
+
 	if (rc == EINPROGRESS || rc == EWOULDBLOCK)
 		aClient->connect_state = TCP_IN_PROGRESS; /* TCP connect called - wait for connect completion */
 	else if (rc == 0)
-	{	/* TCP connect completed. If SSL, send SSL connect */
+	{	/* TCP/UDP connect completed. If SSL, send SSL connect */
 #if defined(OPENSSL)
 		if (ssl)
 		{
@@ -301,8 +314,20 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 						aClient->sslopts->verify, aClient->sslopts->ssl_error_cb, aClient->sslopts->ssl_error_context) :
 					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, NULL, NULL);
-				if (rc == TCPSOCKET_INTERRUPTED)
+				// in this fun scope, 0 means success
+				if (rc == 1)
+				{
+#if defined(WITH_OPENSSL_QUIC)
+					SSL_set_blocking_mode(aClient->net.ssl, 0);
+#endif
+					rc = 0;
+				}
+				else if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
+				else if (!rc)
+				{
+					aClient->connect_state = NOT_IN_PROGRESS;
+				}
 			}
 			else
 				rc = SOCKET_ERROR;

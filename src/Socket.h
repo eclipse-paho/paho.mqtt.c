@@ -146,8 +146,10 @@ int Socket_close(SOCKET socket);
 #if defined(__GNUC__) && defined(__linux__)
 /* able to use GNU's getaddrinfo_a to make timeouts possible */
 int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket, long timeout);
+int Socket_dgram_new(const char* addr, size_t addr_len, int port, SOCKET* socket, long timeout);
 #else
 int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* socket);
+int Socket_dgram_new(const char* addr, size_t addr_len, int port, SOCKET* socket);
 #endif
 int Socket_unix_new(const char* addr, size_t addr_len, SOCKET* sock);
 

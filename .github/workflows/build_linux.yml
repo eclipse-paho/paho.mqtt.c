@@ -4,37 +4,83 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # with/without openssl source
+        ssl: [true, false]
+        include:
+          - ssl: true
+            ssl_name: "with-openssl-src"
+            quic: true
+          - ssl: false
+            ssl_name: "without-openssl-src"
+            quic: false
+    name: Build ${{ matrix.ssl_name }}
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+      
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install doxygen
+
+      - name: Install openssl3.4
+        if: matrix.ssl
+        run: |
+          pwd
+          mkdir -p openssl_root
+          wget https://github.com/openssl/openssl/releases/download/openssl-3.4.1/openssl-3.4.1.tar.gz &&
+            tar zxvf openssl-3.4.1.tar.gz --strip-components=1 -C openssl_root
+          cd openssl_root
+          ./Configure && make -j `nproc`
+
       - name: Build
         run: |
           rm -rf build.paho
           mkdir build.paho
           cd build.paho
           echo "pwd $PWD"
-          cmake -DPAHO_BUILD_STATIC=FALSE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_SSL=TRUE -DOPENSSL_ROOT_DIR= -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE ..
+          cmake -DPAHO_BUILD_STATIC=FALSE \
+                -DPAHO_BUILD_SHARED=TRUE \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DPAHO_WITH_SSL=TRUE \
+                ${{ matrix.ssl && '-DOPENSSL_ROOT_DIR=../openssl_root' || '' }} \
+                -DPAHO_BUILD_DOCUMENTATION=FALSE \
+                -DPAHO_BUILD_SAMPLES=TRUE \
+                -DPAHO_HIGH_PERFORMANCE=TRUE \
+                -DPAHO_WITH_QUIC=${{ matrix.quic }} ..
           cmake --build .
+
       - name: Start test broker
         run: |
           git clone https://github.com/eclipse/paho.mqtt.testing.git
           cd paho.mqtt.testing/interoperability
           python3 startbroker.py -c localhost_testing.conf &
+
+      - name: Start test broker for Quic
+        if: matrix.quic
+        run: |
+          docker run -d --name emqx \
+          -v `pwd`/test/ssl/emqx/etc/certs:/opt/emqx/etc/certs \
+          -v `pwd`/test/emqx.conf:/opt/emqx/etc/emqx.conf \
+          -p 8883:8883  -p 14567:14567/udp -p 18883:18883/udp -p 18886:18886/udp -p 18884:18884/udp -p 18885:18885/udp \
+          emqx/emqx:5.8.4
+
       - name: Start test proxy
         run: |
           python3 test/mqttsas.py &
+
       - name: run tests
         run: |
           cd build.paho
           ctest -VV --timeout 600
+
       - name: clean up
         run: |
           killall python3 || true
           sleep 3 # allow broker time to terminate and report
+
       - name: package
         run: |
           cd build.paho

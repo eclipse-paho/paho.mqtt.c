@@ -25,6 +25,7 @@
 #define URI_WS   "ws://"
 #define URI_WSS  "wss://"
 #define URI_UNIX "unix://"
+#define URI_QUIC "quic://"
 
 enum MQTTAsync_threadStates
 {

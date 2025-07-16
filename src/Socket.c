@@ -64,6 +64,12 @@ int Socket_continueWrite(SOCKET socket);
 char* Socket_getaddrname(struct sockaddr* sa, SOCKET sock);
 int Socket_abortWrite(SOCKET socket);
 
+#if defined(__GNUC__) && defined(__linux__)
+static int new(int type, const char* addr, size_t addr_len, int port, SOCKET* sock, long timeout);
+#else
+static int new(int type, const char* addr, size_t addr_len, int port, SOCKET* sock);
+#endif
+
 #if defined(_WIN32) || defined(_WIN64)
 #define iov_len len
 #define iov_base buf
@@ -1119,6 +1125,27 @@ exit:
 
 
 /**
+ *  Create a new socket and UDP connect to an address/port
+ *  @param addr the address string
+ *  @param assr_len the length of the address string
+ *  @param port the UDP port
+ *  @param sock returns the new socket
+ *  @param timeout the timeout in milliseconds
+ *  @return completion code 0=good, SOCKET_ERROR=fail
+ */
+#if defined(__GNUC__) && defined(__linux__)
+int Socket_dgram_new(const char* addr, size_t addr_len, int port, SOCKET* sock, long timeout)
+{
+	return new(SOCK_DGRAM, addr, addr_len, port, sock, timeout);
+}
+#else
+int Socket_dgram_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
+{
+	return new(SOCK_DGRAM, addr, addr_len, port, sock);
+}
+#endif
+
+/**
  *  Create a new socket and TCP connect to an address/port
  *  @param addr the address string
  *  @param assr_len the length of the address string
@@ -1129,11 +1156,22 @@ exit:
  */
 #if defined(__GNUC__) && defined(__linux__)
 int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock, long timeout)
+{
+	return new(SOCK_STREAM, addr, addr_len, port, sock, timeout);
+}
 #else
 int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
+{
+	return new(SOCK_STREAM, addr, addr_len, port, sock);
+}
+#endif
+
+#if defined(__GNUC__) && defined(__linux__)
+static int new(int type, const char* addr, size_t addr_len, int port, SOCKET* sock, long timeout)
+#else
+static int new(int type, const char* addr, size_t addr_len, int port, SOCKET* sock)
 #endif
 {
-	int type = SOCK_STREAM;
 	char *addr_mem;
 	struct sockaddr_in address;
 #if defined(AF_INET6)
@@ -1148,6 +1186,7 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 	struct addrinfo *result = NULL;
 	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
 
+	Log(TRACE_MIN, -1, "New socket for %s", type == SOCK_STREAM ? "TCP" : "UDP");
 	FUNC_ENTRY;
 	*sock = SOCKET_ERROR;
 	memset(&address6, '\0', sizeof(address6));
@@ -1275,6 +1314,15 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 				else
 					rc = connect(*sock, (struct sockaddr*)&address6, sizeof(address6));
 	#endif
+
+// @TODO: maybe not needed
+#if defined(WITH_OPENSSL_QUIC)
+				if (fcntl(*sock, F_SETFL, O_NONBLOCK) < 0) {
+					Log(TRACE_MINIMUM,  -1,  "cannot make socket %d nonblocking\n", *sock);
+					goto exit;
+				}
+#endif
+
 				if (rc == SOCKET_ERROR)
 					rc = Socket_error("connect", *sock);
 				if (rc == EINPROGRESS || rc == EWOULDBLOCK)

@@ -640,6 +640,11 @@ exit:
 Test2a: Mutual SSL Authentication - Certificates in place on client and server - single threaded
 
 *********************************************************************/
+void trace_callback(enum MQTTCLIENT_TRACE_LEVELS level, char* message)
+{
+	fprintf(stdout, "Trace : %d, %s\n", level, message);
+}
+
 
 int test2a_s(struct Options options)
 {
@@ -650,6 +655,8 @@ int test2a_s(struct Options options)
 	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
 	MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
 	MQTTClient_SSLOptions sslopts = MQTTClient_SSLOptions_initializer;
+	MQTTClient_setTraceCallback(trace_callback);
+	//MQTTClient_setTraceLevel(MQTTCLIENT_TRACE_MINIMUM);
 	int rc = 0;
 
 	failures = 0;

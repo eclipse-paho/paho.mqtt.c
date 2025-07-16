@@ -337,6 +337,9 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		 && strncmp(URI_SSL, serverURI, strlen(URI_SSL)) != 0
 		 && strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) != 0
 		 && strncmp(URI_WSS, serverURI, strlen(URI_WSS)) != 0
+#if defined(WITH_OPENSSL_QUIC)
+		 && strncmp(URI_QUIC, serverURI, strlen(URI_QUIC)) != 0
+#endif
 #endif
 			)
 		{
@@ -416,6 +419,14 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		m->ssl = 1;
 		m->websocket = 1;
 	}
+#if defined(WITH_OPENSSL_QUIC)
+	else if (strncmp(URI_QUIC, serverURI, strlen(URI_QUIC)) == 0)
+	{
+		serverURI += strlen(URI_QUIC);
+		m->ssl = 2;
+	}
+#endif
+
 #endif
 	if ((m->serverURI = MQTTStrdup(serverURI)) == NULL)
 	{

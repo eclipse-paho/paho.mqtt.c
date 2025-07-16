@@ -1359,6 +1359,14 @@ static int MQTTAsync_processCommand(void)
 						command->client->ssl = 1;
 						command->client->websocket = 1;
 					}
+#if defined(WITH_OPENSSL_QUIC)
+					else if (strncmp(URI_QUIC, serverURI, strlen(URI_QUIC)) == 0)
+					{
+						serverURI += strlen(URI_QUIC);
+						command->client->ssl = 2;
+					}
+#endif
+
 #endif
 				}
 			}
@@ -1392,8 +1400,10 @@ static int MQTTAsync_processCommand(void)
 #endif
 #endif
 
-			if (command->client->c->connect_state == NOT_IN_PROGRESS)
+			if (command->client->c->connect_state == NOT_IN_PROGRESS) {
+				Log(TRACE_MIN, -1, "Connect state is NOT_IN_PROGRESS for client %s", command->client->c->clientID);
 				rc = SOCKET_ERROR;
+			}
 
 			/* if the TCP connect is pending, then we must call select to determine when the connect has completed,
 			which is indicated by the socket being ready *either* for reading *or* writing.  The next couple of lines
@@ -2936,6 +2946,11 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 			}
 
 			hostname_len = MQTTProtocol_addressPort(serverURI, &port, NULL, default_port);
+
+			if (m->ssl == 2)
+			{
+				m->c->sslopts->sslVersion = MQTT_SSL_VERSION_QUIC;
+			}
 			setSocketForSSLrc = SSLSocket_setSocketForSSL(&m->c->net, m->c->sslopts,
 					serverURI, hostname_len);
 
