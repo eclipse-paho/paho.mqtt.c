@@ -1074,12 +1074,13 @@ typedef struct
 	/** The eyecatcher for this structure.  Must be MQTS */
 	char struct_id[4];
 
-	/** The version number of this structure. Must be 0, 1, 2, 3, 4 or 5.
+	/** The version number of this structure. Must be 0, 1, 2, 3, 4, 5 or 6.
 	 * 0 means no sslVersion
 	 * 1 means no verify, CApath
 	 * 2 means no ssl_error_context, ssl_error_cb
 	 * 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore
 	 * 4 means no protos, protos_len
+	 * 5 means no ssl_keylog_context or ssl_keylog_cb
 	 */
 	int struct_version;
 
@@ -1178,9 +1179,23 @@ typedef struct
 	 * Exists only if struct_version >= 5
 	 */
 	unsigned int protos_len;
+
+	/**
+	 * Callback function for handling the SSL keylogs.
+	 * line: the SSL keylog line.
+	 * ctx: pointer to context data set to ssl_keylog_context by the application.
+	 * Exists only if struct_version >= 6
+	 */
+	void (*ssl_keylog_cb) (const char *line, void *ctx);
+
+	/**
+	 * Application-specific contex for ssl_keylog_cb
+	 * Exists only if struct_version >= 6
+	 */
+	void* ssl_keylog_context;
 } MQTTAsync_SSLOptions;
 
-#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTAsync_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL }
 
 /** Utility structure where name/value pairs are needed */
 typedef struct

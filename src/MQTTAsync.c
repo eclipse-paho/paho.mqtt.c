@@ -816,6 +816,12 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 				m->c->sslopts->protos = (const unsigned char*)MQTTStrdup((const char*)options->ssl->protos);
 			m->c->sslopts->protos_len = options->ssl->protos_len;
 		}
+
+		if (options->ssl->ssl_keylog_cb)
+		{
+			m->c->sslopts->ssl_keylog_cb = options->ssl->ssl_keylog_cb;
+			m->c->sslopts->ssl_keylog_context = options->ssl->ssl_keylog_context;
+		}
 	}
 #else
 	if (options->struct_version != 0 && options->ssl)

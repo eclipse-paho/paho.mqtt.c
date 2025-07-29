@@ -39,6 +39,7 @@
 #include "Heap.h"
 
 #include <string.h>
+#include <errno.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -78,6 +79,10 @@ static ssl_mutex_type sslCoreMutex;
 
 /* Used to store MQTTClient_SSLOptions for TLS-PSK callback */
 static int tls_ex_index_ssl_opts;
+
+/* Used to store the callback function and context for SSL key logging*/
+static void (*SSL_CTX_keylog_callback) (const char *line, void *ctx) = NULL;
+static void * SSL_CTX_keylog_context = NULL;
 
 #if defined(_WIN32) || defined(_WIN64)
 #define iov_len len
@@ -543,6 +548,38 @@ exit:
 	return rc;
 }
 
+static void call_ssl_keylog_cb(const SSL *ssl, const char *line)
+{
+	FUNC_ENTRY;
+
+	{
+		char* envval = NULL;
+		static int log_printed = 0;
+		if (SSL_CTX_keylog_callback)
+		{
+			SSL_CTX_keylog_callback(line, SSL_CTX_keylog_context);
+		}
+		else if ((envval = getenv("SSLKEYLOGFILE")) != NULL && strlen(envval) > 0)
+		{
+			FILE* fout = fopen(envval, "a");
+			if (fout != NULL)
+			{
+				fprintf(fout, "%s\n", line);
+				fclose(fout);
+			}
+			else
+			{
+				if(log_printed == 0)
+					Log(LOG_ERROR, 1, "SSL failed to open SSLKEYLOGFILE \"%s\" with error: %s\n", envval, strerror(errno));
+
+				log_printed = 1;
+			}
+		}
+	}
+exit:
+	FUNC_EXIT;
+}
+
 int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 {
 	int rc = 1;
@@ -721,6 +758,11 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 
 		SSL_CTX_set_info_callback(net->ctx, SSL_CTX_info_callback);
 		SSL_CTX_set_msg_callback(net->ctx, SSL_CTX_msg_callback);
+
+		SSL_CTX_keylog_callback = opts->ssl_keylog_cb;
+		SSL_CTX_keylog_context = opts->ssl_keylog_context;
+		SSL_CTX_set_keylog_callback(net->ctx, call_ssl_keylog_cb);
+
    		if (opts->enableServerCertAuth)
 			SSL_CTX_set_verify(net->ctx, SSL_VERIFY_PEER, NULL);
 

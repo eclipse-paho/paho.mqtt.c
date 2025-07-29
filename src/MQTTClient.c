@@ -1678,6 +1678,12 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 		    m->c->sslopts->protos = options->ssl->protos;
 		    m->c->sslopts->protos_len = options->ssl->protos_len;
 		}
+
+		if (options->ssl->ssl_keylog_cb)
+		{
+			m->c->sslopts->ssl_keylog_cb = options->ssl->ssl_keylog_cb;
+			m->c->sslopts->ssl_keylog_context = options->ssl->ssl_keylog_context;
+		}
 	}
 #endif
 
