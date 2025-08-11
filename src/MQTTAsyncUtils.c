@@ -1662,7 +1662,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			data.message = message;
 			Log(TRACE_MIN, -1, "Calling connect failure for client %s", m->c->clientID);
 			(*(m->connect.onFailure))(m->connect.context, &data);
-			/* m->connect.onFailure = NULL; */ // Trigger connfailed after every reconnection attempt
+			/* m->connect.onFailure = NULL; */ // Trigger connfailed after every failed reconnection attempt
 			/* Null out callback pointers so they aren't accidentally called again */
 			m->connect.onSuccess = NULL;
 		}
@@ -1675,7 +1675,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			data.message = message;
 			Log(TRACE_MIN, -1, "Calling connect failure for client %s", m->c->clientID);
 			(*(m->connect.onFailure5))(m->connect.context, &data);
-			/* m->connect.onFailure5 = NULL; */ // Trigger connfailed after every reconnection attempt
+			/* m->connect.onFailure5 = NULL; */ // Trigger connfailed after every failed reconnection attempt
 			/* Null out callback pointers so they aren't accidentally called again */
 			m->connect.onSuccess5 = NULL;
 		}
