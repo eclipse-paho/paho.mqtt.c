@@ -1652,7 +1652,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 		{
 			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
 			(*(m->cl))(m->clContext, NULL);
-    		}
+    }
 		if (m->connect.onFailure)
 		{
 			MQTTAsync_failureData data;
