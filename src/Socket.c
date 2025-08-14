@@ -1161,7 +1161,7 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 	sa_family_t family = AF_INET;
 #endif
 	struct addrinfo *result = NULL;
-	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
+	struct addrinfo hints = {AI_ADDRCONFIG, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
 	char* interface_name = NULL;    /* the name of the device to bind to, if any */
 	char* bind_address = NULL; /* the address of the interface to bind to, if any */
 
