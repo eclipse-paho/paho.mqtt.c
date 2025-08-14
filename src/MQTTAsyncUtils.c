@@ -1648,6 +1648,11 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 	if (!more_to_try)
 	{
 		MQTTAsync_closeSession(m->c, MQTTREASONCODE_SUCCESS, NULL);
+		if (connectionLost_called == 0 && m->cl && was_connected)
+		{
+			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
+			(*(m->cl))(m->clContext, NULL);
+		}
 		if (m->connect.onFailure)
 		{
 			MQTTAsync_failureData data;
@@ -1657,8 +1662,8 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			data.message = message;
 			Log(TRACE_MIN, -1, "Calling connect failure for client %s", m->c->clientID);
 			(*(m->connect.onFailure))(m->connect.context, &data);
+			/* m->connect.onFailure = NULL; */ // Trigger connfailed after every failed reconnection attempt
 			/* Null out callback pointers so they aren't accidentally called again */
-			m->connect.onFailure = NULL;
 			m->connect.onSuccess = NULL;
 		}
 		else if (m->connect.onFailure5)
@@ -1670,14 +1675,9 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 			data.message = message;
 			Log(TRACE_MIN, -1, "Calling connect failure for client %s", m->c->clientID);
 			(*(m->connect.onFailure5))(m->connect.context, &data);
+			/* m->connect.onFailure5 = NULL; */ // Trigger connfailed after every failed reconnection attempt
 			/* Null out callback pointers so they aren't accidentally called again */
-			m->connect.onFailure5 = NULL;
 			m->connect.onSuccess5 = NULL;
-		}
-		if (connectionLost_called == 0 && m->cl && was_connected)
-		{
-			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
-				(*(m->cl))(m->clContext, NULL);
 		}
 		MQTTAsync_startConnectRetry(m);
 	}
