@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs
+ * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -304,7 +304,11 @@ int test_sem(struct Options options)
 	start = start_clock();
 	rc = Thread_wait_sem(sem, 1500);
 	duration = elapsed(start);
-	assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT || rc == EAGAIN, "rc was %d", rc);
+	#if defined(EAGAIN)
+	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT || rc == EAGAIN, "rc was %d", rc);
+	#else
+	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
+	#endif
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is 2s", duration >= 1500L, "duration was %ld", duration);
 
