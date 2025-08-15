@@ -1576,7 +1576,7 @@ LIBMQTT_API int MQTTClient_setSelectInterface(MQTTClient handle, void* context, 
   * This server behaviour is allowed in MQTT 5.0, but not in MQTT 3.1.1, so the
   * disconnected callback will never be invoked if you use MQTT 3.1.1.
   *
-  * In particular, you must make a publish call within the message arrived callback.
+  * In particular, you must not make a publish call within the message arrived callback.
   * These restrictions are all lifted in the
   * <a href="../../MQTTAsync/html/index.html">MQTTAsync API</a>.
   *
