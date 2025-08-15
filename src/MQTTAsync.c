@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -589,6 +589,23 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	{
 		rc = MQTTASYNC_NULL_PARAMETER;
 		goto exit;
+	}
+	if (options->ssl == NULL && options->serverURIcount > 0)
+	{
+		int i = 0;
+		for (i = 0; i < options->serverURIcount; i++)
+		{
+			char* serverURI = options->serverURIs[i];
+			printf("checking %s\n", serverURI);
+			if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0 ||
+				strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0 ||
+				strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0 ||
+				strncmp(URI_WSS, serverURI, strlen(URI_WSS)) == 0)
+			{
+				rc = MQTTASYNC_NULL_PARAMETER;
+				goto exit;
+			}
+		}
 	}
 #endif
 
