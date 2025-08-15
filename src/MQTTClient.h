@@ -184,10 +184,10 @@
 /**
  * Return code: protocol prefix in serverURI should be:
  * @li @em tcp:// or @em mqtt:// - Insecure TCP
- * @li @em ssl:// or @em mqtts:// - Encrypted SSL/TLS
+ * @li @em ssl:// or @em tls:// or @em mqtts:// - Encrypted SSL/TLS
  * @li @em ws:// - Insecure websockets
  * @li @em wss:// - Secure web sockets
- * The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS
+ * The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS
  * version of the library is linked with.
  */
 #define MQTTCLIENT_BAD_PROTOCOL -14

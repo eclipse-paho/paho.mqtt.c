@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2022 IBM Corp.
+ * Copyright (c) 2012, 2025 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -88,6 +88,8 @@ int myconnect(MQTTClient client)
 	}
 
 	if (opts.connection && (strncmp(opts.connection, "ssl://", 6) == 0 ||
+			strncmp(opts.connection, "tls://", 6) == 0 ||
+			strncmp(opts.connection, "mqtts://", 7) == 0 ||
 			strncmp(opts.connection, "wss://", 6) == 0))
 	{
 		if (opts.insecure)
