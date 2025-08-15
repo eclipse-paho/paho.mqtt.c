@@ -1672,7 +1672,7 @@ LIBMQTT_API int MQTTClient_setSelectInterface(MQTTClient handle, void* context, 
 #include <string.h>
 #include "MQTTClient.h"
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientPub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"
@@ -1739,7 +1739,7 @@ int main(int argc, char* argv[])
 #include <windows.h>
 #endif
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientPub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"
@@ -1848,7 +1848,7 @@ exit:
 #include <string.h>
 #include "MQTTClient.h"
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientSub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"

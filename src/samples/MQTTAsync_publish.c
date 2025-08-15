@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2023 IBM Corp., Ian Craggs
+ * Copyright (c) 2012, 2025 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -29,7 +29,7 @@
 #include <OsWrapper.h>
 #endif
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientPub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"
