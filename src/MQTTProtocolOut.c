@@ -303,6 +303,8 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 						aClient->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
+				else if (rc == 1)
+					rc = 0; /* SSL connection has been successful, correct the return value */
 			}
 			else
 				rc = SOCKET_ERROR;
