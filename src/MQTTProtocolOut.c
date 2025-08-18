@@ -290,16 +290,21 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 #if defined(OPENSSL)
 		if (ssl)
 		{
+			const char* hostname;
+			size_t hostname_len;
+
 			if (aClient->net.https_proxy) {
 				aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
 				rc = Proxy_connect( &aClient->net, 1, address);
 			}
-			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, address, addr_len) == 1)
+
+			hostname = SSLSocket_getHostName(address, aClient->sslopts, &hostname_len);
+			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, hostname, hostname_len) == 1)
 			{
 				rc = aClient->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, hostname, hostname_len,
 						aClient->sslopts->verify, aClient->sslopts->ssl_error_cb, aClient->sslopts->ssl_error_context) :
-					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
+					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, hostname, hostname_len,
 						aClient->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
