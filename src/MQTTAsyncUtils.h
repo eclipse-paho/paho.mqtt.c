@@ -177,6 +177,7 @@ void MQTTAsync_writeComplete(SOCKET socket, int rc);
 void setRetryLoopInterval(int keepalive);
 void MQTTAsync_NULLPublishResponses(MQTTAsyncs* m);
 void MQTTAsync_NULLPublishCommands(MQTTAsyncs* m);
+void MQTTAsync_NULLPublishCommand(MQTTAsync_queuedCommand *command);
 
 #if defined(_WIN32) || defined(_WIN64)
 #else

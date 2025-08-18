@@ -1588,6 +1588,8 @@ static int MQTTAsync_processCommand(void)
 				command->client->connect = command->command;
 				MQTTAsync_startConnectRetry(command->client);
 			}
+                        if (command->command.type == PUBLISH)
+				MQTTAsync_NULLPublishCommand(command);
 			MQTTAsync_freeCommand(command);  /* free up the command if necessary */
 		}
 	}
@@ -2521,6 +2523,22 @@ void MQTTAsync_NULLPublishCommands(MQTTAsyncs* m)
 	FUNC_EXIT;
 }
 
+
+void MQTTAsync_NULLPublishCommand(MQTTAsync_queuedCommand *command)
+{
+	ListElement* found = NULL;
+	int msgid = command->command.token;
+
+	if ((found = ListFindItem(command->client->c->outboundMsgs, &msgid, messageIDCompare)) != NULL)
+	{
+		Messages* msg = (Messages*)(found->content);
+		if (msg->publish)
+		{
+			msg->publish->payload = NULL;
+			msg->publish->topic = NULL;
+		}
+	}
+}
 
 /**
  * Clean the MQTT session data.  This includes the MQTT inflight messages, because
