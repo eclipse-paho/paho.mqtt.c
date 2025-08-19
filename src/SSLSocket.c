@@ -568,15 +568,33 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 		case MQTT_SSL_VERSION_TLS_1_0:
 			net->ctx = SSL_CTX_new(TLSv1_client_method());
 			break;
+		case MQTT_SSL_VERSION_TLS_1_0_OR_HIGHER:
+			net->ctx = SSL_CTX_new(SSLv23_client_method());
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv2);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv3);
+			break;
 #endif
 #if defined(SSL_OP_NO_TLSv1_1) && !defined(OPENSSL_NO_TLS1)
 		case MQTT_SSL_VERSION_TLS_1_1:
 			net->ctx = SSL_CTX_new(TLSv1_1_client_method());
 			break;
+		case MQTT_SSL_VERSION_TLS_1_1_OR_HIGHER:
+			net->ctx = SSL_CTX_new(SSLv23_client_method());
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv2);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv3);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_TLSv1);
+			break;
 #endif
 #if defined(SSL_OP_NO_TLSv1_2) && !defined(OPENSSL_NO_TLS1)
 		case MQTT_SSL_VERSION_TLS_1_2:
 			net->ctx = SSL_CTX_new(TLSv1_2_client_method());
+			break;
+		case MQTT_SSL_VERSION_TLS_1_2_OR_HIGHER:
+			net->ctx = SSL_CTX_new(SSLv23_client_method());
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv2);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_SSLv3);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_TLSv1);
+			SSL_CTX_set_options(net->ctx, SSL_OP_NO_TLSv1_1);
 			break;
 #endif
 		default:
