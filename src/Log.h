@@ -18,7 +18,7 @@
 #if !defined(LOG_H)
 #define LOG_H
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#include <windows.h>
 	#define thread_id_type DWORD
 #else

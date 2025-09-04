@@ -31,7 +31,7 @@
 #include "MQTTProtocolClient.h"
 #include "Heap.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#define snprintf _snprintf
 #endif
 
@@ -658,7 +658,7 @@ void MQTTPersistence_wrapMsgID(Clients *client)
 int MQTTPersistence_unpersistQueueEntry(Clients* client, MQTTPersistence_qEntry* qe)
 {
 	int rc = 0;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define KEYSIZE PERSISTENCE_MAX_KEY_LENGTH + 1
 #else
 	const size_t KEYSIZE = PERSISTENCE_MAX_KEY_LENGTH + 1;
@@ -688,7 +688,7 @@ int MQTTPersistence_persistQueueEntry(Clients* aclient, MQTTPersistence_qEntry* 
 {
 	int rc = 0;
 	int bufindex = 0;
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	const size_t KEYSIZE = PERSISTENCE_MAX_KEY_LENGTH + 1;
 #endif
 	char key[KEYSIZE];

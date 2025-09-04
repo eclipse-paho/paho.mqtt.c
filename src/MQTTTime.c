@@ -17,7 +17,7 @@
 #include "MQTTTime.h"
 #include "StackTrace.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -27,7 +27,7 @@
 void MQTTTime_sleep(ELAPSED_TIME_TYPE milliseconds)
 {
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	Sleep((DWORD)milliseconds);
 #else
 	usleep((useconds_t)(milliseconds*1000));
@@ -35,7 +35,7 @@ void MQTTTime_sleep(ELAPSED_TIME_TYPE milliseconds)
 	FUNC_EXIT;
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 START_TIME_TYPE MQTTTime_start_clock(void)
 {
 #if WINVER >= _WIN32_WINNT_VISTA
@@ -69,7 +69,7 @@ START_TIME_TYPE MQTTTime_now(void)
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 /*
  * @param t_new most recent time in milliseconds from GetTickCount()
  * @param t_old older time in milliseconds from GetTickCount()

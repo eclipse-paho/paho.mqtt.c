@@ -14,7 +14,7 @@
 #if !defined(_MUTEX_TYPE_H_)
 #define _MUTEX_TYPE_H_
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#include <windows.h>
 	#define mutex_type HANDLE
 #else

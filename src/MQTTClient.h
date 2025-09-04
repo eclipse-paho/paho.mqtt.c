@@ -45,7 +45,7 @@
  *
  * @brief An MQTT client library in C.
  *
- * Version 1.3.14
+ * Version 1.3.15
  *
  * These pages describe the original more synchronous API which might be
  * considered easier to use.  Some of the calls will block.  For the new
@@ -186,10 +186,10 @@
 /**
  * Return code: protocol prefix in serverURI should be:
  * @li @em tcp:// or @em mqtt:// - Insecure TCP
- * @li @em ssl:// or @em mqtts:// - Encrypted SSL/TLS
+ * @li @em ssl:// or @em tls:// or @em mqtts:// - Encrypted SSL/TLS
  * @li @em ws:// - Insecure websockets
  * @li @em wss:// - Secure web sockets
- * The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS
+ * The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS
  * version of the library is linked with.
  */
 #define MQTTCLIENT_BAD_PROTOCOL -14
@@ -1528,7 +1528,7 @@ LIBMQTT_API const char* MQTTClient_strerror(int code);
   * This server behaviour is allowed in MQTT 5.0, but not in MQTT 3.1.1, so the
   * disconnected callback will never be invoked if you use MQTT 3.1.1.
   *
-  * In particular, you must make a publish call within the message arrived callback.
+  * In particular, you must not make a publish call within the message arrived callback.
   * These restrictions are all lifted in the
   * <a href="../../MQTTAsync/html/index.html">MQTTAsync API</a>.
   *
@@ -1624,7 +1624,7 @@ LIBMQTT_API const char* MQTTClient_strerror(int code);
 #include <string.h>
 #include "MQTTClient.h"
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientPub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"
@@ -1691,7 +1691,7 @@ int main(int argc, char* argv[])
 #include <windows.h>
 #endif
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientPub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"
@@ -1800,7 +1800,7 @@ exit:
 #include <string.h>
 #include "MQTTClient.h"
 
-#define ADDRESS     "tcp://mqtt.eclipseprojects.io:1883"
+#define ADDRESS     "tcp://test.mosquitto.org:1883"
 #define CLIENTID    "ExampleClientSub"
 #define TOPIC       "MQTT Examples"
 #define PAYLOAD     "Hello World!"

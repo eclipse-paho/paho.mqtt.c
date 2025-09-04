@@ -79,7 +79,7 @@ static ssl_mutex_type sslCoreMutex;
 /* Used to store MQTTClient_SSLOptions for TLS-PSK callback */
 static int tls_ex_index_ssl_opts;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define iov_len len
 #define iov_base buf
 #define snprintf _snprintf
@@ -346,7 +346,7 @@ int SSL_create_mutex(ssl_mutex_type* mutex)
 	int rc = 0;
 
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	*mutex = CreateMutex(NULL, 0, NULL);
 #else
 	rc = pthread_mutex_init(mutex, NULL);
@@ -360,7 +360,7 @@ int SSL_lock_mutex(ssl_mutex_type* mutex)
 	int rc = -1;
 
 	/* don't add entry/exit trace points, as trace gets lock too, and it might happen quite frequently  */
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	if (WaitForSingleObject(*mutex, INFINITE) != WAIT_FAILED)
 #else
 	if ((rc = pthread_mutex_lock(mutex)) == 0)
@@ -375,7 +375,7 @@ int SSL_unlock_mutex(ssl_mutex_type* mutex)
 	int rc = -1;
 
 	/* don't add entry/exit trace points, as trace gets lock too, and it might happen quite frequently  */
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	if (ReleaseMutex(*mutex) != 0)
 #else
 	if ((rc = pthread_mutex_unlock(mutex)) == 0)
@@ -390,7 +390,7 @@ int SSL_destroy_mutex(ssl_mutex_type* mutex)
 	int rc = 0;
 
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	rc = CloseHandle(*mutex);
 #else
 	rc = pthread_mutex_destroy(mutex);
@@ -404,7 +404,7 @@ int SSL_destroy_mutex(ssl_mutex_type* mutex)
 #if (OPENSSL_VERSION_NUMBER >= 0x010000000)
 extern void SSLThread_id(CRYPTO_THREADID *id)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	CRYPTO_THREADID_set_numeric(id, (unsigned long)GetCurrentThreadId());
 #else
 	CRYPTO_THREADID_set_numeric(id, (unsigned long)pthread_self());
@@ -413,7 +413,7 @@ extern void SSLThread_id(CRYPTO_THREADID *id)
 #else
 extern unsigned long SSLThread_id(void)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	return (unsigned long)GetCurrentThreadId();
 #else
 	return (unsigned long)pthread_self();

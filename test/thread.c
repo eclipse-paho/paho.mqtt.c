@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp.
+ * Copyright (c) 2009, 2025 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -244,7 +244,7 @@ static thread_return_type WINAPI sem_secondary(void* n)
 	duration = elapsed(start);
 	assert("rc 0 from lock mutex", rc == 0, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
-	assert("duration is 2s", duration >= 2000L, "duration was %ld", duration);
+	assert("duration is 2s", duration >= 1999L && duration < 2050L, "duration was %ld", duration);
 
 	MyLog(LOGA_DEBUG, "Secondary thread ending");
 	return 0;
@@ -288,10 +288,14 @@ int test_sem(struct Options options)
 		assert("rc 0 from post_sem", rc == 0, "rc was %d\n", rc);
 	}
 
+	rc = Thread_check_sem(sem);
+	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
+
+	// Binary sem, so additional checks should be zero
 	for (i = 0; i < 10; ++i)
 	{
 		rc = Thread_check_sem(sem);
-		assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
+		assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
 	}
 	rc = Thread_check_sem(sem);
 	assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
@@ -300,7 +304,11 @@ int test_sem(struct Options options)
 	start = start_clock();
 	rc = Thread_wait_sem(sem, 1500);
 	duration = elapsed(start);
-	assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
+	#if defined(EAGAIN)
+	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT || rc == EAGAIN, "rc was %d", rc);
+	#else
+	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
+	#endif
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is 2s", duration >= 1500L, "duration was %ld", duration);
 
@@ -310,7 +318,7 @@ int test_sem(struct Options options)
 	mysleep(2);
 	MyLog(LOGA_DEBUG, "post secondary");
 	rc = Thread_post_sem(sem);
-	assert("rc 1 from post_sem", rc == 1, "rc was %d", rc);
+	assert("rc 0 from post_sem", rc == 0, "rc was %d", rc);
 
 	mysleep(1);
 
@@ -323,7 +331,7 @@ int test_sem(struct Options options)
 	return failures;
 }
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 thread_return_type cond_secondary(void* n)
 {
 	int rc = 0;
@@ -333,10 +341,10 @@ thread_return_type cond_secondary(void* n)
 
 	MyLog(LOGA_DEBUG, "This will time out");
 	start = start_clock();
-	rc = Thread_wait_cond(cond, 1);
+	rc = Thread_wait_cond(cond, 1000);
 	duration = elapsed(start);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
-	assert("duration is about 1s", duration >= 1000L && duration <= 1050L, "duration was %ld", duration);
+	assert("duration is about 1s", duration >= 999L && duration <= 1050L, "duration was %ld", duration);
 	assert("rc non 0 from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "This should hang around a few seconds");
@@ -370,11 +378,11 @@ int test_cond(struct Options options)
 
 	MyLog(LOGA_DEBUG, "Check timeout");
 	start = start_clock();
-	rc = Thread_wait_cond(cond, 2);
+	rc = Thread_wait_cond(cond, 2000);
 	duration = elapsed(start);
 	assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
-	assert("duration is 2s", duration >= 2000L, "duration was %ld", duration);
+	assert("duration is 2s", duration >= 1999L && duration < 2050L, "duration was %ld", duration);
 
 	/* multiple posts */
 	for (i = 0; i < 10; ++i)
@@ -389,8 +397,6 @@ int test_cond(struct Options options)
 		rc = Thread_wait_cond(cond, 0);
 		assert("rc non-zero from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
 	}
-	rc = Thread_wait_cond(cond, 0);
-	assert("rc non-zero from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "Post secondary but it will time out");
 	rc = Thread_signal_cond(cond);
@@ -494,7 +500,7 @@ int main(int argc, char** argv)
  	int (*tests[])(struct Options) = {NULL,
  		test_mutex,
  		test_sem,
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 		test_cond
 #endif
  	}; /* indexed starting from 1 */

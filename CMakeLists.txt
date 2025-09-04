@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 project("Eclipse Paho C" 
-  VERSION 1.3.14
+  VERSION 1.3.15
   LANGUAGES C
 )
 

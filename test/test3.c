@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2024 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2012, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -88,7 +88,7 @@ struct Options
 	int websockets;
 } options =
 {
-	"ssl://localhost:18883",
+	"tls://localhost:18883",
 	"mqtts://localhost:18884",
 	"ssl://localhost:18887",
 	"mqtts://localhost:18885",

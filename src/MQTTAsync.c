@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -41,7 +41,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	#include <sys/time.h>
 #else
 	#if defined(_MSC_VER) && _MSC_VER < 1900
@@ -105,7 +105,7 @@ void MQTTAsync_global_init(MQTTAsync_init_options* inits)
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 void MQTTAsync_init_rand(void)
 {
 	START_TIME_TYPE now = MQTTTime_start_clock();
@@ -125,7 +125,7 @@ void MQTTAsync_init_rand(void)
 }
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 mutex_type mqttasync_mutex = NULL;
 mutex_type socket_mutex = NULL;
 mutex_type mqttcommand_mutex = NULL;
@@ -300,7 +300,7 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 	int rc = 0;
 	MQTTAsyncs *m = NULL;
 
-#if (defined(_WIN32) || defined(_WIN64)) && defined(PAHO_MQTT_STATIC)
+#if (defined(_WIN32)) && defined(PAHO_MQTT_STATIC)
 	 /* intializes mutexes once.  Must come before FUNC_ENTRY */
 	BOOL bStatus = InitOnceExecuteOnce(&g_InitOnce, InitMutexesOnce, NULL, NULL);
 #endif
@@ -335,6 +335,7 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		 && strncmp(URI_WS, serverURI, strlen(URI_WS)) != 0
 #if defined(OPENSSL)
 		 && strncmp(URI_SSL, serverURI, strlen(URI_SSL)) != 0
+		 && strncmp(URI_TLS, serverURI, strlen(URI_TLS)) != 0
 		 && strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) != 0
 		 && strncmp(URI_WSS, serverURI, strlen(URI_WSS)) != 0
 #endif
@@ -403,6 +404,11 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 	else if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0)
 	{
 		serverURI += strlen(URI_SSL);
+		m->ssl = 1;
+	}
+	else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+	{
+		serverURI += strlen(URI_TLS);
 		m->ssl = 1;
 	}
 	else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
@@ -582,6 +588,23 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	{
 		rc = MQTTASYNC_NULL_PARAMETER;
 		goto exit;
+	}
+	if (options->ssl == NULL && options->serverURIcount > 0)
+	{
+		int i = 0;
+		for (i = 0; i < options->serverURIcount; i++)
+		{
+			char* serverURI = options->serverURIs[i];
+			printf("checking %s\n", serverURI);
+			if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0 ||
+				strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0 ||
+				strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0 ||
+				strncmp(URI_WSS, serverURI, strlen(URI_WSS)) == 0)
+			{
+				rc = MQTTASYNC_NULL_PARAMETER;
+				goto exit;
+			}
+		}
 	}
 #endif
 

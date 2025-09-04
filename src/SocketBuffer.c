@@ -34,7 +34,7 @@
 
 #include "Heap.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define iov_len len
 #define iov_base buf
 #endif

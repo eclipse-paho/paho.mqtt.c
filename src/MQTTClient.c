@@ -46,7 +46,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	#include <sys/time.h>
 #else
 	#if defined(_MSC_VER) && _MSC_VER < 1900
@@ -71,6 +71,7 @@
 #include <openssl/ssl.h>
 #else
 #define URI_SSL   "ssl://"
+#define URI_TLS   "tls://"
 #define URI_MQTTS "mqtts://"
 #endif
 
@@ -114,7 +115,7 @@ ClientStates* bstate = &ClientState;
 
 MQTTProtocol state;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 static mutex_type mqttclient_mutex = NULL;
 mutex_type socket_mutex = NULL;
 static mutex_type subscribe_mutex = NULL;
@@ -370,7 +371,7 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 	int rc = 0;
 	MQTTClients *m = NULL;
 
-#if (defined(_WIN32) || defined(_WIN64)) && defined(PAHO_MQTT_STATIC)
+#if (defined(_WIN32)) && defined(PAHO_MQTT_STATIC)
 	/* intializes mutexes once.  Must come before FUNC_ENTRY */
 	BOOL bStatus = InitOnceExecuteOnce(&g_InitOnce, InitOnceFunction, NULL, NULL);
 #endif
@@ -403,6 +404,7 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 		 && strncmp(URI_WS, serverURI, strlen(URI_WS)) != 0
 #if defined(OPENSSL)
          && strncmp(URI_SSL, serverURI, strlen(URI_SSL)) != 0
+		 && strncmp(URI_TLS, serverURI, strlen(URI_TLS)) != 0
          && strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) != 0
 		 && strncmp(URI_WSS, serverURI, strlen(URI_WSS)) != 0
 #endif
@@ -461,6 +463,16 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 	{
 #if defined(OPENSSL)
 		serverURI += strlen(URI_SSL);
+		m->ssl = 1;
+#else
+		rc = MQTTCLIENT_SSL_NOT_SUPPORTED;
+		goto exit;
+#endif
+	}
+	else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+	{
+#if defined(OPENSSL)
+		serverURI += strlen(URI_TLS);
 		m->ssl = 1;
 #else
 		rc = MQTTCLIENT_SSL_NOT_SUPPORTED;
@@ -1026,7 +1038,7 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 	running = tostop = 0;
 	Paho_thread_unlock_mutex(mqttclient_mutex);
 	FUNC_EXIT;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	ExitThread(0);
 #endif
 	return 0;
@@ -1896,6 +1908,11 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 			else if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0)
 			{
 				serverURI += strlen(URI_SSL);
+				m->ssl = 1;
+			}
+			else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+			{
+				serverURI += strlen(URI_TLS);
 				m->ssl = 1;
 			}
 			else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)

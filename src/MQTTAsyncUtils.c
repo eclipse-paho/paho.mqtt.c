@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	#include <sys/time.h>
 #endif
 
@@ -81,7 +81,7 @@ extern List* MQTTAsync_handles;
 extern List* MQTTAsync_commands;
 extern int MQTTAsync_tostop;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	#if defined(_MSC_VER) && _MSC_VER < 1900
 		#define snprintf _snprintf
 	#endif
@@ -108,7 +108,7 @@ extern cond_type send_cond;
 void MQTTAsync_sleep(long milliseconds)
 {
 	FUNC_ENTRY;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	Sleep(milliseconds);
 #else
 	usleep(milliseconds*1000);
@@ -936,7 +936,7 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 	}
 exit:
 	MQTTAsync_unlock_mutex(mqttcommand_mutex);
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	if ((rc1 = Thread_signal_cond(send_cond)) != 0)
 		Log(LOG_ERROR, 0, "Error %d from signal cond", rc1);
 #else
@@ -1346,6 +1346,11 @@ static int MQTTAsync_processCommand(void)
 					else if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0)
 					{
 						serverURI += strlen(URI_SSL);
+						command->client->ssl = 1;
+					}
+					else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+					{
+						serverURI += strlen(URI_TLS);
 						command->client->ssl = 1;
 					}
 					else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
@@ -1855,7 +1860,7 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 			command_count = MQTTAsync_commands->count;
 			MQTTAsync_unlock_mutex(mqttcommand_mutex);
 		}
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 		if ((rc = Thread_wait_cond(send_cond, timeout)) != 0 && rc != ETIMEDOUT)
 			Log(LOG_ERROR, -1, "Error %d waiting for condition variable", rc);
 #else
@@ -1880,7 +1885,7 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 #endif
 
 	FUNC_EXIT;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	ExitThread(0);
 #endif
 	return 0;
@@ -2066,7 +2071,7 @@ static int MQTTAsync_completeConnection(MQTTAsyncs* m, Connack* connack)
 			}
 		}
 		m->pack = NULL;
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 		Thread_signal_cond(send_cond);
 #else
 		Thread_post_sem(send_sem);
@@ -2396,7 +2401,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 	receiveThread_state = STOPPED;
 	receiveThread_id = 0;
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 	if (sendThread_state != STOPPED)
 		Thread_signal_cond(send_cond);
 #else
@@ -2413,7 +2418,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 #endif
 
 	FUNC_EXIT;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 	ExitThread(0);
 #endif
 	return 0;
@@ -2896,6 +2901,11 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 			serverURI += strlen(URI_SSL);
 			default_port = SECURE_MQTT_DEFAULT_PORT;
 		}
+		else if (strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0)
+		{
+			serverURI += strlen(URI_TLS);
+			default_port = SECURE_MQTT_DEFAULT_PORT;
+		}
 		else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
 		{
 			serverURI += strlen(URI_MQTTS);
@@ -3142,7 +3152,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 				{
 					*rc = MQTTProtocol_handlePubcomps(pack, *sock, &pubToRemove);
 					if (sendThread_state != STOPPED)
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 						Thread_signal_cond(send_cond);
 #else
 						Thread_post_sem(send_sem);
@@ -3154,7 +3164,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 				{
 					*rc = MQTTProtocol_handlePubacks(pack, *sock, &pubToRemove);
 					if (sendThread_state != STOPPED)
-#if !defined(_WIN32) && !defined(_WIN64)
+#if !defined(_WIN32)
 						Thread_signal_cond(send_cond);
 #else
 						Thread_post_sem(send_sem);
