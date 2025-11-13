@@ -1,0 +1,69 @@
+.TH "MQTTClient_persistence" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClient_persistence \- A structure containing the function pointers to a persistence implementation and the context or state that will be shared across all the persistence functions\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTClientPersistence\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "void * \fBcontext\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_open\fP \fBpopen\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_close\fP \fBpclose\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_put\fP \fBpput\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_get\fP \fBpget\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_remove\fP \fBpremove\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_keys\fP \fBpkeys\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_clear\fP \fBpclear\fP"
+.br
+.ti -1c
+.RI "\fBPersistence_containskey\fP \fBpcontainskey\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+A structure containing the function pointers to a persistence implementation and the context or state that will be shared across all the persistence functions\&. 
+.SH "Field Documentation"
+.PP 
+.SS "void* context"
+A pointer to any data required to initialize the persistent store\&. 
+.SS "\fBPersistence_open\fP popen"
+A function pointer to an implementation of \fBPersistence_open()\fP\&. 
+.SS "\fBPersistence_close\fP pclose"
+A function pointer to an implementation of \fBPersistence_close()\fP\&. 
+.SS "\fBPersistence_put\fP pput"
+A function pointer to an implementation of \fBPersistence_put()\fP\&. 
+.SS "\fBPersistence_get\fP pget"
+A function pointer to an implementation of \fBPersistence_get()\fP\&. 
+.SS "\fBPersistence_remove\fP premove"
+A function pointer to an implementation of \fBPersistence_remove()\fP\&. 
+.SS "\fBPersistence_keys\fP pkeys"
+A function pointer to an implementation of \fBPersistence_keys()\fP\&. 
+.SS "\fBPersistence_clear\fP pclear"
+A function pointer to an implementation of \fBPersistence_clear()\fP\&. 
+.SS "\fBPersistence_containskey\fP pcontainskey"
+A function pointer to an implementation of \fBPersistence_containskey()\fP\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

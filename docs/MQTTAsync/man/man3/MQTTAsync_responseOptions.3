@@ -1,0 +1,83 @@
+.TH "MQTTAsync_responseOptions" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_responseOptions
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onSuccess\fP * \fBonSuccess\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onFailure\fP * \fBonFailure\fP"
+.br
+.ti -1c
+.RI "void * \fBcontext\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_token\fP \fBtoken\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onSuccess5\fP * \fBonSuccess5\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onFailure5\fP * \fBonFailure5\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperties\fP \fBproperties\fP"
+.br
+.ti -1c
+.RI "\fBMQTTSubscribe_options\fP \fBsubscribeOptions\fP"
+.br
+.ti -1c
+.RI "int \fBsubscribeOptionsCount\fP"
+.br
+.ti -1c
+.RI "\fBMQTTSubscribe_options\fP * \fBsubscribeOptionsList\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Structure to define call options\&. For MQTT 5\&.0 there is input data as well as that describing the response method\&. So there is now also a synonym \fBMQTTAsync_callOptions\fP to better reflect the use\&. This responseOptions name is kept for backward compatibility\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Must be MQTR 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0 or 1 if 0, no MQTTV5 options 
+.SS "\fBMQTTAsync_onSuccess\fP* onSuccess"
+A pointer to a callback function to be called if the API call successfully completes\&. Can be set to NULL, in which case no indication of successful completion will be received\&. 
+.SS "\fBMQTTAsync_onFailure\fP* onFailure"
+A pointer to a callback function to be called if the API call fails\&. Can be set to NULL, in which case no indication of unsuccessful completion will be received\&. 
+.SS "void* context"
+A pointer to any application-specific context\&. The the \fIcontext\fP pointer is passed to success or failure callback functions to provide access to the context information in the callback\&. 
+.SS "\fBMQTTAsync_token\fP token"
+A token is returned from the call\&. It can be used to track the state of this request, both in the callbacks and in future calls such as \fBMQTTAsync_waitForCompletion\fP\&. This is output only - any change by the application will be ignored\&. 
+.SS "\fBMQTTAsync_onSuccess5\fP* onSuccess5"
+A pointer to a callback function to be called if the API call successfully completes\&. Can be set to NULL, in which case no indication of successful completion will be received\&. 
+.SS "\fBMQTTAsync_onFailure5\fP* onFailure5"
+A pointer to a callback function to be called if the API call successfully completes\&. Can be set to NULL, in which case no indication of successful completion will be received\&. 
+.SS "\fBMQTTProperties\fP properties"
+MQTT V5 input properties 
+.SS "\fBMQTTSubscribe_options\fP subscribeOptions"
+
+.SS "int subscribeOptionsCount"
+
+.SS "\fBMQTTSubscribe_options\fP* subscribeOptionsList"
+
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

@@ -1,0 +1,56 @@
+.TH "MQTTAsync_connectData" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_connectData
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "const char * \fBusername\fP"
+.br
+.ti -1c
+.RI "struct {"
+.br
+.ti -1c
+.RI "   int \fBlen\fP"
+.br
+.ti -1c
+.RI "   const void * \fBdata\fP"
+.br
+.ti -1c
+.RI "} \fBbinarypwd\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The connect options that can be updated before an automatic reconnect\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Will be MQCD\&. 
+.SS "int struct_version"
+The version number of this structure\&. Will be 0 
+.SS "const char* username"
+MQTT servers that support the MQTT v3\&.1 protocol provide authentication and authorisation by user name and password\&. This is the user name parameter\&. Set data to NULL to remove\&. To change, allocate new storage with ::MQTTAsync_allocate - this will then be free later by the library\&. 
+.SS "int len"
+binary password length 
+.SS "const void* data"
+binary password data 
+.SS "struct  { \&.\&.\&. }  binarypwd"
+The password parameter of the MQTT authentication\&. Set data to NULL to remove\&. To change, allocate new storage with ::MQTTAsync_allocate - this will then be free later by the library\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

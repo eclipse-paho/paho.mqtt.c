@@ -1,0 +1,63 @@
+.TH "MQTTAsync_failureData5" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_failureData5
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_token\fP \fBtoken\fP"
+.br
+.ti -1c
+.RI "enum \fBMQTTReasonCodes\fP \fBreasonCode\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperties\fP \fBproperties\fP"
+.br
+.ti -1c
+.RI "int \fBcode\fP"
+.br
+.ti -1c
+.RI "const char * \fBmessage\fP"
+.br
+.ti -1c
+.RI "int \fBpacket_type\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The data returned on completion of an unsuccessful API call in the response callback onFailure\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Will be MQFD\&. 
+.SS "int struct_version"
+The version number of this structure\&. Will be 0 
+.SS "\fBMQTTAsync_token\fP token"
+A token identifying the failed request\&. 
+.SS "enum \fBMQTTReasonCodes\fP reasonCode"
+The MQTT reason code returned\&. 
+.SS "\fBMQTTProperties\fP properties"
+The MQTT properties on the ack, if any\&. 
+.SS "int code"
+A numeric code identifying the MQTT client library error\&. 
+.SS "const char* message"
+Optional further text explaining the error\&. Can be NULL\&. 
+.SS "int packet_type"
+Packet type on which the failure occurred - used for publish QoS 1/2 exchanges 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

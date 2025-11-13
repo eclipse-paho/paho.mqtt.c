@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 IBM Corp.
+ * Copyright (c) 2009, 2018 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * and Eclipse Distribution License v1.0 which accompany this distribution. 
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
- * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
- * and the Eclipse Distribution License is available at 
+ * The Eclipse Public License is available at
+ *    https://www.eclipse.org/legal/epl-2.0/
+ * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
@@ -21,7 +21,7 @@
  *
  * See page 104 of the Unicode Standard 5.0 for the list of well formed
  * UTF-8 byte sequences.
- * 
+ *
  */
 #include "utf-8.h"
 
@@ -50,7 +50,7 @@ struct
 		char upper; /**< upper limit of valid range */
 	} bytes[4];   /**< up to 4 bytes can be used per character */
 }
-valid_ranges[] = 
+valid_ranges[] =
 {
 		{1, { {00, 0x7F} } },
 		{2, { {0xC2, 0xDF}, {0x80, 0xBF} } },
@@ -80,7 +80,9 @@ static const char* UTF8_char_validate(int len, const char* data)
 	int i, j;
 	const char *rc = NULL;
 
-	FUNC_ENTRY;
+	if (data == NULL)
+		goto exit;	/* don't have data, can't continue */
+
 	/* first work out how many bytes this char is encoded in */
 	if ((data[0] & 128) == 0)
 		charlen = 1;
@@ -114,7 +116,6 @@ static const char* UTF8_char_validate(int len, const char* data)
 	if (good)
 		rc = data + charlen;
 	exit:
-	FUNC_EXIT;
 	return rc;
 }
 
@@ -131,14 +132,14 @@ int UTF8_validate(int len, const char* data)
 	int rc = 0;
 
 	FUNC_ENTRY;
-	if (len == 0)
+	if (len == 0 || data == NULL)
 	{
 		rc = 1;
 		goto exit;
 	}
 	curdata = UTF8_char_validate(len, data);
 	while (curdata && (curdata < data + len))
-		curdata = UTF8_char_validate(len, curdata);
+		curdata = UTF8_char_validate((int)(data + len - curdata), curdata);
 
 	rc = curdata != NULL;
 exit:
@@ -157,7 +158,10 @@ int UTF8_validateString(const char* string)
 	int rc = 0;
 
 	FUNC_ENTRY;
-	rc = UTF8_validate((int)strlen(string), string);
+	if (string != NULL)
+	{
+		rc = UTF8_validate((int)strlen(string), string);
+	}
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -222,6 +226,11 @@ int main (int argc, char *argv[])
 		printf("Failed\n");
 	else
 		printf("Passed\n");
+
+    //Don't crash on null data
+	UTF8_validateString(NULL);
+	UTF8_validate(1, NULL);
+	UTF8_char_validate(1, NULL);
 
 	return 0;
 } /* End of main function*/

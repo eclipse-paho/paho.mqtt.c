@@ -1,0 +1,47 @@
+name: "Test LibreSSL"
+on: [push, pull_request]
+
+jobs:
+  nix:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build LibreSSL
+        run: |
+          curl -O https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.8.2.tar.gz
+          tar -xf libressl-3.8.2.tar.gz
+          cd libressl-3.8.2
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. -DLIBRESSL_APPS:BOOL=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=$(pwd)/../artifacts
+          cmake --build . --config Release -j$(nproc)
+          cmake --install .
+      - name: Build
+        run: |
+          rm -rf build.paho
+          mkdir build.paho
+          cd build.paho
+          echo "pwd $PWD"
+          cmake -DPAHO_BUILD_STATIC=FALSE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_LIBRESSL=TRUE -DLIBRESSL_ROOT_DIR=$(pwd)/../libressl-3.8.2/artifacts -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE ..
+          cmake --build . --config Debug  -j$(nproc)
+      - name: Start test broker
+        run: |
+          git clone https://github.com/eclipse/paho.mqtt.testing.git
+          cd paho.mqtt.testing/interoperability
+          python3 startbroker.py -c localhost_testing.conf &
+      - name: Start test proxy
+        run: |
+          python3 test/mqttsas.py &
+      - name: run tests
+        run: |
+          cd build.paho
+          ctest -C Debug -VV --timeout 600
+      - name: clean up
+        run: |
+          killall python3 || true
+          sleep 3 # allow broker time to terminate and report

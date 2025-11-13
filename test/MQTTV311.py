@@ -1,16 +1,16 @@
 """
 *******************************************************************
-  Copyright (c) 2013, 2014 IBM Corp.
- 
+  Copyright (c) 2013, 2018 IBM Corp.
+
   All rights reserved. This program and the accompanying materials
-  are made available under the terms of the Eclipse Public License v1.0
-  and Eclipse Distribution License v1.0 which accompany this distribution. 
- 
-  The Eclipse Public License is available at 
-     http://www.eclipse.org/legal/epl-v10.html
-  and the Eclipse Distribution License is available at 
+  are made available under the terms of the Eclipse Public License v2.0
+  and Eclipse Distribution License v1.0 which accompany this distribution.
+
+  The Eclipse Public License is available at
+     https://www.eclipse.org/legal/epl-2.0/
+  and the Eclipse Distribution License is available at
     http://www.eclipse.org/org/documents/edl-v10.php.
- 
+
   Contributors:
      Ian Craggs - initial implementation and/or documentation
 *******************************************************************
@@ -31,7 +31,7 @@ logger = logging.getLogger("mqttsas")
 
 class MQTTException(Exception):
   pass
-   
+
 
 # Message types
 CONNECT, CONNACK, PUBLISH, PUBACK, PUBREC, PUBREL, \
@@ -106,10 +106,10 @@ class FixedHeaders:
            self.RETAIN == fh.RETAIN # and \
            # self.remainingLength == fh.remainingLength
 
-  def __repr__(self):
-    "return printable representation of our data"
-    return classNames[self.MessageType]+'(DUP='+repr(self.DUP)+ \
-           ", QoS="+repr(self.QoS)+", Retain="+repr(self.RETAIN)
+  def __str__(self):
+    "return printable stresentation of our data"
+    return classNames[self.MessageType]+'(DUP='+str(self.DUP)+ \
+           ", QoS="+str(self.QoS)+", Retain="+str(self.RETAIN)
 
   def pack(self, length):
     "pack data into string buffer ready for transmission down socket"
@@ -185,7 +185,7 @@ def readUTF(buffer, maxlen):
     if zz != -1:
       raise MQTTException("[MQTT-1.5.3-1] D800-DFFF found in UTF data "+buf)
   if buf.find("\uFEFF") != -1:
-    logger.info("[MQTT-1.5.3-3] U+FEFF in UTF string") 
+    logger.info("[MQTT-1.5.3-3] U+FEFF in UTF string")
   return buf
 
 def writeBytes(buffer):
@@ -202,8 +202,8 @@ class Packets:
     buffer = self.fh.pack(0)
     return buffer
 
-  def __repr__(self):
-    return repr(self.fh)
+  def __str__(self):
+    return str(self.fh)
 
   def __eq__(self, packet):
     return self.fh == packet.fh if packet else False
@@ -235,20 +235,20 @@ class Connects(Packets):
     if buffer != None:
       self.unpack(buffer)
 
-  def pack(self):    
+  def pack(self):
     connectFlags = bytes([(self.CleanSession << 1) | (self.WillFlag << 2) | \
                        (self.WillQoS << 3) | (self.WillRETAIN << 5) | \
                        (self.usernameFlag << 6) | (self.passwordFlag << 7)])
     buffer = writeUTF(self.ProtocolName) + bytes([self.ProtocolVersion]) + \
               connectFlags + writeInt16(self.KeepAliveTimer)
-    buffer += writeUTF(self.ClientIdentifier) 
+    buffer += writeUTF(self.ClientIdentifier)
     if self.WillFlag:
-      buffer += writeUTF(self.WillTopic) 
-      buffer += writeBytes(self.WillMessage) 
+      buffer += writeUTF(self.WillTopic)
+      buffer += writeBytes(self.WillMessage)
     if self.usernameFlag:
-      buffer += writeUTF(self.username) 
+      buffer += writeUTF(self.username)
     if self.passwordFlag:
-      buffer += writeBytes(self.password) 
+      buffer += writeBytes(self.password)
     buffer = self.fh.pack(len(buffer)) + buffer
     return buffer
 
@@ -331,15 +331,15 @@ class Connects(Packets):
 
 
 
-  def __repr__(self):
-    buf = repr(self.fh)+", ProtocolName="+str(self.ProtocolName)+", ProtocolVersion=" +\
-          repr(self.ProtocolVersion)+", CleanSession="+repr(self.CleanSession) +\
-          ", WillFlag="+repr(self.WillFlag)+", KeepAliveTimer=" +\
-          repr(self.KeepAliveTimer)+", ClientId="+str(self.ClientIdentifier) +\
-          ", usernameFlag="+repr(self.usernameFlag)+", passwordFlag="+repr(self.passwordFlag)
+  def __str__(self):
+    buf = str(self.fh)+", ProtocolName="+str(self.ProtocolName)+", ProtocolVersion=" +\
+          str(self.ProtocolVersion)+", CleanSession="+str(self.CleanSession) +\
+          ", WillFlag="+str(self.WillFlag)+", KeepAliveTimer=" +\
+          str(self.KeepAliveTimer)+", ClientId="+str(self.ClientIdentifier) +\
+          ", usernameFlag="+str(self.usernameFlag)+", passwordFlag="+str(self.passwordFlag)
     if self.WillFlag:
-      buf += ", WillQoS=" + repr(self.WillQoS) +\
-             ", WillRETAIN=" + repr(self.WillRETAIN) +\
+      buf += ", WillQoS=" + str(self.WillQoS) +\
+             ", WillRETAIN=" + str(self.WillRETAIN) +\
              ", WillTopic='"+ self.WillTopic +\
              "', WillMessage='"+str(self.WillMessage)+"'"
     if self.username:
@@ -393,8 +393,8 @@ class Connacks(Packets):
     assert self.fh.QoS == 0, "[MQTT-2.1.2-1]"
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1]"
 
-  def __repr__(self):
-    return repr(self.fh)+", Session present="+str((self.flags & 0x01) == 1)+", ReturnCode="+repr(self.returnCode)+")"
+  def __str__(self):
+    return str(self.fh)+", Session present="+str((self.flags & 0x01) == 1)+", ReturnCode="+str(self.returnCode)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -421,8 +421,8 @@ class Disconnects(Packets):
     assert self.fh.QoS == 0, "[MQTT-2.1.2-1]"
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1]"
 
-  def __repr__(self):
-    return repr(self.fh)+")"
+  def __str__(self):
+    return str(self.fh)+")"
 
 
 class Publishes(Packets):
@@ -475,11 +475,11 @@ class Publishes(Packets):
       assert self.fh.DUP == False, "[MQTT-2.1.2-4]"
     return fhlen + self.fh.remainingLength
 
-  def __repr__(self):
-    rc = repr(self.fh)
+  def __str__(self):
+    rc = str(self.fh)
     if self.fh.QoS != 0:
-      rc += ", MsgId="+repr(self.messageIdentifier)
-    rc += ", TopicName="+repr(self.topicName)+", Payload="+repr(self.data)+")"
+      rc += ", MsgId="+str(self.messageIdentifier)
+    rc += ", TopicName="+str(self.topicName)+", Payload="+str(self.data)+")"
     return rc
 
   def __eq__(self, packet):
@@ -520,8 +520,8 @@ class Pubacks(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1] Puback reserved bits must be 0"
     return fhlen + 2
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId "+repr(self.messageIdentifier)
+  def __str__(self):
+    return str(self.fh)+", MsgId "+str(self.messageIdentifier)
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -557,8 +557,8 @@ class Pubrecs(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1] Pubrec reserved bits must be 0"
     return fhlen + 2
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -595,8 +595,8 @@ class Pubrels(Packets):
     logger.info("[MQTT-3.6.1-1] bits in fixed header for pubrel are ok")
     return fhlen + 2
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -632,8 +632,8 @@ class Pubcomps(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1] Retain should be false in Pubcomp"
     return fhlen + 2
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -685,9 +685,9 @@ class Subscribes(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1] RETAIN must be false in subscribe"
     return fhlen + self.fh.remainingLength
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+\
-           ", Data="+repr(self.data)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+\
+           ", Data="+str(self.data)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -735,9 +735,9 @@ class Subacks(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1] Retain should be false in suback"
     return fhlen + self.fh.remainingLength
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+\
-           ", Data="+repr(self.data)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+\
+           ", Data="+str(self.data)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -787,9 +787,9 @@ class Unsubscribes(Packets):
     logger.info("[MQTT-3-10.1-1] fixed header bits are 0,0,1,0")
     return fhlen + self.fh.remainingLength
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+\
-           ", Data="+repr(self.data)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+\
+           ", Data="+str(self.data)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -827,8 +827,8 @@ class Unsubacks(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1]"
     return fhlen + self.fh.remainingLength
 
-  def __repr__(self):
-    return repr(self.fh)+", MsgId="+repr(self.messageIdentifier)+")"
+  def __str__(self):
+    return str(self.fh)+", MsgId="+str(self.messageIdentifier)+")"
 
   def __eq__(self, packet):
     return Packets.__eq__(self, packet) and \
@@ -855,8 +855,8 @@ class Pingreqs(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1]"
     return fhlen
 
-  def __repr__(self):
-    return repr(self.fh)+")"
+  def __str__(self):
+    return str(self.fh)+")"
 
 
 class Pingresps(Packets):
@@ -879,8 +879,8 @@ class Pingresps(Packets):
     assert self.fh.RETAIN == False, "[MQTT-2.1.2-1]"
     return fhlen
 
-  def __repr__(self):
-    return repr(self.fh)+")"
+  def __str__(self):
+    return str(self.fh)+")"
 
 classes = [None, Connects, Connacks, Publishes, Pubacks, Pubrecs,
            Pubrels, Pubcomps, Subscribes, Subacks, Unsubscribes,
@@ -910,11 +910,10 @@ if __name__ == "__main__":
     pass
 
   for packet in classes[1:]:
-    before = str(packet())   
+    before = str(packet())
     after = str(unpackPacket(packet().pack()))
     try:
       assert before == after
     except:
       print("before:", before, "\nafter:", after)
   print("End")
-

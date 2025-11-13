@@ -1,0 +1,71 @@
+.TH "MQTTAsync_willOptions" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_willOptions
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "const char * \fBtopicName\fP"
+.br
+.ti -1c
+.RI "const char * \fBmessage\fP"
+.br
+.ti -1c
+.RI "int \fBretained\fP"
+.br
+.ti -1c
+.RI "int \fBqos\fP"
+.br
+.ti -1c
+.RI "struct {"
+.br
+.ti -1c
+.RI "   int \fBlen\fP"
+.br
+.ti -1c
+.RI "   const void * \fBdata\fP"
+.br
+.ti -1c
+.RI "} \fBpayload\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+\fBMQTTAsync_willOptions\fP defines the MQTT "Last Will and Testament" (LWT) settings for the client\&. In the event that a client unexpectedly loses its connection to the server, the server publishes the LWT message to the LWT topic on behalf of the client\&. This allows other clients (subscribed to the LWT topic) to be made aware that the client has disconnected\&. To enable the LWT function for a specific client, a valid pointer to an \fBMQTTAsync_willOptions\fP structure is passed in the \fBMQTTAsync_connectOptions\fP structure used in the \fBMQTTAsync_connect()\fP call that connects the client to the server\&. The pointer to \fBMQTTAsync_willOptions\fP can be set to NULL if the LWT function is not required\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. must be MQTW\&. 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0 or 1 0 indicates no binary will message support 
+.SS "const char* topicName"
+The LWT topic to which the LWT message will be published\&. 
+.SS "const char* message"
+The LWT payload\&. 
+.SS "int retained"
+The retained flag for the LWT message (see \fBMQTTAsync_message\&.retained\fP)\&. 
+.SS "int qos"
+The quality of service setting for the LWT message (see \fBMQTTAsync_message\&.qos\fP and \fBQuality of service\fP)\&. 
+.SS "int len"
+binary payload length 
+.SS "const void* data"
+binary payload data 
+.SS "struct  { \&.\&.\&. }  payload"
+The LWT payload in binary form\&. This is only checked and used if the message option is NULL 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

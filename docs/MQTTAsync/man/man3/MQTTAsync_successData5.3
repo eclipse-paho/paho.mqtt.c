@@ -1,0 +1,129 @@
+.TH "MQTTAsync_successData5" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_successData5
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_token\fP \fBtoken\fP"
+.br
+.ti -1c
+.RI "enum \fBMQTTReasonCodes\fP \fBreasonCode\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperties\fP \fBproperties\fP"
+.br
+.ti -1c
+.RI "union {"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      int \fBreasonCodeCount\fP"
+.br
+.ti -1c
+.RI "      enum \fBMQTTReasonCodes\fP * \fBreasonCodes\fP"
+.br
+.ti -1c
+.RI "   } \fBsub\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      \fBMQTTAsync_message\fP \fBmessage\fP"
+.br
+.ti -1c
+.RI "      char * \fBdestinationName\fP"
+.br
+.ti -1c
+.RI "   } \fBpub\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      char * \fBserverURI\fP"
+.br
+.ti -1c
+.RI "      int \fBMQTTVersion\fP"
+.br
+.ti -1c
+.RI "      int \fBsessionPresent\fP"
+.br
+.ti -1c
+.RI "   } \fBconnect\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      int \fBreasonCodeCount\fP"
+.br
+.ti -1c
+.RI "      enum \fBMQTTReasonCodes\fP * \fBreasonCodes\fP"
+.br
+.ti -1c
+.RI "   } \fBunsub\fP"
+.br
+.ti -1c
+.RI "} \fBalt\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The data returned on completion of a successful API call in the response callback onSuccess\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Will be MQSD\&. 
+.SS "int struct_version"
+The version number of this structure\&. Will be 0 
+.SS "\fBMQTTAsync_token\fP token"
+A token identifying the successful request\&. Can be used to refer to the request later\&. 
+.SS "enum \fBMQTTReasonCodes\fP reasonCode"
+MQTT V5 reason code returned 
+.SS "\fBMQTTProperties\fP properties"
+MQTT V5 properties returned, if any 
+.SS "int reasonCodeCount"
+the number of reason codes in the reasonCodes array 
+.SS "enum \fBMQTTReasonCodes\fP* reasonCodes"
+an array of reasonCodes 
+.SS "struct  { \&.\&.\&. }  sub"
+For subscribeMany, the list of reasonCodes returned by the server\&. 
+.SS "\fBMQTTAsync_message\fP message"
+the message being sent to the server 
+.SS "char* destinationName"
+the topic destination for the message 
+.SS "struct  { \&.\&.\&. }  pub"
+For publish, the message being sent to the server\&. 
+.SS "char* serverURI"
+the connection string of the server 
+.SS "int MQTTVersion"
+the version of MQTT being used 
+.SS "int sessionPresent"
+the session present flag returned from the server 
+.SS "struct  { \&.\&.\&. }  connect"
+
+.SS "struct  { \&.\&.\&. }  unsub"
+For unsubscribeMany, the list of reasonCodes returned by the server\&. 
+.SS "union  { \&.\&.\&. }  alt"
+A union of the different values that can be returned for subscribe, unsubscribe and publish\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

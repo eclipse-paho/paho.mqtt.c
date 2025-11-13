@@ -1,0 +1,88 @@
+IF (CPACK_GENERATOR MATCHES "DEB")
+    FIND_PROGRAM(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems")
+    IF (DPKG_PROGRAM)
+      EXECUTE_PROCESS(
+        COMMAND ${DPKG_PROGRAM} --print-architecture
+        OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    ELSE (DPKG_PROGRAM)
+      MESSAGE(FATAL_ERROR "Could not find an architecture for the package")
+    ENDIF (DPKG_PROGRAM)
+
+    EXECUTE_PROCESS(
+      COMMAND lsb_release -si
+      OUTPUT_VARIABLE CPACK_DEBIAN_DIST_NAME
+      RESULT_VARIABLE DIST_NAME_STATUS
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    IF (DIST_NAME_STATUS)
+       MESSAGE(FATAL_ERROR "Could not find a GNU/Linux distribution name")
+    ENDIF (DIST_NAME_STATUS)
+
+    IF (CPACK_DEBIAN_DIST_NAME STREQUAL "")
+      MESSAGE(FATAL_ERROR "Could not find a GNU/Linux distribution name")
+    ENDIF ()
+
+    EXECUTE_PROCESS(
+      COMMAND lsb_release -sc
+      OUTPUT_VARIABLE CPACK_DEBIAN_DIST_CODE
+      RESULT_VARIABLE DIST_CODE_STATUS
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    IF (DIST_NAME_STATUS)
+       MESSAGE(FATAL_ERROR "Could not find a GNU/Linux distribution codename")
+    ENDIF (DIST_NAME_STATUS)
+
+    IF (CPACK_DEBIAN_DIST_CODE STREQUAL "")
+      MESSAGE(FATAL_ERROR "Could not find a GNU/Linux distribution codename")
+    ENDIF ()
+
+    SET(CPACK_PACKAGE_VERSION_MAJOR @PAHO_VERSION_MAJOR@)
+    SET(CPACK_PACKAGE_VERSION_MINOR @PAHO_VERSION_MINOR@)
+    SET(CPACK_PACKAGE_VERSION_PATCH @PAHO_VERSION_PATCH@)
+    SET(PACKAGE_VERSION
+        "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+
+    IF (PACKAGE_VERSION STREQUAL "")
+      MESSAGE(FATAL_ERROR "Could not find a version number for the package")
+    ENDIF ()
+
+    SET(PAHO_WITH_SSL @PAHO_WITH_SSL@)
+
+    MESSAGE("Package version:   ${PACKAGE_VERSION}")
+    MESSAGE("Package built for: ${CPACK_DEBIAN_DIST_NAME} ${CPACK_DEBIAN_DIST_CODE}")
+    IF(PAHO_WITH_SSL)
+        MESSAGE("Package built with ssl-enabled binaries too")
+    ENDIF()
+
+    # Additional lines to a paragraph should start with " "; paragraphs should
+    # be separated with a " ." line
+    SET(CPACK_PACKAGE_NAME "libpaho-mqtt")
+    SET(CPACK_PACKAGE_CONTACT "Eclipse")
+    SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Eclipse Paho MQTT C client")
+    SET(CPACK_DEBIAN_PACKAGE_NAME ${CPACK_PACKAGE_NAME})
+    SET(CPACK_DEBIAN_PACKAGE_MAINTAINER
+        "Genis Riera Perez <genis.riera.perez@gmail.com>")
+    SET(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Eclipse Paho MQTT C client library")
+    SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    SET(CPACK_DEBIAN_PACKAGE_VERSION ${PACKAGE_VERSION})
+    SET(CPACK_DEBIAN_PACKAGE_SECTION "net")
+    SET(CPACK_DEBIAN_PACKAGE_CONFLICTS ${CPACK_PACKAGE_NAME})
+    SET(CPACK_PACKAGE_FILE_NAME
+        "${CPACK_DEBIAN_PACKAGE_NAME}_${CPACK_DEBIAN_PACKAGE_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+
+    UNSET(PACKAGE_VERSION CACHE)
+    UNSET(CPACK_DEBIAN_PACKAGE_VERSION CACHE)
+
+    #
+    # From CMakeDebHelper
+    # See http://www.cmake.org/Wiki/CMake:CPackPackageGenerators#Overall_usage_.28common_to_all_generators.29
+    #
+
+    # When the DEB-generator runs, we want him to run our install-script
+    #set( CPACK_INSTALL_SCRIPT ${CPACK_DEBIAN_INSTALL_SCRIPT} )
+
+ENDIF()

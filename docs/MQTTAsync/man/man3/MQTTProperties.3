@@ -1,0 +1,43 @@
+.TH "MQTTProperties" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTProperties
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTProperties\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "int \fBcount\fP"
+.br
+.ti -1c
+.RI "int \fBmax_count\fP"
+.br
+.ti -1c
+.RI "int \fBlength\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperty\fP * \fBarray\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+MQTT version 5 property list 
+.SH "Field Documentation"
+.PP 
+.SS "int count"
+number of property entries in the array 
+.SS "int max_count"
+max number of properties that the currently allocated array can store 
+.SS "int length"
+mbi: byte length of all properties 
+.SS "\fBMQTTProperty\fP* array"
+array of properties 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

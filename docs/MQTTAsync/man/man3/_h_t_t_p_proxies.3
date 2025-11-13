@@ -1,0 +1,16 @@
+.TH "_h_t_t_p_proxies" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+_h_t_t_p_proxies \- HTTP Proxies 
+.PP
+The use of HTTP proxies can be controlled by environment variables or API calls\&.
+
+.PP
+The \fBMQTTAsync_connectOptions\&.httpProxy\fP and \fBMQTTAsync_connectOptions\&.httpsProxy\fP fields of the \fBMQTTAsync_connectOptions\fP structure override any settings in the environment\&.
+
+.PP
+If the environment variable PAHO_C_CLIENT_USE_HTTP_PROXY is set to TRUE, then the http_proxy or https_proxy (lower case only) environment variables are used, for plain TCP and TLS-secured connections respectively\&.
+
+.PP
+The no_proxy environment variable can be used to exclude certain hosts from using an environment variable chosen proxy\&. This does not apply to a proxy selected through the API\&. The no_proxy environment variable is lower case only, and is a list of comma-separated hostname:port values\&. Suffixes are matched (e\&.g\&. example\&.com will match test\&.example\&.com)\&. 

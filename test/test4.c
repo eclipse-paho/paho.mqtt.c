@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2014 IBM Corp.
+ * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -54,7 +54,7 @@ struct Options
 	int iterations;
 } options =
 {
-	"iot.eclipse.org:1883",
+	"localhost:1883",
 	0,
 	-1,
 	10000,
@@ -112,10 +112,6 @@ void getopts(int argc, char** argv)
 	}
 }
 
-#if 0
-#include <logaX.h>   /* For general log messages                      */
-#define MyLog logaLine
-#else
 #define LOGA_DEBUG 0
 #define LOGA_INFO 1
 #include <stdarg.h>
@@ -125,18 +121,30 @@ void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
 	va_list args;
+#if defined(_WIN32) || defined(_WINDOWS)
 	struct timeb ts;
-
-	struct tm *timeinfo;
+#else
+	struct timeval ts;
+#endif
+	struct tm timeinfo;
 
 	if (LOGA_level == LOGA_DEBUG && options.verbose == 0)
 	  return;
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	ftime(&ts);
-	timeinfo = localtime(&ts.time);
-	strftime(msg_buf, 80, "%Y%m%d %H%M%S", timeinfo);
+	localtime_s(&timeinfo, &ts.time);
+#else
+	gettimeofday(&ts, NULL);
+	localtime_r(&ts.tv_sec, &timeinfo);
+#endif
+	strftime(msg_buf, 80, "%Y%m%d %H%M%S", &timeinfo);
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	sprintf(&msg_buf[strlen(msg_buf)], ".%.3hu ", ts.millitm);
+#else
+	sprintf(&msg_buf[strlen(msg_buf)], ".%.3lu ", ts.tv_usec / 1000L);
+#endif
 
 	va_start(args, format);
 	vsnprintf(&msg_buf[strlen(msg_buf)], sizeof(msg_buf) - strlen(msg_buf), format, args);
@@ -145,10 +153,9 @@ void MyLog(int LOGA_level, char* format, ...)
 	printf("%s\n", msg_buf);
 	fflush(stdout);
 }
-#endif
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(_WIN32) || defined(_WINDOWS)
 #define mqsleep(A) Sleep(1000*A)
 #define START_TIME_TYPE DWORD
 static DWORD start_time = 0;
@@ -178,7 +185,7 @@ START_TIME_TYPE start_clock(void)
 #endif
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 long elapsed(START_TIME_TYPE start_time)
 {
 	return GetTickCount() - start_time;
@@ -270,6 +277,7 @@ void test1_onUnsubscribe(void* context, MQTTAsync_successData* response)
 	MyLog(LOGA_DEBUG, "In onUnsubscribe onSuccess callback %p", c);
 	opts.onSuccess = test1_onDisconnect;
 	opts.context = c;
+	opts.timeout = 1000;
 
 	rc = MQTTAsync_disconnect(c, &opts);
 	assert("Disconnect successful", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
@@ -293,6 +301,7 @@ int test1_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 		pubmsg.qos = 2;
 		pubmsg.retained = 0;
 		rc = MQTTAsync_sendMessage(c, test_topic, &pubmsg, &opts);
+		assert("Good rc from send", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 	}
 	else
 	{
@@ -324,6 +333,7 @@ void test1_onSubscribe(void* context, MQTTAsync_successData* response)
 	pubmsg.retained = 0;
 
 	rc = MQTTAsync_send(c, test_topic, pubmsg.payloadlen, pubmsg.payload, pubmsg.qos, pubmsg.retained, NULL);
+	assert("Good rc from send", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 }
 
 
@@ -398,7 +408,7 @@ int test1(struct Options options)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -470,7 +480,8 @@ int test2(struct Options options)
 	opts.keepAliveInterval = 20;
 	opts.cleansession = 1;
 	opts.username = "testuser";
-	opts.password = "testpassword";
+	opts.binarypwd.data = "testpassword";
+	opts.binarypwd.len = (int)strlen(opts.binarypwd.data);
 	opts.MQTTVersion = options.MQTTVersion;
 
 	opts.will = &wopts;
@@ -491,7 +502,7 @@ int test2(struct Options options)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -544,6 +555,7 @@ void test3_onUnsubscribe(void* context, MQTTAsync_successData* response)
 	MyLog(LOGA_DEBUG, "In onUnsubscribe onSuccess callback \"%s\"", cd->clientid);
 	opts.onSuccess = test3_onDisconnect;
 	opts.context = cd;
+	opts.timeout = 1000;
 
 	rc = MQTTAsync_disconnect(cd->c, &opts);
 	assert("Disconnect successful", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
@@ -702,7 +714,7 @@ int test3(struct Options options)
 	while (test_finished < num_clients)
 	{
 		MyLog(LOGA_DEBUG, "num_clients %d test_finished %d\n", num_clients, test_finished);
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -891,7 +903,7 @@ int test4(struct Options options)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(1000L);
@@ -974,7 +986,7 @@ int test5(struct Options options)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1005,7 +1017,7 @@ void test6_onConnectFailure(void* context, MQTTAsync_failureData* response)
 	if (response)
 		MyLog(LOGA_INFO, "Connack rc is %d", response->code);
 
-	assert("Should fail to connect", cinfo.should_fail, "should_fail was %d", cinfo.should_fail);
+	assert("Should fail to connect", cinfo.should_fail, "should_fail was %d\n", cinfo.should_fail);
 
 	test_finished = 1;
 }
@@ -1017,8 +1029,17 @@ void test6_onConnect(void* context, MQTTAsync_successData* response)
 
 	MyLog(LOGA_DEBUG, "In connect success callback, context %p", context);
 
-	assert("Should connect correctly", !cinfo.should_fail, "should_fail was %d", cinfo.should_fail);
+	assert("Should connect correctly", !cinfo.should_fail, "should_fail was %d\n", cinfo.should_fail);
 
+	test_finished = 1;
+}
+
+
+void test6_onDisconnect(void* context, MQTTAsync_successData* response)
+{
+	test6_client_info cinfo = *(test6_client_info*)context;
+
+	MyLog(LOGA_DEBUG, "In onDisconnect callback %p", cinfo.c);
 	test_finished = 1;
 }
 
@@ -1034,6 +1055,7 @@ int test6(struct Options options)
 	test6_client_info cinfo;
 	MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
 	MQTTAsync_willOptions wopts = MQTTAsync_willOptions_initializer;
+	MQTTAsync_disconnectOptions dopts = MQTTAsync_disconnectOptions_initializer;
 	int rc = 0;
 	char* test_topic = "C client test1";
 	char* uris[2] = {options.connection, options.connection};
@@ -1064,32 +1086,19 @@ int test6(struct Options options)
 
 	MyLog(LOGA_DEBUG, "Connecting");
 	rc = MQTTAsync_connect(cinfo.c, &opts);
-	rc = 0;
 	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 	if (rc != MQTTASYNC_SUCCESS)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
 		#endif
 
 	test_finished = 0;
-	cinfo.should_fail = 0; /* should connect */
-	rc = MQTTAsync_create(&cinfo.c, "tcp://rubbish:1883", "async ha connection",
-			MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
-	assert("good rc from create",  rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
-	if (rc != MQTTASYNC_SUCCESS)
-	{
-		MQTTAsync_destroy(&cinfo.c);
-		goto exit;
-	}
-
-	rc = MQTTAsync_setCallbacks(cinfo.c, cinfo.c, NULL, test1_messageArrived, NULL);
-	assert("Good rc from setCallbacks", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
-
+	cinfo.should_fail = 0; /* should connect through the serverURIs in connect options*/
 	opts.onSuccess = test6_onConnect;
 	opts.onFailure = test6_onConnectFailure;
 	opts.context = &cinfo;
@@ -1098,13 +1107,25 @@ int test6(struct Options options)
 
 	MyLog(LOGA_DEBUG, "Connecting");
 	rc = MQTTAsync_connect(cinfo.c, &opts);
-	rc = 0;
 	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 	if (rc != MQTTASYNC_SUCCESS)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
+			Sleep(100);
+		#else
+			usleep(10000L);
+		#endif
+
+	test_finished = 0;
+	dopts.timeout = 0;
+	dopts.onSuccess = test6_onDisconnect;
+	dopts.context = &cinfo;
+	MQTTAsync_disconnect(cinfo.c, &dopts);
+
+	while (!test_finished)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1157,6 +1178,7 @@ void test7_onUnsubscribe(void* context, MQTTAsync_successData* response)
 	MyLog(LOGA_DEBUG, "In onUnsubscribe onSuccess callback %p", c);
 	opts.onSuccess = test7_onDisconnect;
 	opts.context = c;
+	opts.timeout = 1000;
 
 	rc = MQTTAsync_disconnect(c, &opts);
 	assert("Disconnect successful", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
@@ -1286,7 +1308,7 @@ int test7(struct Options options)
 		goto exit;
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1303,7 +1325,7 @@ int test7(struct Options options)
 		goto exit;
 
 	while (!test7_subscribed)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1340,7 +1362,7 @@ int test7(struct Options options)
 	MQTTAsync_disconnect(c, &dopts); /* now there should be "orphaned" publications */
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1389,7 +1411,7 @@ int test7(struct Options options)
 		goto exit;
 	}
 
-	#if defined(WIN32)
+	#if defined(_WIN32)
 		Sleep(5000);
 	#else
 		usleep(5000000L);
@@ -1410,7 +1432,7 @@ int test7(struct Options options)
 	MQTTAsync_disconnect(c, &dopts);
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1498,7 +1520,7 @@ void test8_onConnect(void* context, MQTTAsync_successData* response)
 	opts.context = c;
 
 	rc = MQTTAsync_subscribe(c, test8_topic, 2, &opts);
-	assert("Good rc from subscribe", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+	assert("Good rc from subscribe", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
 	if (rc != MQTTASYNC_SUCCESS)
 		test_finished = 1;
 }
@@ -1566,7 +1588,7 @@ int test8(struct Options options)
 		goto exit;
 
 	while (!test8_subscribed)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1594,7 +1616,7 @@ int test8(struct Options options)
 	assert("Good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1622,7 +1644,7 @@ int test8(struct Options options)
 		goto exit;
 
 	while (!test8_subscribed)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1650,7 +1672,7 @@ int test8(struct Options options)
 	assert("Good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
 
 	while (!test_finished)
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(10000L);
@@ -1669,6 +1691,48 @@ int test8(struct Options options)
 
 	assert("test8_publishFailures > 0", test8_publishFailures > 0,
 		   "test8_publishFailures = %d", test8_publishFailures);
+
+	/* cleanup persistence of any left over message data*/
+
+	MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_ERROR);
+	rc = MQTTAsync_create(&c, options.connection, "async_test8",
+				MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
+	assert("good rc from create",  rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+	{
+		MQTTAsync_destroy(&c);
+		goto exit;
+	}
+
+	test8_subscribed = 0;
+	opts.cleansession = 1;
+	opts.context = c;
+
+	rc = MQTTAsync_connect(c, &opts);
+	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto exit;
+
+	while (!test8_subscribed)
+#if defined(_WIN32)
+		Sleep(100);
+#else
+		usleep(10000L);
+#endif
+
+	test_finished = 0;
+	dopts.context = c;
+	rc = MQTTAsync_disconnect(c, &dopts);
+	assert("Good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+	while (!test_finished)
+#if defined(_WIN32)
+		Sleep(100);
+#else
+		usleep(10000L);
+#endif
+
+	MQTTAsync_destroy(&c);
 
 exit:
 	MyLog(LOGA_INFO, "TEST8: test %s. %d tests run, %d failures.",
@@ -1690,7 +1754,7 @@ void trace_callback(enum MQTTASYNC_TRACE_LEVELS level, char* message)
 int main(int argc, char** argv)
 {
 	int rc = 0;
- 	int (*tests[])() = {NULL, test1, test2, test3, test4, test5, test6, test7, test8}; /* indexed starting from 1 */
+ 	int (*tests[])(struct Options) = {NULL, test1, test2, test3, test4, test5, test6, test7, test8}; /* indexed starting from 1 */
 	MQTTAsync_nameValue* info;
 	int i;
 

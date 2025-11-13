@@ -1,0 +1,16 @@
+.TH "callbacks" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+callbacks \- Callbacks 
+.PP
+You must not call a function from this API from within a callback otherwise a deadlock might result\&. The only exception to this is the ability to call connect within the connection lost callback, to allow a reconnect\&.
+
+.PP
+When using MQTT 5\&.0, you can also call connect from within the disconnected callback, which is invoked when the MQTT server sends a disconnect packet\&. This server behaviour is allowed in MQTT 5\&.0, but not in MQTT 3\&.1\&.1, so the disconnected callback will never be invoked if you use MQTT 3\&.1\&.1\&.
+
+.PP
+In particular, you must not make a publish call within the message arrived callback\&. These restrictions are all lifted in the \fRMQTTAsync API\fP\&.
+
+.PP
+If no callbacks are assigned, this will include the message arrived callback\&. This could be done if the application is a pure publisher, and does not subscribe to any topics\&. If however messages are received, and no message arrived callback is set, or receive not called, then those messages will accumulate and take up memory, as there is no place for them to be delivered\&. It is up to the application to protect against this situation\&. 

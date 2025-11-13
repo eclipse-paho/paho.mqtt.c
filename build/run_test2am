@@ -1,1 +1,0 @@
-LD_LIBRARY_PATH=. ./test3 --test_no 3 --hostname localhost --server_key /home/icraggs/nobackup/mosquitto-1.2/pkeys/test-root-ca.crt --client_key /home/icraggs/nobackup/mosquitto-1.2/pkeys/client.pem 

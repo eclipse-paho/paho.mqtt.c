@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 IBM Corp.
+ * Copyright (c) 2009, 2020 IBM Corp. and others
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution. 
  *
  * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at 
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -23,11 +23,16 @@
 #define NO_HEAP_TRACKING 1
 #endif
 
+#define PAHO_MEMORY_ERROR -99
+
+#include "MQTTExportDeclarations.h"
+
 #include <stdio.h>
-#include <memory.h>
 #include <stdlib.h>
 
 #if !defined(NO_HEAP_TRACKING)
+
+#if !defined(TREE_C)
 /**
  * redefines malloc to use "mymalloc" so that heap allocation can be tracked
  * @param x the size of the item to be allocated
@@ -45,7 +50,7 @@
 
 /**
  * redefines free to use "myfree" so that heap allocation can be tracked
- * @param x the size of the item to be freed
+ * @param x the pointer to the item to be freed
  */
 #define free(x) myfree(__FILE__, __LINE__, x)
 
@@ -60,6 +65,9 @@ typedef struct
 	size_t max_size;		/**< max size the heap has reached in bytes */
 } heap_info;
 
+#if defined(__cplusplus)
+ extern "C" {
+#endif
 
 void* mymalloc(char*, int, size_t size);
 void* myrealloc(char*, int, void* p, size_t size);
@@ -68,10 +76,15 @@ void myfree(char*, int, void* p);
 void Heap_scan(FILE* file);
 int Heap_initialize(void);
 void Heap_terminate(void);
-heap_info* Heap_get_info(void);
+LIBMQTT_API heap_info* Heap_get_info(void);
 int HeapDump(FILE* file);
 int HeapDumpString(FILE* file, char* str);
 void* Heap_findItem(void* p);
 void Heap_unlink(char* file, int line, void* p);
+#ifdef __cplusplus
+     }
+#endif
+
+#endif
 
 #endif

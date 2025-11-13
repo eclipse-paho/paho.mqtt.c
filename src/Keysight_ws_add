@@ -1,0 +1,22 @@
+#if WINVER <= _WIN32_WINNT_WIN8
+#define HTON(x) hton((uint64_t) (x), sizeof(x))
+uint64_t hton(uint64_t x, size_t n)
+{
+	uint64_t y = 0;
+	size_t i = 0;
+
+	for (i=0; i < n; ++i)
+	{
+		y = (y << 8) | (x & 0xff);
+		x = (x >> 8);
+	}
+	return y;
+}
+#define htons(x)  (uint16_t) HTON(x)
+#define htonl(x)  (uint32_t) HTON(x)
+#define htonll(x) (uint64_t) HTON(x)
+
+#define ntohs(x)   htons(x)
+#define ntohl(x)   htonl(x)
+#define ntohll(x)  htonll(x)
+#endif

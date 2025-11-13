@@ -1,22 +1,23 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2017 IBM Corp.
+ * Copyright (c) 2012, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
  *    Allan Stockdill-Mander - initial API and implementation and/or initial documentation
+ *    Ian Craggs - add SSL options NULL test
  *******************************************************************************/
 
 /**
  * @file
- * SSL tests for the MQ Telemetry MQTT C client
+ * SSL tests for the Eclipse Paho MQTT C client
  */
 
 #include "MQTTClient.h"
@@ -75,6 +76,7 @@ struct Options
 	char nocert_mutual_auth_connection[100];
 	char server_auth_connection[100];
 	char anon_connection[100];
+	char psk_connection[100];
 	char** haconnections;         	/**< connection to system under test. */
 	int hacount;
 	char* client_key_file;
@@ -83,19 +85,22 @@ struct Options
 	char* client_private_key_file;
 	int verbose;
 	int test_no;
+	int websockets;
 } options =
 {
-	"ssl://m2m.eclipse.org:18883",
-	"ssl://m2m.eclipse.org:18884",
-	"ssl://m2m.eclipse.org:18887",
-	"ssl://m2m.eclipse.org:18885",
-	"ssl://m2m.eclipse.org:18886",
+	"tls://localhost:18883",
+	"mqtts://localhost:18884",
+	"ssl://localhost:18887",
+	"mqtts://localhost:18885",
+	"ssl://localhost:18886",
+	"mqtts://localhost:18888",
 	NULL,
 	0,
 	"../../../test/ssl/client.pem",
 	NULL,
 	"../../../test/ssl/test-root-ca.crt",
 	NULL,
+	0,
 	0,
 	0,
 };
@@ -153,17 +158,21 @@ void getopts(int argc, char** argv)
 		{
 			if (++count < argc)
 			{
-				sprintf(options.connection, "ssl://%s:18883", argv[count]);
+				char* prefix = (options.websockets) ? "wss" : "ssl";
+
+				sprintf(options.connection, "%s://%s:18883", prefix, argv[count]);
 				printf("Setting connection to %s\n", options.connection);
-				sprintf(options.mutual_auth_connection, "ssl://%s:18884", argv[count]);
+				sprintf(options.mutual_auth_connection, "%s://%s:18884", prefix, argv[count]);
 				printf("Setting mutual_auth_connection to %s\n", options.mutual_auth_connection);
-				sprintf(options.nocert_mutual_auth_connection, "ssl://%s:18887", argv[count]);
+				sprintf(options.nocert_mutual_auth_connection, "%s://%s:18887", prefix, argv[count]);
 				printf("Setting nocert_mutual_auth_connection to %s\n",
 					options.nocert_mutual_auth_connection);
-				sprintf(options.server_auth_connection, "ssl://%s:18885", argv[count]);
+				sprintf(options.server_auth_connection, "%s://%s:18885", prefix, argv[count]);
 				printf("Setting server_auth_connection to %s\n", options.server_auth_connection);
-				sprintf(options.anon_connection, "ssl://%s:18886", argv[count]);
+				sprintf(options.anon_connection, "%s://%s:18886", prefix, argv[count]);
 				printf("Setting anon_connection to %s\n", options.anon_connection);
+				sprintf(options.psk_connection, "%s://%s:18888", prefix, argv[count]);
+				printf("Setting psk_connection to %s\n", options.psk_connection);
 			}
 			else
 				usage();
@@ -241,8 +250,12 @@ void getopts(int argc, char** argv)
 		else if (strcmp(argv[count], "--verbose") == 0)
 		{
 			options.verbose = 1;
-			//TODO
 			printf("\nSetting verbose on\n");
+		}
+		else if (strcmp(argv[count], "--ws") == 0)
+		{
+			options.websockets = 1;
+			printf("\nSetting websockets on\n");
 		}
 		count++;
 	}
@@ -256,18 +269,30 @@ void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
 	va_list args;
+#if defined(_WIN32) || defined(_WINDOWS)
 	struct timeb ts;
-
-	struct tm *timeinfo;
+#else
+	struct timeval ts;
+#endif
+	struct tm timeinfo;
 
 	if (LOGA_level == LOGA_DEBUG && options.verbose == 0)
 	  return;
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	ftime(&ts);
-	timeinfo = localtime(&ts.time);
-	strftime(msg_buf, 80, "%Y%m%d %H%M%S", timeinfo);
+	localtime_s(&timeinfo, &ts.time);
+#else
+	gettimeofday(&ts, NULL);
+	localtime_r(&ts.tv_sec, &timeinfo);
+#endif
+	strftime(msg_buf, 80, "%Y%m%d %H%M%S", &timeinfo);
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	sprintf(&msg_buf[strlen(msg_buf)], ".%.3hu ", ts.millitm);
+#else
+	sprintf(&msg_buf[strlen(msg_buf)], ".%.3lu ", ts.tv_usec / 1000L);
+#endif
 
 	va_start(args, format);
 	vsnprintf(&msg_buf[strlen(msg_buf)], sizeof(msg_buf) - strlen(msg_buf), format, args);
@@ -278,7 +303,7 @@ void MyLog(int LOGA_level, char* format, ...)
 }
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(_WIN32) || defined(_WINDOWS)
 #define mqsleep(A) Sleep(1000*A)
 #define START_TIME_TYPE DWORD
 static DWORD start_time = 0;
@@ -308,7 +333,7 @@ START_TIME_TYPE start_clock(void)
 #endif
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 long elapsed(START_TIME_TYPE start_time)
 {
 	return GetTickCount() - start_time;
@@ -507,7 +532,7 @@ void multiThread_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 			rc = MQTTClient_publishMessage(c, test_topic, &multiThread_pubmsg, &dt);
 		assert("Good rc from publish", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
 
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(100000L);
@@ -517,7 +542,7 @@ void multiThread_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 		while ((multiThread_arrivedcount < i) && (wait_seconds-- > 0))
 		{
 			MyLog(LOGA_DEBUG, "Arrived %d count %d", multiThread_arrivedcount, i);
-			#if defined(WIN32)
+			#if defined(_WIN32)
 				Sleep(1000);
 			#else
 				usleep(1000000L);
@@ -536,7 +561,7 @@ void multiThread_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 		while ((multiThread_deliveryCompleted < iterations) && (wait_seconds-- > 0))
 		{
 			MyLog(LOGA_DEBUG, "Delivery Completed %d count %d", multiThread_deliveryCompleted, i);
-			#if defined(WIN32)
+			#if defined(_WIN32)
 				Sleep(1000);
 			#else
 				usleep(1000000L);
@@ -570,6 +595,9 @@ int test1(struct Options options)
 	fprintf(xml, "<testcase classname=\"test3\" name=\"SSL connect fail to nonSSL MQTT server\"");
 	global_start_time = start_clock();
 
+	rc = MQTTClient_create(&c, "a b://wrong protocol", "test1",	MQTTCLIENT_PERSISTENCE_DEFAULT, persistenceStore);
+	assert("bad rc from create", rc == MQTTCLIENT_BAD_PROTOCOL, "rc was %d \n", rc);
+
 	rc = MQTTClient_create(&c, options.connection, "test1",	MQTTCLIENT_PERSISTENCE_DEFAULT, persistenceStore);
 	if (!(assert("good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d \n", rc)))
 		goto exit;
@@ -583,6 +611,10 @@ int test1(struct Options options)
 		opts.serverURIs = options.haconnections;
 		opts.serverURIcount = options.hacount;
 	}
+
+	/* Try with ssl opts == NULL - should get error */
+	rc = MQTTClient_connect(c, &opts);
+	assert("Connect should fail", rc == MQTTCLIENT_NULL_PARAMETER, "rc was %d ", rc);
 
 	opts.ssl = &sslopts;
 	if (options.server_key_file != NULL)
@@ -633,8 +665,7 @@ int test2a_s(struct Options options)
 	opts.cleansession = 1;
 	opts.username = "testuser";
 	opts.password = "testpassword";
-	if (options.haconnections != NULL)
-	{
+	if (options.haconnections != NULL)	{
 		opts.serverURIs = options.haconnections;
 		opts.serverURIcount = options.hacount;
 	}
@@ -647,6 +678,7 @@ int test2a_s(struct Options options)
 		opts.ssl->privateKeyPassword = options.client_key_pass;
 	if (options.client_private_key_file)
 		opts.ssl->privateKey = options.client_private_key_file;
+	opts.ssl->verify = 1;
 
 	MyLog(LOGA_DEBUG, "Connecting");
 
@@ -880,6 +912,89 @@ int test2c(struct Options options)
 
 	rc = MQTTClient_connect(c, &opts);
 	if (!(assert("Good rc from connect", rc == MQTTCLIENT_FAILURE, "rc was %d", rc)))
+		goto exit;
+
+exit:
+	MQTTClient_destroy(&c);
+	MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+			(failures == 0) ? "passed" : "failed", testname, tests, failures);
+	write_test_result();
+	return failures;
+}
+
+/*********************************************************************
+
+Test2e: Mutual SSL Authentication - high availability
+
+*********************************************************************/
+
+int test2e_s(struct Options options)
+{
+	char* testname = "test2e_s";
+	char* test_topic = "C client test2e_s";
+	int subsqos = 2;
+	MQTTClient c;
+	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
+	MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
+	MQTTClient_SSLOptions sslopts = MQTTClient_SSLOptions_initializer;
+	char* uris[2] = {"wrong", options.mutual_auth_connection};
+	int rc = 0;
+
+	failures = 0;
+	MyLog(LOGA_INFO, "Starting test 2e_s - Mutual SSL authentication - HA");
+	fprintf(xml, "<testcase classname=\"test3\" name=\"test 2e_s\"");
+	global_start_time = start_clock();
+
+	rc = MQTTClient_create(&c, "not used", "test2e_s", MQTTCLIENT_PERSISTENCE_DEFAULT, persistenceStore);
+	if (!(assert("good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+		goto exit;
+
+	opts.keepAliveInterval = 20;
+	opts.cleansession = 1;
+	opts.username = "testuser";
+	opts.password = "testpassword";
+	opts.serverURIs = uris;
+	opts.serverURIcount = 2;
+
+	opts.ssl = &sslopts;
+	if (options.server_key_file)
+		opts.ssl->trustStore = options.server_key_file; /*file of certificates trusted by client*/
+	opts.ssl->keyStore = options.client_key_file;  /*file of certificate for client to present to server*/
+	if (options.client_key_pass)
+		opts.ssl->privateKeyPassword = options.client_key_pass;
+	if (options.client_private_key_file)
+		opts.ssl->privateKey = options.client_private_key_file;
+	opts.ssl->verify = 1;
+
+	MyLog(LOGA_DEBUG, "Connecting");
+
+	rc = MQTTClient_connect(c, &opts);
+	if (!(assert("Good rc from connect", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
+		goto exit;
+
+	rc = MQTTClient_subscribe(c, test_topic, subsqos);
+	if (!(assert("Good rc from subscribe", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
+		goto exit;
+
+	singleThread_sendAndReceive(c, 0, test_topic);
+	singleThread_sendAndReceive(c, 1, test_topic);
+	singleThread_sendAndReceive(c, 2, test_topic);
+
+	MyLog(LOGA_DEBUG, "Stopping\n");
+
+	rc = MQTTClient_unsubscribe(c, test_topic);
+	if (!(assert("Unsubscribe successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
+		goto exit;
+	rc = MQTTClient_disconnect(c, 0);
+	if (!(assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
+		goto exit;
+
+	/* Just to make sure we can connect again */
+	rc = MQTTClient_connect(c, &opts);
+	if (!(assert("Connect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
+		goto exit;
+	rc = MQTTClient_disconnect(c, 0);
+	if (!(assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc)))
 		goto exit;
 
 exit:
@@ -1464,6 +1579,84 @@ exit:
 	return failures;
 }
 
+
+/*********************************************************************
+
+Test6: TLS-PSK - client and server has a common pre-shared key
+
+*********************************************************************/
+static unsigned int onPSKAuth(const char* hint,
+                              char* identity,
+                              unsigned int max_identity_len,
+                              unsigned char* psk,
+                              unsigned int max_psk_len,
+                              void* context)
+{
+	unsigned char test_psk[] = {0x50, 0x53, 0x4B, 0x00}; /* {'P', 'S', 'K', '\0' } */
+	MyLog(LOGA_DEBUG, "PSK auth callback");
+
+	if (!(assert("Good application context in onPSKAuth", context == (void *) 42, "context was %d\n", context)))
+		return 0;
+
+	strncpy(identity, "id", max_identity_len);
+	memcpy(psk, test_psk, sizeof(test_psk));
+	return sizeof(test_psk);
+}
+
+
+int test6(struct Options options)
+{
+	char* testname = "test6";
+	MQTTClient c;
+	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
+	MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
+	MQTTClient_SSLOptions sslopts = MQTTClient_SSLOptions_initializer;
+	int rc = 0;
+
+	failures = 0;
+	MyLog(LOGA_INFO, "Starting test 6 - TLS-PSK - client and server has a common pre-shared key");
+	fprintf(xml, "<testcase classname=\"test6\" name=\"test 6\"");
+	global_start_time = start_clock();
+
+	rc = MQTTClient_create(&c, options.psk_connection, "test6", MQTTCLIENT_PERSISTENCE_DEFAULT, persistenceStore);
+	if (!(assert("good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+		goto exit;
+
+	opts.keepAliveInterval = 20;
+	opts.cleansession = 1;
+	opts.username = "testuser";
+	opts.password = "testpassword";
+	if (options.haconnections != NULL)
+	{
+		opts.serverURIs = options.haconnections;
+		opts.serverURIcount = options.hacount;
+	}
+
+	opts.ssl = &sslopts;
+	opts.ssl->ssl_psk_cb = onPSKAuth;
+	opts.ssl->ssl_psk_context = (void *) 42;
+	opts.ssl->enabledCipherSuites = "PSK-AES128-CBC-SHA";
+
+	MyLog(LOGA_DEBUG, "Connecting");
+
+	rc = MQTTClient_connect(c, &opts);
+	if (!(assert("Good rc from connect", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+		goto exit;
+
+	MyLog(LOGA_DEBUG, "Stopping\n");
+
+	rc = MQTTClient_disconnect(c, 0);
+	if (!(assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+		goto exit;
+exit:
+	MQTTClient_destroy(&c);
+	MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+			(failures == 0) ? "passed" : "failed", testname, tests, failures);
+	write_test_result();
+	return failures;
+}
+
+
 typedef struct
 {
 	char* clientID;					/**< the string id of the client */
@@ -1511,14 +1704,15 @@ int main(int argc, char** argv)
 {
 	int* numtests = &tests;
 	int rc = 0;
- 	int (*tests[])() = {NULL, test1, test2a_s, test2a_m, test2b, test2c, test3a_s, test3a_m, test3b, test4_s, test4_m, /*test5a, test5b,test5c */};
+ 	int (*tests[])(struct Options) = {NULL, test1, test2a_s, test2a_m, test2b, test2c, test3a_s, test3a_m, test3b, test4_s, test4_m, test6,
+ 	  test2e_s /*test5a, test5b,test5c */};
 	//MQTTClient_nameValue* info;
 
 	xml = fopen("TEST-test3.xml", "w");
 	fprintf(xml, "<testsuite name=\"test3\" tests=\"%d\">\n", (int)(ARRAY_SIZE(tests) - 1));
 
 	setenv("MQTT_C_CLIENT_TRACE", "ON", 1);
-	setenv("MQTT_C_CLIENT_TRACE_LEVEL", "ERROR", 0);
+	setenv("MQTT_C_CLIENT_TRACE_LEVEL", "ERROR", 1);
 	getopts(argc, argv);
  	if (options.test_no == 0)
 	{ /* run all the tests */

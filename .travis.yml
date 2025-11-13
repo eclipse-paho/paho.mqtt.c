@@ -1,47 +1,54 @@
-sudo: true
 language: c
-
-compiler:
-  - gcc
-  - clang
-
-os:
-  - linux
-  - osx
-
-sudo: required
-
+jobs:
+  include:
+    - os: linux
+      compiler: gcc
+      dist: bionic
+      env: OPENSSL_ROOT_DIR= PAHO_BUILD_STATIC=TRUE PAHO_BUILD_SHARED=FALSE PAHO_HIGH_PERFORMANCE=FALSE
+    - os: linux
+      compiler: gcc
+      dist: xenial
+      env: OPENSSL_ROOT_DIR= PAHO_BUILD_STATIC=TRUE PAHO_BUILD_SHARED=TRUE PAHO_HIGH_PERFORMANCE=TRUE
+    - os: osx
+      compiler: clang
+      env: OPENSSL_ROOT_DIR=/usr/local/opt/openssl PAHO_BUILD_STATIC=FALSE PAHO_BUILD_SHARED=TRUE PAHO_HIGH_PERFORMANCE=FALSE
+    - os: linux
+      compiler: gcc
+      dist: trusty
+      env: OPENSSL_ROOT_DIR= PAHO_BUILD_STATIC=FALSE PAHO_BUILD_SHARED=TRUE PAHO_HIGH_PERFORMANCE=FALSE
 before_install:
-  - ./travis-install.sh
-
+#- if [ "$DEPLOY" = "true" ]; then ./travis-setup-deploy.sh; fi
+- "./travis-install.sh"
 env:
   global:
-   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-   #   via the "travis encrypt" command using the project repo's public key
-   - secure: "Ro53zVdGCjCQx9U4wvD9GBwB346tIQ7y1MWOAe1QrFWlmoQLC8KUeddQkc+27pdrOG9Fm9QQcI82EDlh0bfRBy1ITfWSVVZVfbNLv9sBWesND1F9YlnFpn/fag2OE+ULPSEJVJMxZoqiR9yiYWO3pTWue4YjCSuFAjpQNO6VnV3HiQJRG1jeaylx0QVLQWKAL/qkRbuqG9o4xpS1Kebaj86+q9UTHcL1a+Aj53u+Ajqnc9ZbUB/yBrfHyufTKpAD8Ef/FEIWXg2svtiWVEwEsPtdTn5P7AefJ2FNEyT4uMKIEBzWIPeWvUZLFF6U7QA07+uYDE0Ir4voPptBUlIYqQz1CUz9XCOPmM/N+GgqpyNyUjpMb4CM1b+iwBwcsHc0Z1JFcPz65ZMSt1D/WeUfQlaB/KxQBpz4lD2mxEmAuBIoGNrAG+FRULoY+xQSAf7V0W8am6QbHNnXif30mdkF3lgAhaAOwWO03JD7ctEJXqzRbMK8HrBkrgWfHsRRLFT50m8CrNLFz+3lCYuPHge2gHUMDfIHMxd4N9f2dlfV9GJkHQOQYwFfP5L2Y5Xq9KTnZX+bsglDC2WcOJu2F8h1LxTMV5Kku8zl1RZlEAt8Qa9EtCMczA3sL4NfGxazO22WpyOvHdwb26mhdJTgquI5oZsl71zcIf+WLGfgUAEq4/k="
-
-
+  - secure: Ro53zVdGCjCQx9U4wvD9GBwB346tIQ7y1MWOAe1QrFWlmoQLC8KUeddQkc+27pdrOG9Fm9QQcI82EDlh0bfRBy1ITfWSVVZVfbNLv9sBWesND1F9YlnFpn/fag2OE+ULPSEJVJMxZoqiR9yiYWO3pTWue4YjCSuFAjpQNO6VnV3HiQJRG1jeaylx0QVLQWKAL/qkRbuqG9o4xpS1Kebaj86+q9UTHcL1a+Aj53u+Ajqnc9ZbUB/yBrfHyufTKpAD8Ef/FEIWXg2svtiWVEwEsPtdTn5P7AefJ2FNEyT4uMKIEBzWIPeWvUZLFF6U7QA07+uYDE0Ir4voPptBUlIYqQz1CUz9XCOPmM/N+GgqpyNyUjpMb4CM1b+iwBwcsHc0Z1JFcPz65ZMSt1D/WeUfQlaB/KxQBpz4lD2mxEmAuBIoGNrAG+FRULoY+xQSAf7V0W8am6QbHNnXif30mdkF3lgAhaAOwWO03JD7ctEJXqzRbMK8HrBkrgWfHsRRLFT50m8CrNLFz+3lCYuPHge2gHUMDfIHMxd4N9f2dlfV9GJkHQOQYwFfP5L2Y5Xq9KTnZX+bsglDC2WcOJu2F8h1LxTMV5Kku8zl1RZlEAt8Qa9EtCMczA3sL4NfGxazO22WpyOvHdwb26mhdJTgquI5oZsl71zcIf+WLGfgUAEq4/k=
 script:
-  - if [[ "$COVERITY_SCAN_BRANCH" != 1 ]]; then ./travis-build.sh; fi
-
+- if [[ "$COVERITY_SCAN_BRANCH" != 1 ]]; then ./travis-build.sh; fi
 addons:
   coverity_scan:
     project:
-      name: "eclipse/paho.mqtt.c"
-      description: "Build submitted via Travis CI"
-    notification_email: icraggs@uk.ibm.com
-    build_command_prepend: "make clean"
-    build_command: "make -j 4"
+      name: eclipse/paho.mqtt.c
+    notification_email: icraggs@gmail.com
+    build_command_prepend: make clean
+    build_command: make -j 4
     branch_pattern: coverity-.*
-addons:
   apt:
-    sources:
-      - george-edison55-precise-backports # cmake 3.2.3 / doxygen 1.8.3
-      - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
-      - cmake
-      - cmake-data
-      - mosquitto
-      - doxygen
-
-
+    - cmake
+    - cmake-data
+    - doxygen
+  ssh_known_hosts: build.eclipse.org
+after_success:
+- ls -l build.paho/*.tar.gz
+#- if [ "$DEPLOY" = "true" ]; then ./travis-deploy.sh; fi
+deploy:
+  provider: releases
+  api_key:
+    secure: L5fp5Q+ZQvLt7jsQ6RUWbK6sm29ZNmfLmEXKZCg4g6+kaqxXmt3ijJT6VgNoZh209bP8TyfxDbbmdvfN542O4rM69WcyrBEIfsvkjs2thnyYpMz7PtDXUfiLdv/Wws4f8QCFOwy4xKmk4VFcrxPRoQRBGcQ23P3l1bcW56m4qB3JzupqHsj7/caMQmyk3gGKx/uSj9Vtvjl7z0pM1NuH2sxkdeUZ1FLDdb6HmY/Wo3v0ldO8gBUfrcjoi9zgjdV5AztxTafVhNu0LIbbAie1y6tMVGUqnXm2W4PqgfhtYAhM8VOfEykzh5sH0+DqA4G82X512aHHegdkK3/wt+DXZX6n/XK4tWBQR87vN8n8Lexj+uKC1Mmh7VTrO6f5QS/eXR1RvG5w+XBKIfHuOC6t6PS3NrRrGxUzY3DzgyBpUSaw+bNbL+auvN0bPz6lBjykiawdCZhjlqytNBOTsgNOyJaWJGE4fMTXQjVDcdZ8Cr/BOXHImXsm5cQ2clBwMg8RGwxBeX4nOcGaCfeYogI84z4uIRwTc5REnW4MCHeZgnZNvf3dG/hUCQpUPB2CIooqj84o36chjTp3at6mZxzKc1aATexmhu9UWRzqT3Ezs8KuaU4LxdlPI0UYO5bWf+BexRCmUwSkHlcqUwoZeRE/Fd4KXkm2r6anisyEJmywfD8=
+  file_glob: true
+  file: build.paho/*.tar.gz
+  on:
+    repo: eclipse/paho.mqtt.c
+    tags: true
+  skip_cleanup: true
+  draft: false

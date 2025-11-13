@@ -1,0 +1,7 @@
+.TH "async" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+async \- Threading 
+.PP
+The client application runs on several threads\&. Processing of handshaking and maintaining the network connection is performed in the background\&. This API is thread safe: functions may be called by multiple application threads\&. Notifications of status and message reception are provided to the client application using callbacks registered with the library by the call to \fBMQTTAsync_setCallbacks()\fP (see \fBMQTTAsync_messageArrived()\fP, \fBMQTTAsync_connectionLost()\fP and \fBMQTTAsync_deliveryComplete()\fP)\&. In addition, some functions allow success and failure callbacks to be set for individual requests, in the \fBMQTTAsync_responseOptions\fP structure\&. Applications can be written as a chain of callback functions\&. 

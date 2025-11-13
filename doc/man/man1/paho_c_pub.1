@@ -1,0 +1,199 @@
+.TH PAHO_C_PUB 1L "31 July 2018 (v1.3.0)" http://eclipse.org/paho
+
+.SH NAME
+paho_c_pub \- send (publish) data to an MQTT server
+
+.SH SYNOPSIS
+.B paho_c_pub
+[\fItopic\fR]
+[\fB\-t\fR|\fB\-\-topic\fR \fItopic\fR]
+[\fB\-c\fR|\fB\-\-connection\fR \fIconnection\fR]
+[\fB\-h\fR|\fB\-\-host\fR \fIhostname\fR]
+[\fB\-p\fR|\fB\-\-port\fR \fIportnumber\fR]
+[\fB\-i\fR|\fB\-\-clientid\fR \fIclientid\fR]
+[\fB\-u\fR|\fB\-\-username\fR \fIusername\fR]
+[\fB\-P\fR|\fB\-\-password\fR \fIpassword\fR]
+[\fB\-k\fR|\fB\-\-keepalive\fR \fIkeepalive-timeout\fR]
+[\fB\-V\fR|\fB\-\-MQTT-version\fR \fB31\fR|\fB311\fR|\fB5\fR]
+.br
+[\fB\-q\fR|\fB\-\-qos\fR \fB0\fR|\fB1\fR|\fB2\fR]
+[\fB\-r\fR|\fB\-\-retained\fR]
+[\fB\-n\fR|\fB\-\-null-message\fR]
+[\fB\-m\fR|\fB\-\-message\fR \fImessage\fR]
+[\fB\-f\fR|\fB\-\-filename\fR \fIfilename\fR]
+[\fB\-\-delimiter\fR \fIdelimiter\fR]
+[\fB\-\-maxdatalen\fR \fImaxdatalen\fR]
+.br
+[\fB\-\-message-expiry\fR \fIexpiry-interval\fR]
+[\fB\-\-user-property\fR \fIname\fR \fIvalue\fR]
+.br
+[\fB\-\-quiet\fR]
+[\fB\-\-verbose\fR]
+[\fB\-\-trace\fR \fBmin\fR|\fBmax\fR|\fBerror\fR|\fBprotocol\fR]
+.br
+[\fB\-\-will-topic\fR \fIwill-topic\fR]
+[\fB\-\-will-payload\fR \fIwill-payload\fR]
+[\fB\-\-will-retain\fR]
+[\fB\-\-will-qos\fR \fB0\fR|\fB1\fR|\fB2\fR]
+.br
+[\fB\-\-cafile\fR \fIcafile\fR]
+[\fB\-\-capath\fR \fIcapath\fR]
+[\fB\-\-cert\fR \fIcertfile\fR]
+[\fB\-\-key\fR \fIkeyfile\fR]
+[\fB\-\-keypass\fR \fIpassword\fR]
+[\fB\-\-ciphers\fR \fIcipher-string\fR]
+[\fB\-\-insecure\fR]
+
+
+.SH DESCRIPTION
+.B paho_c_pub
+sends data to an MQTT server using the Eclipse Paho C client asynchronous library (MQTTAsync).
+MQTT is a protocol, operating over TCP/IP, which allows programs to easily communicate
+with each other through a server.  Messages are published to topics and delivered to any subscribers to those topics.
+The corresponding subscriber program \fBpaho_c_sub\fR allows the receipt of MQTT messages.
+.PP
+The default mode of operation is to read input from stdin, sending a separate message for each line read.  Options exist
+to change this mode to send a one-off message, of 0 length (\fB-n\fR), a given string (\fB-m\fR), or the contents of a file (\fB-f\fR).
+
+.SH "OPTIONS"
+.TP
+.PD 0
+.BI \-t
+.TP
+.PD
+.B \-\-topic
+The MQTT topic to publish the data to.
+.TP
+.PD 0
+.BI \-c
+.TP
+.PD
+.B \-\-connection
+The MQTT URI to connect to, a combination of transport prefix, host, port and for websockets, topic.  
+To connect using TCP use the tcp prefix, for example: \fBtcp://\fR\fIlocalhost\fR\fB:\fR\fI1883\fR.  
+An example using SSL/TLS: \fBssl://\fR\fIlocalhost\fR\fB:\fR\fI1883\fR.  
+An example for websockets, insecure: \fBws://\fR\fIlocalhost\fR\fB:\fR\fI1883\fR\fB/\fR\fItopic\fR, and
+secure: \fBwss://\fR\fIlocalhost\fR\fB:\fR\fI80\fR\fB/\fR\fItopic\fR.
+.TP
+.PD 0
+.BI \-h
+.TP
+.PD
+.B \-\-host
+The TCP/IP host name of the MQTT server to connect to. Along with the \fB--port\fR option, an older alternative to using \fB--connection\fR.
+.TP
+.PD 0
+.BI \-p
+.TP
+.PD
+.B \-\-port
+The TCP/IP port number of the MQTT server to connect to. Along with the \fB--host\fR option, an older alternative to using \fB--connection\fR.
+.TP
+.PD 0
+.BI \-q
+.TP
+.PD
+.B \-\-qos
+The MQTT QoS on which to publish the message. The alternatives are \fB0\fR, \fB1\fR or \fB2\fR.
+.TP
+.PD 0
+.BI \-V
+.TP
+.PD
+.B \-\-MQTTversion
+The version of the MQTT protocol to use.  Valid options are \fB31\fR (or \fBmqttv31\fR), \fB311\fR (\fBmqttv311\fR) and \fB5\fR (or \fBmqttv5\fR).
+If MQTT version 5 is used, then some additional options are valid, such as \fB--message-expiry\fR and \fB--user-property\fR.
+.TP
+.PD
+.B \-\-quiet
+Do not print error messages.
+.TP
+.PD
+.B \-\-trace
+Print library internal trace.  Valid levels are \fBmin\fR, \fBmax\fR, \fBerror\fR and \fprotocol\fR.
+.TP
+.PD 0
+.BI \-r
+.TP
+.PD
+.B \-\-retained
+Publish messages with the MQTT retained flag set.
+.TP
+.PD 0
+.BI \-n
+.TP
+.PD
+.B \-\-null-message
+Publish a 0-length message.  
+.TP
+.PD 0
+.BI \-m
+.TP
+.PD
+.B \-\-message
+Publish a one off message with the payload supplied. 
+.TP
+.PD 0
+.BI \-f
+.TP
+.PD
+.B \-\-filename
+Publish a one off message with the contents of the file whose name is given.
+.TP
+.PD
+.B \-\-message-expiry
+[MQTT version 5 only] Sets the expiry interval property of messages in seconds.  
+.TP
+.PD
+.B \-\-user-property
+[MQTT version 5 only] Sets a user property of sent messages.  A pair of strings, name and value.
+.TP
+.PD
+.B \-\-will-topic
+Sets the MQTT will message topic to publish to. If the application ends without sending an MQTT disconnect, the
+will message will be published to this topic.
+.TP
+.PD
+.B \-\-will-payload
+Only used if \fBwill-topic\fR is set. Sets the MQTT will message to be published. 
+.TP
+.PD
+.B \-\-will-qos
+Only used if \fBwill-topic\fR is set. Sets the MQTT QoS at which the will message is published. The alternatives are \fB0\fR, \fB1\fR or \fB2\fR.
+.TP
+.PD
+.B \-\-will-retain
+Only used if \fBwill-topic\fR is set. Sets the MQTT retained flag on the will message. 
+.TP
+.PD
+.B \-\-cafile
+Only used with a TLS connection. The name of a file for the OpenSSL trust store.
+.TP
+.PD
+.B \-\-capath
+Only used with a TLS connection. The name of a directory holding OpenSSL trusted certificates.
+.TP
+.PD
+.B \-\-cert
+Only used with a TLS connection. The name of a file for the TLS keystore containing a client certificate to be presented.
+.TP
+.PD
+.B \-\-key
+Only used with a TLS connection. The name of a file containing the client private key.
+.TP
+.PD
+.B \-\-keypass
+Only used with a TLS connection. The password for the client private key file, if needed.
+.TP
+.PD
+.B \-\-ciphers
+Only used with a TLS connection. A list of cipher suites that the client will present to the server during the TLS handshake.
+.TP
+.PD
+.B \-\-insecure
+Only used with a TLS connection. Don't check that the server certificate common name matches the hostname.
+
+
+
+
+

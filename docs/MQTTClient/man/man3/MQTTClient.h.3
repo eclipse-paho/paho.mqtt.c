@@ -1,0 +1,1143 @@
+.TH "MQTTClient.h" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClient.h
+.SH SYNOPSIS
+.br
+.PP
+\fR#include 'MQTTExportDeclarations\&.h'\fP
+.br
+\fR#include 'MQTTProperties\&.h'\fP
+.br
+\fR#include 'MQTTReasonCodes\&.h'\fP
+.br
+\fR#include 'MQTTSubscribeOpts\&.h'\fP
+.br
+\fR#include 'MQTTClientPersistence\&.h'\fP
+.br
+
+.SS "Data Structures"
+
+.in +1c
+.ti -1c
+.RI "struct \fBMQTTClient_init_options\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_message\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_createOptions\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_willOptions\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_SSLOptions\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_nameValue\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTClient_connectOptions\fP"
+.br
+.ti -1c
+.RI "struct \fBMQTTResponse\fP"
+.br
+.in -1c
+.SS "Macros"
+
+.in +1c
+.ti -1c
+.RI "#define \fBMQTTCLIENT_SUCCESS\fP   0"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_FAILURE\fP   \-1"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_DISCONNECTED\fP   \-3"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_MAX_MESSAGES_INFLIGHT\fP   \-4"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_UTF8_STRING\fP   \-5"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_NULL_PARAMETER\fP   \-6"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_TOPICNAME_TRUNCATED\fP   \-7"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_STRUCTURE\fP   \-8"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_QOS\fP   \-9"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_SSL_NOT_SUPPORTED\fP   \-10"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_MQTT_VERSION\fP   \-11"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_PROTOCOL\fP   \-14"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_BAD_MQTT_OPTION\fP   \-15"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_WRONG_MQTT_VERSION\fP   \-16"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_0_LEN_WILL_TOPIC\fP   \-17"
+.br
+.ti -1c
+.RI "#define \fBMQTTVERSION_DEFAULT\fP   0"
+.br
+.ti -1c
+.RI "#define \fBMQTTVERSION_3_1\fP   3"
+.br
+.ti -1c
+.RI "#define \fBMQTTVERSION_3_1_1\fP   4"
+.br
+.ti -1c
+.RI "#define \fBMQTTVERSION_5\fP   5"
+.br
+.ti -1c
+.RI "#define \fBMQTT_BAD_SUBSCRIBE\fP   0x80"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_init_options_initializer\fP   { {'M', 'Q', 'T', 'G'}, 0, 0 }"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_message_initializer\fP   { {'M', 'Q', 'T', 'M'}, 1, 0, NULL, 0, 0, 0, 0, \fBMQTTProperties_initializer\fP }"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_createOptions_initializer\fP   { {'M', 'Q', 'C', 'O'}, 0, \fBMQTTVERSION_DEFAULT\fP }"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_willOptions_initializer\fP   { {'M', 'Q', 'T', 'W'}, 1, NULL, NULL, 0, 0, {0, NULL} }"
+.br
+.ti -1c
+.RI "#define \fBMQTT_SSL_VERSION_DEFAULT\fP   0"
+.br
+.ti -1c
+.RI "#define \fBMQTT_SSL_VERSION_TLS_1_0\fP   1"
+.br
+.ti -1c
+.RI "#define \fBMQTT_SSL_VERSION_TLS_1_1\fP   2"
+.br
+.ti -1c
+.RI "#define \fBMQTT_SSL_VERSION_TLS_1_2\fP   3"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_SSLOptions_initializer\fP   { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, \fBMQTT_SSL_VERSION_DEFAULT\fP, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_connectOptions_initializer\fP"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_connectOptions_initializer5\fP"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_connectOptions_initializer_ws\fP"
+.br
+.ti -1c
+.RI "#define \fBMQTTClient_connectOptions_initializer5_ws\fP"
+.br
+.ti -1c
+.RI "#define \fBMQTTResponse_initializer\fP   {1, \fBMQTTREASONCODE_SUCCESS\fP, 0, NULL, NULL}"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef void * \fBMQTTClient\fP"
+.br
+.ti -1c
+.RI "typedef int \fBMQTTClient_deliveryToken\fP"
+.br
+.ti -1c
+.RI "typedef int \fBMQTTClient_token\fP"
+.br
+.ti -1c
+.RI "typedef int \fBMQTTClient_messageArrived\fP(void *context, char *topicName, int topicLen, \fBMQTTClient_message\fP *message)"
+.br
+.ti -1c
+.RI "typedef void \fBMQTTClient_deliveryComplete\fP(void *context, \fBMQTTClient_deliveryToken\fP dt)"
+.br
+.ti -1c
+.RI "typedef void \fBMQTTClient_connectionLost\fP(void *context, char *cause)"
+.br
+.ti -1c
+.RI "typedef void \fBMQTTClient_disconnected\fP(void *context, \fBMQTTProperties\fP *properties, enum \fBMQTTReasonCodes\fP reasonCode)"
+.br
+.ti -1c
+.RI "typedef void \fBMQTTClient_published\fP(void *context, int dt, int packet_type, \fBMQTTProperties\fP *properties, enum \fBMQTTReasonCodes\fP reasonCode)"
+.br
+.ti -1c
+.RI "typedef struct MQTTResponse \fBMQTTResponse\fP"
+.br
+.ti -1c
+.RI "typedef void \fBMQTTClient_traceCallback\fP(enum \fBMQTTCLIENT_TRACE_LEVELS\fP level, char *message)"
+.br
+.in -1c
+.SS "Enumerations"
+
+.in +1c
+.ti -1c
+.RI "enum \fBMQTTCLIENT_TRACE_LEVELS\fP { \fBMQTTCLIENT_TRACE_MAXIMUM\fP = 1, \fBMQTTCLIENT_TRACE_MEDIUM\fP, \fBMQTTCLIENT_TRACE_MINIMUM\fP, \fBMQTTCLIENT_TRACE_PROTOCOL\fP, \fBMQTTCLIENT_TRACE_ERROR\fP, \fBMQTTCLIENT_TRACE_SEVERE\fP, \fBMQTTCLIENT_TRACE_FATAL\fP }"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBMQTTClient_global_init\fP (\fBMQTTClient_init_options\fP *inits)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_setCallbacks\fP (\fBMQTTClient\fP handle, void *context, \fBMQTTClient_connectionLost\fP *cl, \fBMQTTClient_messageArrived\fP *ma, \fBMQTTClient_deliveryComplete\fP *dc)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_setDisconnected\fP (\fBMQTTClient\fP handle, void *context, \fBMQTTClient_disconnected\fP *co)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_setPublished\fP (\fBMQTTClient\fP handle, void *context, \fBMQTTClient_published\fP *co)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_create\fP (\fBMQTTClient\fP *handle, const char *serverURI, const char *clientId, int persistence_type, void *persistence_context)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_createWithOptions\fP (\fBMQTTClient\fP *handle, const char *serverURI, const char *clientId, int persistence_type, void *persistence_context, \fBMQTTClient_createOptions\fP *options)"
+.br
+.ti -1c
+.RI "\fBMQTTClient_nameValue\fP * \fBMQTTClient_getVersionInfo\fP (void)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_connect\fP (\fBMQTTClient\fP handle, \fBMQTTClient_connectOptions\fP *options)"
+.br
+.ti -1c
+.RI "void \fBMQTTResponse_free\fP (\fBMQTTResponse\fP response)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_connect5\fP (\fBMQTTClient\fP handle, \fBMQTTClient_connectOptions\fP *options, \fBMQTTProperties\fP *connectProperties, \fBMQTTProperties\fP *willProperties)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_disconnect\fP (\fBMQTTClient\fP handle, int timeout)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_disconnect5\fP (\fBMQTTClient\fP handle, int timeout, enum \fBMQTTReasonCodes\fP reason, \fBMQTTProperties\fP *props)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_isConnected\fP (\fBMQTTClient\fP handle)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_subscribe\fP (\fBMQTTClient\fP handle, const char *topic, int qos)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_subscribe5\fP (\fBMQTTClient\fP handle, const char *topic, int qos, \fBMQTTSubscribe_options\fP *opts, \fBMQTTProperties\fP *props)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_subscribeMany\fP (\fBMQTTClient\fP handle, int count, char *const *topic, int *qos)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_subscribeMany5\fP (\fBMQTTClient\fP handle, int count, char *const *topic, int *qos, \fBMQTTSubscribe_options\fP *opts, \fBMQTTProperties\fP *props)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_unsubscribe\fP (\fBMQTTClient\fP handle, const char *topic)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_unsubscribe5\fP (\fBMQTTClient\fP handle, const char *topic, \fBMQTTProperties\fP *props)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_unsubscribeMany\fP (\fBMQTTClient\fP handle, int count, char *const *topic)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_unsubscribeMany5\fP (\fBMQTTClient\fP handle, int count, char *const *topic, \fBMQTTProperties\fP *props)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_publish\fP (\fBMQTTClient\fP handle, const char *topicName, int payloadlen, const void *payload, int qos, int retained, \fBMQTTClient_deliveryToken\fP *dt)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_publish5\fP (\fBMQTTClient\fP handle, const char *topicName, int payloadlen, const void *payload, int qos, int retained, \fBMQTTProperties\fP *properties, \fBMQTTClient_deliveryToken\fP *dt)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_publishMessage\fP (\fBMQTTClient\fP handle, const char *topicName, \fBMQTTClient_message\fP *msg, \fBMQTTClient_deliveryToken\fP *dt)"
+.br
+.ti -1c
+.RI "\fBMQTTResponse\fP \fBMQTTClient_publishMessage5\fP (\fBMQTTClient\fP handle, const char *topicName, \fBMQTTClient_message\fP *msg, \fBMQTTClient_deliveryToken\fP *dt)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_waitForCompletion\fP (\fBMQTTClient\fP handle, \fBMQTTClient_deliveryToken\fP dt, unsigned long timeout)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_getPendingDeliveryTokens\fP (\fBMQTTClient\fP handle, \fBMQTTClient_deliveryToken\fP **tokens)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_yield\fP (void)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_receive\fP (\fBMQTTClient\fP handle, char **topicName, int *topicLen, \fBMQTTClient_message\fP **message, unsigned long timeout)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_freeMessage\fP (\fBMQTTClient_message\fP **msg)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_free\fP (void *ptr)"
+.br
+.ti -1c
+.RI "void * \fBMQTTClient_malloc\fP (size_t size)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_destroy\fP (\fBMQTTClient\fP *handle)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_setTraceLevel\fP (enum \fBMQTTCLIENT_TRACE_LEVELS\fP level)"
+.br
+.ti -1c
+.RI "void \fBMQTTClient_setTraceCallback\fP (\fBMQTTClient_traceCallback\fP *callback)"
+.br
+.ti -1c
+.RI "int \fBMQTTClient_setCommandTimeout\fP (\fBMQTTClient\fP handle, unsigned long milliSeconds)"
+.br
+.ti -1c
+.RI "const char * \fBMQTTClient_strerror\fP (int code)"
+.br
+.in -1c
+.SH "Macro Definition Documentation"
+.PP 
+.SS "#define MQTTCLIENT_SUCCESS   0"
+Return code: No error\&. Indicates successful completion of an MQTT client operation\&. 
+.SS "#define MQTTCLIENT_FAILURE   \-1"
+Return code: A generic error code indicating the failure of an MQTT client operation\&. 
+.SS "#define MQTTCLIENT_DISCONNECTED   \-3"
+Return code: The client is disconnected\&. 
+.SS "#define MQTTCLIENT_MAX_MESSAGES_INFLIGHT   \-4"
+Return code: The maximum number of messages allowed to be simultaneously in-flight has been reached\&. 
+.SS "#define MQTTCLIENT_BAD_UTF8_STRING   \-5"
+Return code: An invalid UTF-8 string has been detected\&. 
+.SS "#define MQTTCLIENT_NULL_PARAMETER   \-6"
+Return code: A NULL parameter has been supplied when this is invalid\&. 
+.SS "#define MQTTCLIENT_TOPICNAME_TRUNCATED   \-7"
+Return code: The topic has been truncated (the topic string includes embedded NULL characters)\&. String functions will not access the full topic\&. Use the topic length value to access the full topic\&. 
+.SS "#define MQTTCLIENT_BAD_STRUCTURE   \-8"
+Return code: A structure parameter does not have the correct eyecatcher and version number\&. 
+.SS "#define MQTTCLIENT_BAD_QOS   \-9"
+Return code: A QoS value that falls outside of the acceptable range (0,1,2) 
+.SS "#define MQTTCLIENT_SSL_NOT_SUPPORTED   \-10"
+Return code: Attempting SSL connection using non-SSL version of library 
+.SS "#define MQTTCLIENT_BAD_MQTT_VERSION   \-11"
+Return code: unrecognized MQTT version 
+.SS "#define MQTTCLIENT_BAD_PROTOCOL   \-14"
+Return code: protocol prefix in serverURI should be: 
+.PD 0
+.IP "\(bu" 1
+\fItcp://\fP or \fImqtt://\fP - Insecure TCP 
+.IP "\(bu" 1
+\fIssl://\fP or \fItls://\fP or \fImqtts://\fP - Encrypted SSL/TLS 
+.IP "\(bu" 1
+\fIws://\fP - Insecure websockets 
+.IP "\(bu" 1
+\fIwss://\fP - Secure web sockets The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS version of the library is linked with\&. 
+.PP
+
+.SS "#define MQTTCLIENT_BAD_MQTT_OPTION   \-15"
+Return code: option not applicable to the requested version of MQTT 
+.SS "#define MQTTCLIENT_WRONG_MQTT_VERSION   \-16"
+Return code: call not applicable to the requested version of MQTT 
+.SS "#define MQTTCLIENT_0_LEN_WILL_TOPIC   \-17"
+Return code: 0 length will topic on connect 
+.SS "#define MQTTVERSION_DEFAULT   0"
+Default MQTT version to connect with\&. Use 3\&.1\&.1 then fall back to 3\&.1 
+.SS "#define MQTTVERSION_3_1   3"
+MQTT version to connect with: 3\&.1 
+.SS "#define MQTTVERSION_3_1_1   4"
+MQTT version to connect with: 3\&.1\&.1 
+.SS "#define MQTTVERSION_5   5"
+MQTT version to connect with: 5 
+.SS "#define MQTT_BAD_SUBSCRIBE   0x80"
+Bad return code from subscribe, as defined in the 3\&.1\&.1 specification 
+.SS "#define MQTTClient_init_options_initializer   { {'M', 'Q', 'T', 'G'}, 0, 0 }"
+
+.SS "#define MQTTClient_message_initializer   { {'M', 'Q', 'T', 'M'}, 1, 0, NULL, 0, 0, 0, 0, \fBMQTTProperties_initializer\fP }"
+
+.SS "#define MQTTClient_createOptions_initializer   { {'M', 'Q', 'C', 'O'}, 0, \fBMQTTVERSION_DEFAULT\fP }"
+
+.SS "#define MQTTClient_willOptions_initializer   { {'M', 'Q', 'T', 'W'}, 1, NULL, NULL, 0, 0, {0, NULL} }"
+
+.SS "#define MQTT_SSL_VERSION_DEFAULT   0"
+
+.SS "#define MQTT_SSL_VERSION_TLS_1_0   1"
+
+.SS "#define MQTT_SSL_VERSION_TLS_1_1   2"
+
+.SS "#define MQTT_SSL_VERSION_TLS_1_2   3"
+
+.SS "#define MQTTClient_SSLOptions_initializer   { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, \fBMQTT_SSL_VERSION_DEFAULT\fP, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }"
+
+.SS "#define MQTTClient_connectOptions_initializer"
+\fBValue:\fP
+.nf
+{ {'M', 'Q', 'T', 'C'}, 8, 60, 1, 1, NULL, NULL, NULL, 30, 0, NULL,\\
+0, NULL, MQTTVERSION_DEFAULT, {NULL, 0, 0}, {0, NULL}, \-1, 0, NULL, NULL, NULL}
+.PP
+.fi
+Initializer for connect options for MQTT 3\&.1\&.1 non-WebSocket connections 
+.SS "#define MQTTClient_connectOptions_initializer5"
+\fBValue:\fP
+.nf
+{ {'M', 'Q', 'T', 'C'}, 8, 60, 0, 1, NULL, NULL, NULL, 30, 0, NULL,\\
+0, NULL, MQTTVERSION_5, {NULL, 0, 0}, {0, NULL}, \-1, 1, NULL, NULL, NULL}
+.PP
+.fi
+Initializer for connect options for MQTT 5\&.0 non-WebSocket connections 
+.SS "#define MQTTClient_connectOptions_initializer_ws"
+\fBValue:\fP
+.nf
+{ {'M', 'Q', 'T', 'C'}, 8, 45, 1, 1, NULL, NULL, NULL, 30, 0, NULL,\\
+0, NULL, MQTTVERSION_DEFAULT, {NULL, 0, 0}, {0, NULL}, \-1, 0, NULL, NULL, NULL}
+.PP
+.fi
+Initializer for connect options for MQTT 3\&.1\&.1 WebSockets connections\&. The keepalive interval is set to 45 seconds to avoid webserver 60 second inactivity timeouts\&. 
+.SS "#define MQTTClient_connectOptions_initializer5_ws"
+\fBValue:\fP
+.nf
+{ {'M', 'Q', 'T', 'C'}, 8, 45, 0, 1, NULL, NULL, NULL, 30, 0, NULL,\\
+0, NULL, MQTTVERSION_5, {NULL, 0, 0}, {0, NULL}, \-1, 1, NULL, NULL, NULL}
+.PP
+.fi
+Initializer for connect options for MQTT 5\&.0 WebSockets connections\&. The keepalive interval is set to 45 seconds to avoid webserver 60 second inactivity timeouts\&. 
+.SS "#define MQTTResponse_initializer   {1, \fBMQTTREASONCODE_SUCCESS\fP, 0, NULL, NULL}"
+
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef void* \fBMQTTClient\fP"
+A handle representing an MQTT client\&. A valid client handle is available following a successful call to \fBMQTTClient_create()\fP\&. 
+.SS "typedef int \fBMQTTClient_deliveryToken\fP"
+A value representing an MQTT message\&. A delivery token is returned to the client application when a message is published\&. The token can then be used to check that the message was successfully delivered to its destination (see \fBMQTTClient_publish()\fP, \fBMQTTClient_publishMessage()\fP, \fBMQTTClient_deliveryComplete()\fP, \fBMQTTClient_waitForCompletion()\fP and \fBMQTTClient_getPendingDeliveryTokens()\fP)\&. 
+.SS "typedef int \fBMQTTClient_token\fP"
+
+.SS "typedef int MQTTClient_messageArrived(void *context, char *topicName, int topicLen, \fBMQTTClient_message\fP *message)"
+This is a callback function\&. The client application must provide an implementation of this function to enable asynchronous receipt of messages\&. The function is registered with the client library by passing it as an argument to \fBMQTTClient_setCallbacks()\fP\&. It is called by the client library when a new message that matches a client subscription has been received from the server\&. This function is executed on a separate thread to the one on which the client application is running\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP A pointer to the \fIcontext\fP value originally passed to \fBMQTTClient_setCallbacks()\fP, which contains any application-specific context\&. 
+.br
+\fItopicName\fP The topic associated with the received message\&. 
+.br
+\fItopicLen\fP The length of the topic if there are one more NULL characters embedded in \fItopicName\fP, otherwise \fItopicLen\fP is 0\&. If \fItopicLen\fP is 0, the value returned by \fIstrlen(topicName)\fP can be trusted\&. If \fItopicLen\fP is greater than 0, the full topic name can be retrieved by accessing \fItopicName\fP as a byte array of length \fItopicLen\fP\&. 
+.br
+\fImessage\fP The \fBMQTTClient_message\fP structure for the received message\&. This structure contains the message payload and attributes\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+This function must return 0 or 1 indicating whether or not the message has been safely received by the client application\&. 
+.br
+ Returning 1 indicates that the message has been successfully handled\&. To free the message storage, \fBMQTTClient_freeMessage\fP must be called\&. To free the topic name storage, \fBMQTTClient_free\fP must be called\&.
+.br
+ Returning 0 indicates that there was a problem\&. In this case, the client library will reinvoke \fBMQTTClient_messageArrived()\fP to attempt to deliver the message to the application again\&. Do not free the message and topic storage when returning 0, otherwise the redelivery will fail\&. 
+.RE
+.PP
+
+.SS "typedef void MQTTClient_deliveryComplete(void *context, \fBMQTTClient_deliveryToken\fP dt)"
+This is a callback function\&. The client application must provide an implementation of this function to enable asynchronous notification of delivery of messages\&. The function is registered with the client library by passing it as an argument to \fBMQTTClient_setCallbacks()\fP\&. It is called by the client library after the client application has published a message to the server\&. It indicates that the necessary handshaking and acknowledgements for the requested quality of service (see \fBMQTTClient_message\&.qos\fP) have been completed\&. This function is executed on a separate thread to the one on which the client application is running\&. \fBNote:\fP\fBMQTTClient_deliveryComplete()\fP is not called when messages are published at QoS0\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP A pointer to the \fIcontext\fP value originally passed to \fBMQTTClient_setCallbacks()\fP, which contains any application-specific context\&. 
+.br
+\fIdt\fP The \fBMQTTClient_deliveryToken\fP associated with the published message\&. Applications can check that all messages have been correctly published by matching the delivery tokens returned from calls to \fBMQTTClient_publish()\fP and \fBMQTTClient_publishMessage()\fP with the tokens passed to this callback\&. 
+.RE
+.PP
+
+.SS "typedef void MQTTClient_connectionLost(void *context, char *cause)"
+This is a callback function\&. The client application must provide an implementation of this function to enable asynchronous notification of the loss of connection to the server\&. The function is registered with the client library by passing it as an argument to \fBMQTTClient_setCallbacks()\fP\&. It is called by the client library if the client loses its connection to the server\&. The client application must take appropriate action, such as trying to reconnect or reporting the problem\&. This function is executed on a separate thread to the one on which the client application is running\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP A pointer to the \fIcontext\fP value originally passed to \fBMQTTClient_setCallbacks()\fP, which contains any application-specific context\&. 
+.br
+\fIcause\fP The reason for the disconnection\&. Currently, \fIcause\fP is always set to NULL\&. 
+.RE
+.PP
+
+.SS "typedef void MQTTClient_disconnected(void *context, \fBMQTTProperties\fP *properties, enum \fBMQTTReasonCodes\fP reasonCode)"
+This is a callback function, which will be called when the a disconnect packet is received from the server\&. This applies to MQTT V5 and above only\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP A pointer to the \fIcontext\fP value originally passed to \fBMQTTClient_setDisconnected()\fP, which contains any application-specific context\&. 
+.br
+\fIproperties\fP The MQTT V5 properties received with the disconnect, if any\&. 
+.br
+\fIreasonCode\fP The MQTT V5 reason code received with the disconnect\&. Currently, \fIcause\fP is always set to NULL\&. 
+.RE
+.PP
+
+.SS "typedef void MQTTClient_published(void *context, int dt, int packet_type, \fBMQTTProperties\fP *properties, enum \fBMQTTReasonCodes\fP reasonCode)"
+This is a callback function, the MQTT V5 version of \fBMQTTClient_deliveryComplete()\fP\&. The client application must provide an implementation of this function to enable asynchronous notification of the completed delivery of messages\&. It is called by the client library after the client application has published a message to the server\&. It indicates that the necessary handshaking and acknowledgements for the requested quality of service (see \fBMQTTClient_message\&.qos\fP) have been completed\&. This function is executed on a separate thread to the one on which the client application is running\&. \fBNote:\fP It is not called when messages are published at QoS0\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP A pointer to the \fIcontext\fP value originally passed to \fBMQTTClient_setCallbacks()\fP, which contains any application-specific context\&. 
+.br
+\fIdt\fP The \fBMQTTClient_deliveryToken\fP associated with the published message\&. Applications can check that all messages have been correctly published by matching the delivery tokens returned from calls to \fBMQTTClient_publish()\fP and \fBMQTTClient_publishMessage()\fP with the tokens passed to this callback\&. 
+.br
+\fIpacket_type\fP the last received packet type for this completion\&. For QoS 1 always PUBACK\&. For QoS 2 could be PUBREC or PUBCOMP\&. 
+.br
+\fIproperties\fP the MQTT V5 properties returned with the last packet from the server 
+.br
+\fIreasonCode\fP the reason code returned from the server 
+.RE
+.PP
+
+.SS "typedef struct MQTTResponse MQTTResponse"
+MQTT version 5\&.0 response information 
+.SS "typedef void MQTTClient_traceCallback(enum \fBMQTTCLIENT_TRACE_LEVELS\fP level, char *message)"
+This is a callback function prototype which must be implemented if you want to receive trace information\&. Do not invoke any other Paho API calls in this callback function - unpredictable behavior may result\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIlevel\fP the trace level of the message returned 
+.br
+\fImessage\fP the trace message\&. This is a pointer to a static buffer which will be overwritten on each call\&. You must copy the data if you want to keep it for later\&. 
+.RE
+.PP
+
+.SH "Enumeration Type Documentation"
+.PP 
+.SS "enum \fBMQTTCLIENT_TRACE_LEVELS\fP"
+
+.PP
+\fBEnumerator\fP
+.in +1c
+.TP
+\f(BIMQTTCLIENT_TRACE_MAXIMUM \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_MEDIUM \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_MINIMUM \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_PROTOCOL \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_ERROR \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_SEVERE \fP
+.TP
+\f(BIMQTTCLIENT_TRACE_FATAL \fP
+.SH "Function Documentation"
+.PP 
+.SS "void MQTTClient_global_init (\fBMQTTClient_init_options\fP * inits)\fR [extern]\fP"
+Global init of mqtt library\&. Call once on program start to set global behaviour\&. do_openssl_init - if mqtt library should initialize OpenSSL (1) or rely on the caller to do it before using the library (0) 
+.SS "int MQTTClient_setCallbacks (\fBMQTTClient\fP handle, void * context, \fBMQTTClient_connectionLost\fP * cl, \fBMQTTClient_messageArrived\fP * ma, \fBMQTTClient_deliveryComplete\fP * dc)\fR [extern]\fP"
+This function sets the callback functions for a specific client\&. If your client application doesn't use a particular callback, set the relevant parameter to NULL (except for message arrived, which must be given)\&. Calling \fBMQTTClient_setCallbacks()\fP puts the client into multi-threaded mode\&. Any necessary message acknowledgements and status communications are handled in the background without any intervention from the client application\&. See \fBAsynchronous vs synchronous client applications\fP for more information\&.
+
+.PP
+\fBNote:\fP The MQTT client must be disconnected when this function is called\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcontext\fP A pointer to any application-specific context\&. The the \fIcontext\fP pointer is passed to each of the callback functions to provide access to the context information in the callback\&. 
+.br
+\fIcl\fP A pointer to an \fBMQTTClient_connectionLost()\fP callback function\&. You can set this to NULL if your application doesn't handle disconnections\&. 
+.br
+\fIma\fP A pointer to an \fBMQTTClient_messageArrived()\fP callback function\&. This callback function must be set when you call \fBMQTTClient_setCallbacks()\fP, as otherwise there would be nowhere to deliver any incoming messages\&. 
+.br
+\fIdc\fP A pointer to an \fBMQTTClient_deliveryComplete()\fP callback function\&. You can set this to NULL if your application publishes synchronously or if you do not want to check for successful delivery\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the callbacks were correctly set, \fBMQTTCLIENT_FAILURE\fP if an error occurred\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_setDisconnected (\fBMQTTClient\fP handle, void * context, \fBMQTTClient_disconnected\fP * co)\fR [extern]\fP"
+Sets the \fBMQTTClient_disconnected()\fP callback function for a client\&. This will be called if a disconnect packet is received from the server\&. Only valid for MQTT V5 and above\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcontext\fP A pointer to any application-specific context\&. The the \fIcontext\fP pointer is passed to each of the callback functions to provide access to the context information in the callback\&. 
+.br
+\fIco\fP A pointer to an \fBMQTTClient_disconnected()\fP callback function\&. NULL removes the callback setting\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the callbacks were correctly set, \fBMQTTCLIENT_FAILURE\fP if an error occurred\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_setPublished (\fBMQTTClient\fP handle, void * context, \fBMQTTClient_published\fP * co)\fR [extern]\fP"
+
+.SS "int MQTTClient_create (\fBMQTTClient\fP * handle, const char * serverURI, const char * clientId, int persistence_type, void * persistence_context)\fR [extern]\fP"
+This function creates an MQTT client ready for connection to the specified server and using the specified persistent storage (see \fBMQTTClient_persistence\fP)\&. See also \fBMQTTClient_destroy()\fP\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A pointer to an \fBMQTTClient\fP handle\&. The handle is populated with a valid client reference following a successful return from this function\&. 
+.br
+\fIserverURI\fP A null-terminated string specifying the server to which the client will connect\&. It takes the form \fIprotocol://host:port\fP\&. Currently, \fIprotocol\fP must be: 
+.br
+ \fItcp://\fP or \fImqtt://\fP - Insecure TCP 
+.br
+ \fIssl://\fP or \fImqtts://\fP - Encrypted SSL/TLS 
+.br
+ \fIws://\fP - Insecure websockets 
+.br
+ \fIwss://\fP - Secure web sockets 
+.br
+ The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS version of the library is linked with\&. For \fIhost\fP, you can specify either an IP address or a host name\&. For instance, to connect to a server running on the local machines with the default MQTT port, specify \fItcp://localhost:1883\fP\&. 
+.br
+\fIclientId\fP The client identifier passed to the server when the client connects to it\&. It is a null-terminated UTF-8 encoded string\&. 
+.br
+\fIpersistence_type\fP The type of persistence to be used by the client: 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_NONE\fP: Use in-memory persistence\&. If the device or system on which the client is running fails or is switched off, the current state of any in-flight messages is lost and some messages may not be delivered even at QoS1 and QoS2\&. 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP: Use the default (file system-based) persistence mechanism\&. Status about in-flight messages is held in persistent storage and provides some protection against message loss in the case of unexpected failure\&. 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_USER\fP: Use an application-specific persistence implementation\&. Using this type of persistence gives control of the persistence mechanism to the application\&. The application has to implement the \fBMQTTClient_persistence\fP interface\&. 
+.br
+\fIpersistence_context\fP If the application uses \fBMQTTCLIENT_PERSISTENCE_NONE\fP persistence, this argument is unused and should be set to NULL\&. For \fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP persistence, it should be set to the location of the persistence directory (if set to NULL, the persistence directory used is the working directory)\&. Applications that use \fBMQTTCLIENT_PERSISTENCE_USER\fP persistence set this argument to point to a valid \fBMQTTClient_persistence\fP structure\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the client is successfully created, otherwise an error code is returned\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_createWithOptions (\fBMQTTClient\fP * handle, const char * serverURI, const char * clientId, int persistence_type, void * persistence_context, \fBMQTTClient_createOptions\fP * options)\fR [extern]\fP"
+A version of :\fBMQTTClient_create()\fP with additional options\&. This function creates an MQTT client ready for connection to the specified server and using the specified persistent storage (see \fBMQTTClient_persistence\fP)\&. See also \fBMQTTClient_destroy()\fP\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A pointer to an \fBMQTTClient\fP handle\&. The handle is populated with a valid client reference following a successful return from this function\&. 
+.br
+\fIserverURI\fP A null-terminated string specifying the server to which the client will connect\&. It takes the form \fIprotocol://host:port\fP\&. Currently, \fIprotocol\fP must be \fItcp\fP or \fIssl\fP\&. For \fIhost\fP, you can specify either an IP address or a host name\&. For instance, to connect to a server running on the local machines with the default MQTT port, specify \fItcp://localhost:1883\fP\&. 
+.br
+\fIclientId\fP The client identifier passed to the server when the client connects to it\&. It is a null-terminated UTF-8 encoded string\&. 
+.br
+\fIpersistence_type\fP The type of persistence to be used by the client: 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_NONE\fP: Use in-memory persistence\&. If the device or system on which the client is running fails or is switched off, the current state of any in-flight messages is lost and some messages may not be delivered even at QoS1 and QoS2\&. 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP: Use the default (file system-based) persistence mechanism\&. Status about in-flight messages is held in persistent storage and provides some protection against message loss in the case of unexpected failure\&. 
+.br
+ \fBMQTTCLIENT_PERSISTENCE_USER\fP: Use an application-specific persistence implementation\&. Using this type of persistence gives control of the persistence mechanism to the application\&. The application has to implement the \fBMQTTClient_persistence\fP interface\&. 
+.br
+\fIpersistence_context\fP If the application uses \fBMQTTCLIENT_PERSISTENCE_NONE\fP persistence, this argument is unused and should be set to NULL\&. For \fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP persistence, it should be set to the location of the persistence directory (if set to NULL, the persistence directory used is the working directory)\&. Applications that use \fBMQTTCLIENT_PERSISTENCE_USER\fP persistence set this argument to point to a valid \fBMQTTClient_persistence\fP structure\&. 
+.br
+\fIoptions\fP additional options for the create\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the client is successfully created, otherwise an error code is returned\&. 
+.RE
+.PP
+
+.SS "\fBMQTTClient_nameValue\fP * MQTTClient_getVersionInfo (void )\fR [extern]\fP"
+This function returns version information about the library\&. no trace information will be returned\&. 
+.PP
+\fBReturns\fP
+.RS 4
+an array of strings describing the library\&. The last entry is a NULL pointer\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_connect (\fBMQTTClient\fP handle, \fBMQTTClient_connectOptions\fP * options)\fR [extern]\fP"
+This function attempts to connect a previously-created client (see \fBMQTTClient_create()\fP) to an MQTT server using the specified options\&. If you want to enable asynchronous message and status notifications, you must call \fBMQTTClient_setCallbacks()\fP prior to \fBMQTTClient_connect()\fP\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIoptions\fP A pointer to a valid \fBMQTTClient_connectOptions\fP structure\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the client successfully connects to the server\&. An error code is returned if the client was unable to connect to the server\&. Error codes greater than 0 are returned by the MQTT protocol:
+.br
+
+.br
+ \fB1\fP: Connection refused: Unacceptable protocol version
+.br
+ \fB2\fP: Connection refused: Identifier rejected
+.br
+ \fB3\fP: Connection refused: Server unavailable
+.br
+ \fB4\fP: Connection refused: Bad user name or password
+.br
+ \fB5\fP: Connection refused: Not authorized
+.br
+ \fB6-255\fP: Reserved for future use
+.br
+ 
+.RE
+.PP
+
+.SS "void MQTTResponse_free (\fBMQTTResponse\fP response)\fR [extern]\fP"
+Frees the storage associated with the MQTT response\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIresponse\fP the response structure to be freed 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_connect5 (\fBMQTTClient\fP handle, \fBMQTTClient_connectOptions\fP * options, \fBMQTTProperties\fP * connectProperties, \fBMQTTProperties\fP * willProperties)\fR [extern]\fP"
+Attempts to connect a previously-created client (see \fBMQTTClient_create()\fP) to an MQTT server using MQTT version 5\&.0 and the specified options\&. If you want to enable asynchronous message and status notifications, you must call \fBMQTTClient_setCallbacks()\fP prior to \fBMQTTClient_connect()\fP\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIoptions\fP A pointer to a valid \fBMQTTClient_connectOptions\fP structure\&. 
+.br
+\fIconnectProperties\fP the MQTT 5\&.0 connect properties to use 
+.br
+\fIwillProperties\fP the MQTT 5\&.0 properties to set on the will message 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_disconnect (\fBMQTTClient\fP handle, int timeout)\fR [extern]\fP"
+This function attempts to disconnect the client from the MQTT server\&. In order to allow the client time to complete handling of messages that are in-flight when this function is called, a timeout period is specified\&. When the timeout period has expired, the client disconnects even if there are still outstanding message acknowledgements\&. The next time the client connects to the same server, any QoS 1 or 2 messages which have not completed will be retried depending on the cleansession settings for both the previous and the new connection (see \fBMQTTClient_connectOptions\&.cleansession\fP and \fBMQTTClient_connect()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItimeout\fP The client delays disconnection for up to this time (in milliseconds) in order to allow in-flight message transfers to complete\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the client successfully disconnects from the server\&. An error code is returned if the client was unable to disconnect from the server 
+.RE
+.PP
+
+.SS "int MQTTClient_disconnect5 (\fBMQTTClient\fP handle, int timeout, enum \fBMQTTReasonCodes\fP reason, \fBMQTTProperties\fP * props)\fR [extern]\fP"
+
+.SS "int MQTTClient_isConnected (\fBMQTTClient\fP handle)\fR [extern]\fP"
+This function allows the client application to test whether or not a client is currently connected to the MQTT server\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Boolean true if the client is connected, otherwise false\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_subscribe (\fBMQTTClient\fP handle, const char * topic, int qos)\fR [extern]\fP"
+This function attempts to subscribe a client to a single topic, which may contain wildcards (see \fBSubscription wildcards\fP)\&. This call also specifies the \fBQuality of service\fP requested for the subscription (see also \fBMQTTClient_subscribeMany()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopic\fP The subscription topic, which may include wildcards\&. 
+.br
+\fIqos\fP The requested quality of service for the subscription\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the subscription request is successful\&. An error code is returned if there was a problem registering the subscription\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_subscribe5 (\fBMQTTClient\fP handle, const char * topic, int qos, \fBMQTTSubscribe_options\fP * opts, \fBMQTTProperties\fP * props)\fR [extern]\fP"
+This function attempts to subscribe an MQTT version 5\&.0 client to a single topic, which may contain wildcards (see \fBSubscription wildcards\fP)\&. This call also specifies the \fBQuality of service\fP requested for the subscription (see also \fBMQTTClient_subscribeMany()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopic\fP The subscription topic, which may include wildcards\&. 
+.br
+\fIqos\fP The requested quality of service for the subscription\&. 
+.br
+\fIopts\fP the MQTT 5\&.0 subscribe options to be used 
+.br
+\fIprops\fP the MQTT 5\&.0 properties to be used 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_subscribeMany (\fBMQTTClient\fP handle, int count, char *const * topic, int * qos)\fR [extern]\fP"
+This function attempts to subscribe a client to a list of topics, which may contain wildcards (see \fBSubscription wildcards\fP)\&. This call also specifies the \fBQuality of service\fP requested for each topic (see also \fBMQTTClient_subscribe()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcount\fP The number of topics for which the client is requesting subscriptions\&. 
+.br
+\fItopic\fP An array (of length \fIcount\fP) of pointers to topics, each of which may include wildcards\&. 
+.br
+\fIqos\fP An array (of length \fIcount\fP) of \fBQuality of service\fP values\&. qos[n] is the requested QoS for topic[n]\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the subscription request is successful\&. An error code is returned if there was a problem registering the subscriptions\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_subscribeMany5 (\fBMQTTClient\fP handle, int count, char *const * topic, int * qos, \fBMQTTSubscribe_options\fP * opts, \fBMQTTProperties\fP * props)\fR [extern]\fP"
+This function attempts to subscribe an MQTT version 5\&.0 client to a list of topics, which may contain wildcards (see \fBSubscription wildcards\fP)\&. This call also specifies the \fBQuality of service\fP requested for each topic (see also \fBMQTTClient_subscribe()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcount\fP The number of topics for which the client is requesting subscriptions\&. 
+.br
+\fItopic\fP An array (of length \fIcount\fP) of pointers to topics, each of which may include wildcards\&. 
+.br
+\fIqos\fP An array (of length \fIcount\fP) of \fBQuality of service\fP values\&. qos[n] is the requested QoS for topic[n]\&. 
+.br
+\fIopts\fP the MQTT 5\&.0 subscribe options to be used 
+.br
+\fIprops\fP the MQTT 5\&.0 properties to be used 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_unsubscribe (\fBMQTTClient\fP handle, const char * topic)\fR [extern]\fP"
+This function attempts to remove an existing subscription made by the specified client\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopic\fP The topic for the subscription to be removed, which may include wildcards (see \fBSubscription wildcards\fP)\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the subscription is removed\&. An error code is returned if there was a problem removing the subscription\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_unsubscribe5 (\fBMQTTClient\fP handle, const char * topic, \fBMQTTProperties\fP * props)\fR [extern]\fP"
+This function attempts to remove an existing subscription made by the specified client using MQTT 5\&.0\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopic\fP The topic for the subscription to be removed, which may include wildcards (see \fBSubscription wildcards\fP)\&. 
+.br
+\fIprops\fP the MQTT 5\&.0 properties to be used 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_unsubscribeMany (\fBMQTTClient\fP handle, int count, char *const * topic)\fR [extern]\fP"
+This function attempts to remove existing subscriptions to a list of topics made by the specified client\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcount\fP The number subscriptions to be removed\&. 
+.br
+\fItopic\fP An array (of length \fIcount\fP) of pointers to the topics of the subscriptions to be removed, each of which may include wildcards\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the subscriptions are removed\&. An error code is returned if there was a problem removing the subscriptions\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_unsubscribeMany5 (\fBMQTTClient\fP handle, int count, char *const * topic, \fBMQTTProperties\fP * props)\fR [extern]\fP"
+This function attempts to remove existing subscriptions to a list of topics made by the specified client using MQTT version 5\&.0\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIcount\fP The number subscriptions to be removed\&. 
+.br
+\fItopic\fP An array (of length \fIcount\fP) of pointers to the topics of the subscriptions to be removed, each of which may include wildcards\&. 
+.br
+\fIprops\fP the MQTT 5\&.0 properties to be used 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_publish (\fBMQTTClient\fP handle, const char * topicName, int payloadlen, const void * payload, int qos, int retained, \fBMQTTClient_deliveryToken\fP * dt)\fR [extern]\fP"
+This function attempts to publish a message to a given topic (see also \fBMQTTClient_publishMessage()\fP)\&. An \fBMQTTClient_deliveryToken\fP is issued when this function returns successfully\&. If the client application needs to test for succesful delivery of QoS1 and QoS2 messages, this can be done either asynchronously or synchronously (see \fBAsynchronous vs synchronous client applications\fP, \fBMQTTClient_waitForCompletion\fP and \fBMQTTClient_deliveryComplete()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopicName\fP The topic associated with this message\&. 
+.br
+\fIpayloadlen\fP The length of the payload in bytes\&. 
+.br
+\fIpayload\fP A pointer to the byte array payload of the message\&. 
+.br
+\fIqos\fP The \fBQuality of service\fP of the message\&. 
+.br
+\fIretained\fP The retained flag for the message\&. 
+.br
+\fIdt\fP A pointer to an \fBMQTTClient_deliveryToken\fP\&. This is populated with a token representing the message when the function returns successfully\&. If your application does not use delivery tokens, set this argument to NULL\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the message is accepted for publication\&. An error code is returned if there was a problem accepting the message\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_publish5 (\fBMQTTClient\fP handle, const char * topicName, int payloadlen, const void * payload, int qos, int retained, \fBMQTTProperties\fP * properties, \fBMQTTClient_deliveryToken\fP * dt)\fR [extern]\fP"
+Attempts to publish a message to a given topic using MQTT version 5\&.0 (see also \fBMQTTClient_publishMessage5()\fP)\&. An \fBMQTTClient_deliveryToken\fP is issued when this function returns successfully\&. If the client application needs to test for succesful delivery of QoS1 and QoS2 messages, this can be done either asynchronously or synchronously (see \fBAsynchronous vs synchronous client applications\fP, \fBMQTTClient_waitForCompletion\fP and \fBMQTTClient_deliveryComplete()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopicName\fP The topic associated with this message\&. 
+.br
+\fIpayloadlen\fP The length of the payload in bytes\&. 
+.br
+\fIpayload\fP A pointer to the byte array payload of the message\&. 
+.br
+\fIqos\fP The \fBQuality of service\fP of the message\&. 
+.br
+\fIretained\fP The retained flag for the message\&. 
+.br
+\fIproperties\fP the MQTT 5\&.0 properties to be used 
+.br
+\fIdt\fP A pointer to an \fBMQTTClient_deliveryToken\fP\&. This is populated with a token representing the message when the function returns successfully\&. If your application does not use delivery tokens, set this argument to NULL\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_publishMessage (\fBMQTTClient\fP handle, const char * topicName, \fBMQTTClient_message\fP * msg, \fBMQTTClient_deliveryToken\fP * dt)\fR [extern]\fP"
+This function attempts to publish a message to a given topic (see also \fBMQTTClient_publish()\fP)\&. An \fBMQTTClient_deliveryToken\fP is issued when this function returns successfully\&. If the client application needs to test for succesful delivery of QoS1 and QoS2 messages, this can be done either asynchronously or synchronously (see \fBAsynchronous vs synchronous client applications\fP, \fBMQTTClient_waitForCompletion\fP and \fBMQTTClient_deliveryComplete()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopicName\fP The topic associated with this message\&. 
+.br
+\fImsg\fP A pointer to a valid \fBMQTTClient_message\fP structure containing the payload and attributes of the message to be published\&. 
+.br
+\fIdt\fP A pointer to an \fBMQTTClient_deliveryToken\fP\&. This is populated with a token representing the message when the function returns successfully\&. If your application does not use delivery tokens, set this argument to NULL\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the message is accepted for publication\&. An error code is returned if there was a problem accepting the message\&. 
+.RE
+.PP
+
+.SS "\fBMQTTResponse\fP MQTTClient_publishMessage5 (\fBMQTTClient\fP handle, const char * topicName, \fBMQTTClient_message\fP * msg, \fBMQTTClient_deliveryToken\fP * dt)\fR [extern]\fP"
+Attempts to publish a message to the given topic using MQTT version 5\&.0 (see also \fBMQTTClient_publish5()\fP)\&. An \fBMQTTClient_deliveryToken\fP is issued when this function returns successfully\&. If the client application needs to test for succesful delivery of QoS1 and QoS2 messages, this can be done either asynchronously or synchronously (see \fBAsynchronous vs synchronous client applications\fP, \fBMQTTClient_waitForCompletion\fP and \fBMQTTClient_deliveryComplete()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopicName\fP The topic associated with this message\&. 
+.br
+\fImsg\fP A pointer to a valid \fBMQTTClient_message\fP structure containing the payload and attributes of the message to be published\&. 
+.br
+\fIdt\fP A pointer to an \fBMQTTClient_deliveryToken\fP\&. This is populated with a token representing the message when the function returns successfully\&. If your application does not use delivery tokens, set this argument to NULL\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the MQTT 5\&.0 response information: error codes and properties\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_waitForCompletion (\fBMQTTClient\fP handle, \fBMQTTClient_deliveryToken\fP dt, unsigned long timeout)\fR [extern]\fP"
+This function is called by the client application to synchronize execution of the main thread with completed publication of a message\&. When called, \fBMQTTClient_waitForCompletion()\fP blocks execution until the message has been successful delivered or the specified timeout has expired\&. See \fBAsynchronous vs synchronous client applications\fP\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fIdt\fP The \fBMQTTClient_deliveryToken\fP that represents the message being tested for successful delivery\&. Delivery tokens are issued by the publishing functions \fBMQTTClient_publish()\fP and \fBMQTTClient_publishMessage()\fP\&. 
+.br
+\fItimeout\fP The maximum time to wait in milliseconds\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the message was successfully delivered\&. An error code is returned if the timeout expires or there was a problem checking the token\&. 
+.RE
+.PP
+
+.SS "int MQTTClient_getPendingDeliveryTokens (\fBMQTTClient\fP handle, \fBMQTTClient_deliveryToken\fP ** tokens)\fR [extern]\fP"
+This function sets a pointer to an array of delivery tokens for messages that are currently in-flight (pending completion)\&.
+
+.PP
+\fBImportant note:\fP The memory used to hold the array of tokens is malloc()'d in this function\&. The client application is responsible for freeing this memory when it is no longer required\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItokens\fP The address of a pointer to an \fBMQTTClient_deliveryToken\fP\&. When the function returns successfully, the pointer is set to point to an array of tokens representing messages pending completion\&. The last member of the array is set to -1 to indicate there are no more tokens\&. If no tokens are pending, the pointer is set to NULL\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP if the function returns successfully\&. An error code is returned if there was a problem obtaining the list of pending tokens\&. 
+.RE
+.PP
+
+.SS "void MQTTClient_yield (void )\fR [extern]\fP"
+When implementing a single-threaded client, call this function periodically to allow processing of message retries and to send MQTT keepalive pings\&. If the application is calling \fBMQTTClient_receive()\fP regularly, then it is not necessary to call this function\&. 
+.SS "int MQTTClient_receive (\fBMQTTClient\fP handle, char ** topicName, int * topicLen, \fBMQTTClient_message\fP ** message, unsigned long timeout)\fR [extern]\fP"
+This function performs a synchronous receive of incoming messages\&. It should be used only when the client application has not set callback methods to support asynchronous receipt of messages (see \fBAsynchronous vs synchronous client applications\fP and \fBMQTTClient_setCallbacks()\fP)\&. Using this function allows a single-threaded client subscriber application to be written\&. When called, this function blocks until the next message arrives or the specified timeout expires (see also \fBMQTTClient_yield()\fP)\&.
+
+.PP
+\fBImportant note:\fP The application must free() the memory allocated to the topic and the message when processing is complete (see \fBMQTTClient_freeMessage()\fP)\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fItopicName\fP The address of a pointer to a topic\&. This function allocates the memory for the topic and returns it to the application by setting \fItopicName\fP to point to the topic\&. 
+.br
+\fItopicLen\fP The length of the topic\&. If the return code from this function is \fBMQTTCLIENT_TOPICNAME_TRUNCATED\fP, the topic contains embedded NULL characters and the full topic should be retrieved by using \fItopicLen\fP\&. 
+.br
+\fImessage\fP The address of a pointer to the received message\&. This function allocates the memory for the message and returns it to the application by setting \fImessage\fP to point to the received message\&. The pointer is set to NULL if the timeout expires\&. 
+.br
+\fItimeout\fP The length of time to wait for a message in milliseconds\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+\fBMQTTCLIENT_SUCCESS\fP or \fBMQTTCLIENT_TOPICNAME_TRUNCATED\fP if a message is received\&. \fBMQTTCLIENT_SUCCESS\fP can also indicate that the timeout expired, in which case \fImessage\fP is NULL\&. An error code is returned if there was a problem trying to receive a message\&. 
+.RE
+.PP
+
+.SS "void MQTTClient_freeMessage (\fBMQTTClient_message\fP ** msg)\fR [extern]\fP"
+This function frees memory allocated to an MQTT message, including the additional memory allocated to the message payload\&. The client application calls this function when the message has been fully processed\&. \fBImportant note:\fP This function does not free the memory allocated to a message topic string\&. It is the responsibility of the client application to free this memory using the \fBMQTTClient_free()\fP library function\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fImsg\fP The address of a pointer to the \fBMQTTClient_message\fP structure to be freed\&. 
+.RE
+.PP
+
+.SS "void MQTTClient_free (void * ptr)\fR [extern]\fP"
+This function frees memory allocated by the MQTT C client library, especially the topic name\&. This is needed on Windows when the client libary and application program have been compiled with different versions of the C compiler\&. It is thus good policy to always use this function when freeing any MQTT C client- allocated memory\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIptr\fP The pointer to the client library storage to be freed\&. 
+.RE
+.PP
+
+.SS "void * MQTTClient_malloc (size_t size)\fR [extern]\fP"
+This function is used to allocate memory to be used or freed by the MQTT C client library, especially the data in user persistence\&. This is needed on Windows when the client library and application program have been compiled with different versions of the C compiler\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsize\fP The size of the memory to be allocated\&. 
+.RE
+.PP
+
+.SS "void MQTTClient_destroy (\fBMQTTClient\fP * handle)\fR [extern]\fP"
+This function frees the memory allocated to an MQTT client (see \fBMQTTClient_create()\fP)\&. It should be called when the client is no longer required\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A pointer to the handle referring to the \fBMQTTClient\fP structure to be freed\&. 
+.RE
+.PP
+
+.SS "void MQTTClient_setTraceLevel (enum \fBMQTTCLIENT_TRACE_LEVELS\fP level)\fR [extern]\fP"
+This function sets the level of trace information which will be returned in the trace callback\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIlevel\fP the trace level required 
+.RE
+.PP
+
+.SS "void MQTTClient_setTraceCallback (\fBMQTTClient_traceCallback\fP * callback)\fR [extern]\fP"
+This function sets the trace callback if needed\&. If set to NULL, no trace information will be returned\&. The default trace level is MQTTASYNC_TRACE_MINIMUM\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcallback\fP a pointer to the function which will handle the trace information 
+.RE
+.PP
+
+.SS "int MQTTClient_setCommandTimeout (\fBMQTTClient\fP handle, unsigned long milliSeconds)\fR [extern]\fP"
+Sets the timeout value for un/subscribe commands when waiting for the un/suback response from the server\&. Values less than 5000 are not allowed\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP A valid client handle from a successful call to \fBMQTTClient_create()\fP\&. 
+.br
+\fImilliSeconds\fP the maximum number of milliseconds to wait 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+MQTTCLIENT_SUCCESS or MQTTCLIENT_FAILURE 
+.RE
+.PP
+
+.SS "const char * MQTTClient_strerror (int code)\fR [extern]\fP"
+Returns a pointer to the string representation of the error or NULL\&.
+
+.PP
+Do not free after use\&. Returns NULL if the error code is unknown\&. 
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho MQTT C Client Library from the source code\&.

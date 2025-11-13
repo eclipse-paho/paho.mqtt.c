@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2014 IBM Corp.
+ * Copyright (c) 2011, 2020 IBM Corp. and others
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -20,13 +20,9 @@
  * Async C client program for the MQTT v3 restart/recovery test suite.
  */
 
-/*
-#if !defined(_RTSHEADER)
-	#include <rts.h>
-#endif
-*/
-
 #include "MQTTAsync.h"
+/*#define NO_HEAP_TRACKING 1
+#include "Heap.h"*/
 #include <string.h>
 #include <stdlib.h>
 
@@ -65,12 +61,12 @@ struct
 	int persistence;
 } opts =
 {
-	"tcp://localhost:1885",
+	"tcp://localhost:1884",
 	NULL,
 	0,
 	"tcp://localhost:7777",
-	"XR9TT3",
-	"XR9TT3/control",
+	"Eclipse/Paho/restart_test",
+	"Eclipse/Paho/restart_test/control",
 	"C_broken_client",
 	1,
 	2,
@@ -171,34 +167,40 @@ void getopts(int argc, char** argv)
 	}
 }
 
-#if 0
-#include <logaX.h>   /* For general log messages                      */
-#define MyLog logaLine
-#else
 #define LOGA_DEBUG 0
 #define LOGA_ALWAYS 1
 #define LOGA_INFO 2
 #include <stdarg.h>
 #include <time.h>
 #include <sys/timeb.h>
-void MyLog(int log_level, char* format, ...)
+void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
 	va_list args;
+#if defined(_WIN32) || defined(_WINDOWS)
 	struct timeb ts;
+#else
+	struct timeval ts;
+#endif
+	struct tm timeinfo;
 
-	struct tm *timeinfo;
-
-	if (log_level == LOGA_DEBUG && opts.verbose == 0)
+	if (LOGA_level == LOGA_DEBUG && opts.verbose == 0)
 	  return;
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	ftime(&ts);
-	timeinfo = localtime(&ts.time);
-	strftime(msg_buf, 80, "%Y%m%d %H%M%S", timeinfo);
+	localtime_s(&timeinfo, &ts.time);
+#else
+	gettimeofday(&ts, NULL);
+	localtime_r(&ts.tv_sec, &timeinfo);
+#endif
+	strftime(msg_buf, 80, "%Y%m%d %H%M%S", &timeinfo);
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	sprintf(&msg_buf[strlen(msg_buf)], ".%.3hu ", ts.millitm);
-
-	sprintf(&msg_buf[strlen(msg_buf)], "%s ", opts.clientid);
+#else
+	sprintf(&msg_buf[strlen(msg_buf)], ".%.3lu ", ts.tv_usec / 1000L);
+#endif
 
 	va_start(args, format);
 	vsnprintf(&msg_buf[strlen(msg_buf)], sizeof(msg_buf) - strlen(msg_buf), format, args);
@@ -207,11 +209,17 @@ void MyLog(int log_level, char* format, ...)
 	printf("%s\n", msg_buf);
 	fflush(stdout);
 }
+
+void MySleep(long milliseconds)
+{
+#if defined(_WIN32)
+	Sleep(milliseconds);
+#else
+	usleep(milliseconds*1000);
 #endif
+}
 
-
-#if defined(WIN32) || defined(_WINDOWS)
-#define mqsleep(A) Sleep(1000*A)
+#if defined(_WIN32) || defined(_WINDOWS)
 #define START_TIME_TYPE DWORD
 static DWORD start_time = 0;
 START_TIME_TYPE start_clock(void)
@@ -219,7 +227,6 @@ START_TIME_TYPE start_clock(void)
 	return GetTickCount();
 }
 #elif defined(AIX)
-#define mqsleep sleep
 #define START_TIME_TYPE struct timespec
 START_TIME_TYPE start_clock(void)
 {
@@ -228,9 +235,8 @@ START_TIME_TYPE start_clock(void)
 	return start;
 }
 #else
-#define mqsleep sleep
 #define START_TIME_TYPE struct timeval
-static struct timeval start_time;
+/* TODO - unused - remove? static struct timeval start_time; */
 START_TIME_TYPE start_clock(void)
 {
 	struct timeval start_time;
@@ -239,8 +245,7 @@ START_TIME_TYPE start_clock(void)
 }
 #endif
 
-
-#if defined(WIN32)
+#if defined(_WIN32)
 long elapsed(START_TIME_TYPE start_time)
 {
 	return GetTickCount() - start_time;
@@ -302,19 +307,24 @@ void control_connectionLost(void* context, char* cause)
  */
 int control_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync_message* m)
 {
-	MyLog(LOGA_DEBUG, "Control message arrived: %.*s %s",
-				m->payloadlen, m->payload, wait_message);
-	if (strcmp(m->payload, "stop") == 0)
-	  stopping = 1;
+	MyLog(LOGA_ALWAYS, "Control message arrived: %.*s wait message: %s",
+				m->payloadlen, m->payload, (wait_message == NULL) ? "None" : wait_message);
+	if (strncmp(m->payload, "stop", 4) == 0)
+	{
+		MyLog(LOGA_ALWAYS, "Stop message arrived, stopping...");
+		stopping = 1;
+	}
 	else if (wait_message != NULL && strncmp(wait_message, m->payload,
 																					 strlen(wait_message)) == 0)
 	{
+		MyLog(LOGA_ALWAYS, "Wait message %s found", wait_message);
 		control_found = 1;
 		wait_message = NULL;
 	}
 	else if (wait_message2 != NULL && strncmp(wait_message2, m->payload,
 																						strlen(wait_message2)) == 0)
 	{
+		MyLog(LOGA_ALWAYS, "Wait message2 %s found", wait_message);
 		control_found = 2;
 		wait_message2 = NULL;
 	}
@@ -332,6 +342,7 @@ int control_send(char* message)
 	MQTTAsync_responseOptions ropts = MQTTAsync_responseOptions_initializer;
 
 	sprintf(buf, "%s: %s", opts.clientid, message);
+	 MyLog(LOGA_ALWAYS, "Sending control message: %s", message);
 	rc = MQTTAsync_send(control_client, pub_topic, (int)strlen(buf),
 															buf, 1, 0, &ropts);
 	MyLog(LOGA_DEBUG, "Control message sent: %s", buf);
@@ -352,6 +363,7 @@ int control_wait(char* message)
 	sprintf(buf, "waiting for: %s", message);
 	control_send(buf);
 
+	MyLog(LOGA_ALWAYS, "Waiting for: %s", message);
 	while (control_found == 0 && stopping == 0)
 	{
 		if (++count == 300)
@@ -360,8 +372,9 @@ int control_wait(char* message)
 			MyLog(LOGA_ALWAYS, "Failed to receive message %s, stopping ", message);
 			return 0; /* time out and tell the caller the message was not found */
 		}
-		mqsleep(1);
+		MySleep(1000);
 	}
+	MyLog(LOGA_ALWAYS, "Control message found: %s, control_found %d", message, control_found);
 	return control_found;
 }
 
@@ -377,8 +390,8 @@ int control_which(char* message1, char* message2)
 	while (control_found == 0)
 	{
 		if (++count == 300)
-		  return 0; /* time out and tell the caller the message was not found */
-		mqsleep(1);
+		  break; /* time out and tell the caller the message was not found */
+		MySleep(1000);
 	}
 	return control_found;
 }
@@ -489,7 +502,8 @@ void connectionLost(void* context, char* cause)
 			conn_opts.serverURIcount = 0;
 			conn_opts.serverURIs = NULL;
 		}
-		printf("reconnecting to first serverURI %s\n", conn_opts.serverURIs[0]);
+		//printf("reconnecting to first serverURI %s\n", conn_opts.serverURIs[0]);
+		MyLog(LOGA_ALWAYS, "Starting reconnect attempt");
 		rc = MQTTAsync_connect(context, &conn_opts);
 		if (rc != MQTTASYNC_SUCCESS)
 		{
@@ -509,7 +523,13 @@ int recreateReconnect(void)
 		MyLog(LOGA_ALWAYS, "Recreating client");
 
 		MQTTAsync_destroy(&client); /* destroy the client object so that we force persistence to be read on recreate */
-
+#if !defined(_WINDOWS)
+		/*heap_info* mqtt_mem = 0;
+		mqtt_mem = Heap_get_info();
+		MyLog(LOGA_INFO, "MQTT mem current %ld, max %ld",mqtt_mem->current_size,mqtt_mem->max_size);
+		if (mqtt_mem->current_size > 20)
+		  HeapScan(5); */
+#endif
 		rc = MQTTAsync_create(&client, opts.connection, opts.clientid, MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
 		if (rc != MQTTASYNC_SUCCESS)
 		{
@@ -578,7 +598,10 @@ int waitForCompletion(START_TIME_TYPE start_time)
 	int wait_count = 0;
 	int limit = 120;
 
-	mqsleep(1);
+	MyLog(LOGA_ALWAYS, "Wait for completion");
+  if (opts.qos == 0)
+	  limit = 30; /* we aren't going to get back all QoS 0 messages anyway */
+	MySleep(1000);
 	while (arrivedCount < expectedCount)
 	{
 		if (arrivedCount > lastreport)
@@ -587,15 +610,18 @@ int waitForCompletion(START_TIME_TYPE start_time)
 					arrivedCount, expectedCount, elapsed(start_time) / 1000);
 			lastreport = arrivedCount;
 		}
-		mqsleep(1);
+		MySleep(1000);
 		if (opts.persistence && connection_lost)
 				recreateReconnect();
 		if (++wait_count > limit || stopping)
 			break;
 	}
 	last_completion_time = elapsed(start_time) / 1000;
-	MyLog(LOGA_ALWAYS, "Extra wait to see if any duplicates arrive");
-	mqsleep(10);            /* check if any duplicate messages arrive */
+	if (opts.qos > 0)
+	{
+	  MyLog(LOGA_ALWAYS, "Extra wait to see if any duplicates arrive");
+	  MySleep(10000);            /* check if any duplicate messages arrive */
+	}
 	MyLog(LOGA_ALWAYS, "%d messages arrived out of %d expected, in %d seconds",
 				arrivedCount, expectedCount, elapsed(start_time) / 1000);
 	return success(expectedCount);
@@ -644,26 +670,32 @@ void one_iteration(void)
 				recreateReconnect();
 			if (stopping)
 				goto exit;
-			mqsleep(1);
+			MySleep(1000);
 			rc = MQTTAsync_send(client, opts.topic, (int)(strlen(payload)+1), payload,
 					opts.qos, opts.retained, NULL);
+			while (seqno - messagesSent > 2000)
+				MySleep(1000);
 		}
 	}
 	MyLog(LOGA_INFO, "Messages sent... waiting for echoes");
 	while (arrivedCount < test_count)
 	{
+		if (opts.persistence && connection_lost)
+			recreateReconnect();
 		if (stopping)
 			goto exit;
-		mqsleep(1);
-		printf("arrivedCount %d\n", arrivedCount);
+		MySleep(1000);
+		MyLog(LOGA_ALWAYS, "arrivedCount %d", arrivedCount);
 	}
 	measuring = 0;
 
 	/* Now set a target of 30 seconds total round trip */
-	if (last_completion_time == -1)
+	if (1) //last_completion_time == -1)
 	{
 		MyLog(LOGA_ALWAYS, "Round trip time for %d messages is %d ms", test_count, roundtrip_time);
-		expectedCount = 1000 * test_count * test_interval / roundtrip_time / 2;
+		// test_count messages in 3039 ms: (test_interval * 1000) / roundtrip_time * test_count
+		//expectedCount = 1000 * test_count * test_interval / roundtrip_time / 2;
+		expectedCount = (test_interval * 1000) / roundtrip_time * test_count;
 	}
 	else
 	{
@@ -691,18 +723,22 @@ void one_iteration(void)
 				opts.qos, opts.retained, &ropts);
 		while (rc != MQTTASYNC_SUCCESS)
 		{
-			MyLog(LOGA_DEBUG, "Rc %d from publish with payload %s, retrying", rc, payload);
+			MyLog(LOGA_INFO, "Rc %d from publish with payload %s, retrying", rc, payload);
 			if (opts.persistence && (connection_lost || rc == MQTTASYNC_DISCONNECTED))
 				recreateReconnect();
 			if (stopping)
 				goto exit;
-			mqsleep(1);
+			MySleep(1000);
 			rc = MQTTAsync_send(client, opts.topic, (int)(strlen(payload)+1), payload,
 				opts.qos, opts.retained, &ropts);
 		}
 		//MyLog(LOGA_DEBUG, "Successful publish with payload %s", payload);
-		while (seqno - messagesSent > 2000)
-			mqsleep(1);
+		//while (seqno - messagesSent > 2000)
+		//{
+		//if (opts.persistence && (connection_lost || rc == MQTTASYNC_DISCONNECTED))
+		//	recreateReconnect();
+		//}
+		//	MySleep(1000);
 	}
 	MyLog(LOGA_ALWAYS, "%d messages sent in %d seconds", expectedCount, elapsed(start_time) / 1000);
 
@@ -727,7 +763,7 @@ void client_onSubscribe(void* context, MQTTAsync_successData* response)
 void client_onFailure(void* context, MQTTAsync_failureData* response)
 {
 	MQTTAsync c = (MQTTAsync)context;
-	MyLog(LOGA_DEBUG, "In failure callback");
+	MyLog(LOGA_INFO, "In failure callback");
 
 	client_subscribed = -1;
 }
@@ -805,7 +841,11 @@ int sendAndReceive(void)
 	}
 
 	/* wait to know that the controlling process is running before connecting to the SUT */
-	control_wait("who is ready?");
+	if (control_wait("who is ready?") == 0)
+	{
+		MyLog(LOGA_ALWAYS, "Wait for controller failed");
+		goto exit;
+	}
 
 	/* connect cleansession, and then disconnect, to clean up */
 	conn_opts.keepAliveInterval = 10;
@@ -833,7 +873,7 @@ int sendAndReceive(void)
 	}
 
 	while (client_cleaned == 0)
-		mqsleep(1);
+		MySleep(1000);
 
 	MyLog(LOGA_ALWAYS, "Client state cleaned up");
 
@@ -851,7 +891,7 @@ int sendAndReceive(void)
 
 	/* wait until subscribed */
 	while (client_subscribed == 0)
-		mqsleep(1);
+		MySleep(1000);
 
 	if (client_subscribed != 1)
 		goto disconnect_exit;
@@ -889,6 +929,7 @@ void control_onSubscribe(void* context, MQTTAsync_successData* response)
 	MyLog(LOGA_DEBUG, "In control subscribe onSuccess callback %p granted qos %d", c, response->alt.qos);
 
 	control_subscribed = 1;
+	MyLog(LOGA_ALWAYS, "Connected and subscribed to control connection");
 }
 
 void control_onFailure(void* context, MQTTAsync_failureData* response)
@@ -910,6 +951,7 @@ void control_onConnect(void* context, MQTTAsync_successData* response)
 	ropts.onSuccess = control_onSubscribe;
 	ropts.onFailure = control_onFailure;
 	ropts.context = c;
+	MyLog(LOGA_ALWAYS, "Subscribing to control topic %s", sub_topic);
 	if ((rc = MQTTAsync_subscribe(c, sub_topic, 2, &ropts)) != MQTTASYNC_SUCCESS)
 	{
 		MyLog(LOGA_ALWAYS, "control MQTTAsync_subscribe failed, rc %d", rc);
@@ -919,7 +961,7 @@ void control_onConnect(void* context, MQTTAsync_successData* response)
 
 void trace_callback(enum MQTTASYNC_TRACE_LEVELS level, char* message)
 {
-	if (level == MQTTASYNC_TRACE_ERROR || strstr(message, "Connect") || strstr(message, "failed"))
+	//if (level == MQTTASYNC_TRACE_ERROR || strstr(message, "Connect") || strstr(message, "failed"))
 		printf("Trace : %d, %s\n", level, message);
 }
 
@@ -930,7 +972,7 @@ int main(int argc, char** argv)
 	static char topic_buf[200];
 	static char clientid[40];
 
-#if !defined(WIN32)
+#if !defined(_WIN32)
 	signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -952,7 +994,7 @@ int main(int argc, char** argv)
 
 	MyLog(LOGA_ALWAYS, "Starting with clientid %s", opts.clientid);
 
-	//MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_MAXIMUM);
+	MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_ERROR);
 	MQTTAsync_setTraceCallback(trace_callback);
 
 	rc = MQTTAsync_create(&control_client, opts.control_connection,
@@ -986,7 +1028,7 @@ int main(int argc, char** argv)
 	}
 
 	while (control_subscribed == 0)
-		mqsleep(1);
+		MySleep(1000);
 
 	if (control_subscribed != 1)
 		goto destroy_exit;

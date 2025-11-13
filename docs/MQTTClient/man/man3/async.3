@@ -1,0 +1,13 @@
+.TH "async" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+async \- Asynchronous vs synchronous client applications 
+.PP
+This client library supports two modes of operation\&. These are referred to as \fBsynchronous\fP and \fBasynchronous\fP modes\&. If your application calls \fBMQTTClient_setCallbacks()\fP, this puts the client into asynchronous mode, otherwise it operates in synchronous mode\&.
+
+.PP
+In synchronous mode, the client application runs on a single thread\&. Messages are published using the \fBMQTTClient_publish()\fP and \fBMQTTClient_publishMessage()\fP functions\&. To determine that a QoS1 or QoS2 (see \fBQuality of service\fP) message has been successfully delivered, the application must call the \fBMQTTClient_waitForCompletion()\fP function\&. An example showing synchronous publication is shown in \fBSynchronous publication example\fP\&. Receiving messages in synchronous mode uses the \fBMQTTClient_receive()\fP function\&. Client applications must call either \fBMQTTClient_receive()\fP or \fBMQTTClient_yield()\fP relatively frequently in order to allow processing of acknowledgements and the MQTT "pings" that keep the network connection to the server alive\&.
+
+.PP
+In asynchronous mode, the client application runs on several threads\&. The main program calls functions in the client library to publish and subscribe, just as for the synchronous mode\&. Processing of handshaking and maintaining the network connection is performed in the background, however\&. Notifications of status and message reception are provided to the client application using callbacks registered with the library by the call to \fBMQTTClient_setCallbacks()\fP (see \fBMQTTClient_messageArrived()\fP, \fBMQTTClient_connectionLost()\fP and \fBMQTTClient_deliveryComplete()\fP)\&. This API is not thread safe however - it is not possible to call it from multiple threads without synchronization\&. You can use the MQTTAsync API for that\&. 

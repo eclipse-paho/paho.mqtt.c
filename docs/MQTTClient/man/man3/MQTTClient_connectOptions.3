@@ -1,0 +1,185 @@
+.TH "MQTTClient_connectOptions" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClient_connectOptions
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTClient\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "int \fBkeepAliveInterval\fP"
+.br
+.ti -1c
+.RI "int \fBcleansession\fP"
+.br
+.ti -1c
+.RI "int \fBreliable\fP"
+.br
+.ti -1c
+.RI "\fBMQTTClient_willOptions\fP * \fBwill\fP"
+.br
+.ti -1c
+.RI "const char * \fBusername\fP"
+.br
+.ti -1c
+.RI "const char * \fBpassword\fP"
+.br
+.ti -1c
+.RI "int \fBconnectTimeout\fP"
+.br
+.ti -1c
+.RI "int \fBretryInterval\fP"
+.br
+.ti -1c
+.RI "\fBMQTTClient_SSLOptions\fP * \fBssl\fP"
+.br
+.ti -1c
+.RI "int \fBserverURIcount\fP"
+.br
+.ti -1c
+.RI "char *const  * \fBserverURIs\fP"
+.br
+.ti -1c
+.RI "int \fBMQTTVersion\fP"
+.br
+.ti -1c
+.RI "struct {"
+.br
+.ti -1c
+.RI "   const char * \fBserverURI\fP"
+.br
+.ti -1c
+.RI "   int \fBMQTTVersion\fP"
+.br
+.ti -1c
+.RI "   int \fBsessionPresent\fP"
+.br
+.ti -1c
+.RI "} \fBreturned\fP"
+.br
+.ti -1c
+.RI "struct {"
+.br
+.ti -1c
+.RI "   int \fBlen\fP"
+.br
+.ti -1c
+.RI "   const void * \fBdata\fP"
+.br
+.ti -1c
+.RI "} \fBbinarypwd\fP"
+.br
+.ti -1c
+.RI "int \fBmaxInflightMessages\fP"
+.br
+.ti -1c
+.RI "int \fBcleanstart\fP"
+.br
+.ti -1c
+.RI "const \fBMQTTClient_nameValue\fP * \fBhttpHeaders\fP"
+.br
+.ti -1c
+.RI "const char * \fBhttpProxy\fP"
+.br
+.ti -1c
+.RI "const char * \fBhttpsProxy\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+\fBMQTTClient_connectOptions\fP defines several settings that control the way the client connects to an MQTT server\&.
+
+.PP
+\fBNote:\fP Default values are not defined for members of \fBMQTTClient_connectOptions\fP so it is good practice to specify all settings\&. If the \fBMQTTClient_connectOptions\fP structure is defined as an automatic variable, all members are set to random values and thus must be set by the client application\&. If the \fBMQTTClient_connectOptions\fP structure is defined as a static variable, initialization (in compliant compilers) sets all values to 0 (NULL for pointers)\&. A \fBkeepAliveInterval\fP setting of 0 prevents correct operation of the client and so you \fBmust\fP at least set a value for \fBkeepAliveInterval\fP\&.
+
+.PP
+Suitable default values are set in the following initializers:
+.IP "\(bu" 2
+MQTTClient_connectOptions_initializer: for MQTT 3\&.1\&.1 non-WebSockets
+.IP "\(bu" 2
+MQTTClient_connectOptions_initializer5: for MQTT 5\&.0 non-WebSockets
+.IP "\(bu" 2
+MQTTClient_connectOptions_initializer_ws: for MQTT 3\&.1\&.1 WebSockets
+.IP "\(bu" 2
+MQTTClient_connectOptions_initializer5_ws: for MQTT 5\&.0 WebSockets 
+.PP
+
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. must be MQTC\&. 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0, 1, 2, 3, 4, 5, 6, 7 or 8\&. 0 signifies no SSL options and no serverURIs 1 signifies no serverURIs 2 signifies no MQTTVersion 3 signifies no returned values 4 signifies no binary password option 5 signifies no maxInflightMessages and cleanstart 6 signifies no HTTP headers option 7 signifies no HTTP proxy and HTTPS proxy options 
+.SS "int keepAliveInterval"
+The "keep alive" interval, measured in seconds, defines the maximum time that should pass without communication between the client and the server The client will ensure that at least one message travels across the network within each keep alive period\&. In the absence of a data-related message during the time period, the client sends a very small MQTT "ping" message, which the server will acknowledge\&. The keep alive interval enables the client to detect when the server is no longer available without having to wait for the long TCP/IP timeout\&. 
+.SS "int cleansession"
+This is a boolean value\&. The cleansession setting controls the behaviour of both the client and the server at connection and disconnection time\&. The client and server both maintain session state information\&. This information is used to ensure "at least once" and "exactly once" delivery, and "exactly once" receipt of messages\&. Session state also includes subscriptions created by an MQTT client\&. You can choose to maintain or discard state information between sessions\&.
+
+.PP
+When cleansession is true, the state information is discarded at connect and disconnect\&. Setting cleansession to false keeps the state information\&. When you connect an MQTT client application with \fBMQTTClient_connect()\fP, the client identifies the connection using the client identifier and the address of the server\&. The server checks whether session information for this client has been saved from a previous connection to the server\&. If a previous session still exists, and cleansession=true, then the previous session information at the client and server is cleared\&. If cleansession=false, the previous session is resumed\&. If no previous session exists, a new session is started\&. 
+.SS "int reliable"
+This is a boolean value that controls how many messages can be in-flight simultaneously\&. Setting \fIreliable\fP to true means that a published message must be completed (acknowledgements received) before another can be sent\&. Attempts to publish additional messages receive an \fBMQTTCLIENT_MAX_MESSAGES_INFLIGHT\fP return code\&. Setting this flag to false allows up to 10 messages to be in-flight\&. This can increase overall throughput in some circumstances\&. 
+.SS "\fBMQTTClient_willOptions\fP* will"
+This is a pointer to an \fBMQTTClient_willOptions\fP structure\&. If your application does not make use of the Last Will and Testament feature, set this pointer to NULL\&. 
+.SS "const char* username"
+MQTT servers that support the MQTT v3\&.1\&.1 protocol provide authentication and authorisation by user name and password\&. This is the user name parameter\&. 
+.SS "const char* password"
+MQTT servers that support the MQTT v3\&.1\&.1 protocol provide authentication and authorisation by user name and password\&. This is the password parameter\&. 
+.SS "int connectTimeout"
+The time interval in seconds to allow a connect to complete\&. 
+.SS "int retryInterval"
+The time interval in seconds after which unacknowledged publish requests are retried during a TCP session\&. With MQTT 3\&.1\&.1 and later, retries are not required except on reconnect\&. 0 turns off in-session retries, and is the recommended setting\&. Adding retries to an already overloaded network only exacerbates the problem\&. 
+.SS "\fBMQTTClient_SSLOptions\fP* ssl"
+This is a pointer to an \fBMQTTClient_SSLOptions\fP structure\&. If your application does not make use of SSL, set this pointer to NULL\&. 
+.SS "int serverURIcount"
+The number of entries in the optional serverURIs array\&. Defaults to 0\&. 
+.SS "char* const* serverURIs"
+An optional array of null-terminated strings specifying the servers to which the client will connect\&. Each string takes the form \fIprotocol://host:port\fP\&. \fIprotocol\fP must be \fItcp\fP, \fIssl\fP, \fIws\fP or \fIwss\fP\&. The TLS enabled prefixes (ssl, wss) are only valid if a TLS version of the library is linked with\&. For \fIhost\fP, you can specify either an IP address or a host name\&. For instance, to connect to a server running on the local machines with the default MQTT port, specify \fItcp://localhost:1883\fP\&. If this list is empty (the default), the server URI specified on \fBMQTTClient_create()\fP is used\&. 
+.SS "int MQTTVersion"
+Sets the version of MQTT to be used on the connect\&. MQTTVERSION_DEFAULT (0) = default: start with 3\&.1\&.1, and if that fails, fall back to 3\&.1 MQTTVERSION_3_1 (3) = only try version 3\&.1 MQTTVERSION_3_1_1 (4) = only try version 3\&.1\&.1 MQTTVERSION_5 (5) = only try version 5\&.0
+
+.PP
+the MQTT version used to connect with 
+.SS "const char* serverURI"
+the serverURI connected to 
+.SS "int sessionPresent"
+if the MQTT version is 3\&.1\&.1, the value of sessionPresent returned in the connack 
+.SS "struct  { \&.\&.\&. }  returned"
+Returned from the connect when the MQTT version used to connect is 3\&.1\&.1 
+.SS "int len"
+binary password length 
+.SS "const void* data"
+binary password data 
+.SS "struct  { \&.\&.\&. }  binarypwd"
+Optional binary password\&. Only checked and used if the password option is NULL 
+.SS "int maxInflightMessages"
+The maximum number of messages in flight 
+.SS "int cleanstart"
+
+.SS "const \fBMQTTClient_nameValue\fP* httpHeaders"
+HTTP headers for websockets 
+.SS "const char* httpProxy"
+The string value of the HTTP proxy\&. Examples:
+.IP "\(bu" 2
+http://your.proxy.server:8080/
+.IP "\(bu" 2
+http://user:pass@my.proxy.server:8080/ 
+.PP
+
+.SS "const char* httpsProxy"
+HTTPS proxy setting\&. See \fBMQTTClient_connectOptions\&.httpProxy\fP and the section \fBHTTP Proxies\fP\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho MQTT C Client Library from the source code\&.

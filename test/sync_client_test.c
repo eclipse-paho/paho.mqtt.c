@@ -1,12 +1,12 @@
 /*******************************************************************
-  Copyright (c) 2013, 2014 IBM Corp.
+  Copyright (c) 2013, 2020 IBM Corp.
  
   All rights reserved. This program and the accompanying materials
-  are made available under the terms of the Eclipse Public License v1.0
+  are made available under the terms of the Eclipse Public License v2.0
   and Eclipse Distribution License v1.0 which accompany this distribution. 
  
   The Eclipse Public License is available at 
-     http://www.eclipse.org/legal/epl-v10.html
+     https://www.eclipse.org/legal/epl-2.0/
   and the Eclipse Distribution License is available at 
     http://www.eclipse.org/org/documents/edl-v10.php.
  
@@ -171,7 +171,7 @@ void getopts(int argc, char** argv)
 }
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(_WIN32) || defined(_WINDOWS)
 #define msleep Sleep
 #define START_TIME_TYPE DWORD
 static DWORD start_time = 0;
@@ -209,18 +209,30 @@ void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
 	va_list args;
+#if defined(_WIN32) || defined(_WINDOWS)
 	struct timeb ts;
-
-	struct tm *timeinfo;
+#else
+	struct timeval ts;
+#endif
+	struct tm timeinfo;
 
 	if (LOGA_level == LOGA_DEBUG && options.verbose == 0)
 	  return;
-	
-	ftime(&ts);
-	timeinfo = localtime(&ts.time);
-	strftime(msg_buf, 80, "%Y%m%d %H%M%S", timeinfo);
 
+#if defined(_WIN32) || defined(_WINDOWS)
+	ftime(&ts);
+	localtime_s(&timeinfo, &ts.time);
+#else
+	gettimeofday(&ts, NULL);
+	localtime_r(&ts.tv_sec, &timeinfo);
+#endif
+	strftime(msg_buf, 80, "%Y%m%d %H%M%S", &timeinfo);
+
+#if defined(_WIN32) || defined(_WINDOWS)
 	sprintf(&msg_buf[strlen(msg_buf)], ".%.3hu ", ts.millitm);
+#else
+	sprintf(&msg_buf[strlen(msg_buf)], ".%.3lu ", ts.tv_usec / 1000L);
+#endif
 
 	va_start(args, format);
 	vsnprintf(&msg_buf[strlen(msg_buf)], sizeof(msg_buf) - strlen(msg_buf), format, args);
@@ -229,7 +241,6 @@ void MyLog(int LOGA_level, char* format, ...)
 	printf("%s\n", msg_buf);
 	fflush(stdout);
 }
-
 
 int tests = 0;
 int failures = 0;
@@ -597,11 +608,11 @@ int retained_message_test(void)
 
 int test6_socket_error(char* aString, int sock)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	int errno;
 #endif
 
-#if defined(WIN32)
+#if defined(_WIN32)
 	errno = WSAGetLastError();
 #endif
 	if (errno != EINTR && errno != EAGAIN && errno != EINPROGRESS && errno != EWOULDBLOCK)
@@ -616,7 +627,7 @@ int test6_socket_close(int socket)
 {
 	int rc;
 
-#if defined(WIN32)
+#if defined(_WIN32)
 	if (shutdown(socket, SD_BOTH) == SOCKET_ERROR)
 		test6_socket_error("shutdown", socket);
 	if ((rc = closesocket(socket)) == SOCKET_ERROR)

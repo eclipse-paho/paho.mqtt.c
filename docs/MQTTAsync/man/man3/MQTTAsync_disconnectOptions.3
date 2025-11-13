@@ -1,0 +1,80 @@
+.TH "MQTTAsync_disconnectOptions" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_disconnectOptions
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "int \fBtimeout\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onSuccess\fP * \fBonSuccess\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onFailure\fP * \fBonFailure\fP"
+.br
+.ti -1c
+.RI "void * \fBcontext\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperties\fP \fBproperties\fP"
+.br
+.ti -1c
+.RI "enum \fBMQTTReasonCodes\fP \fBreasonCode\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onSuccess5\fP * \fBonSuccess5\fP"
+.br
+.ti -1c
+.RI "\fBMQTTAsync_onFailure5\fP * \fBonFailure5\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Options for the \fBMQTTAsync_disconnect\fP call 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Must be MQTD\&. 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0 or 1\&. 0 signifies no V5 properties 
+.SS "int timeout"
+The client delays disconnection for up to this time (in milliseconds) in order to allow in-flight message transfers to complete\&. 
+.SS "\fBMQTTAsync_onSuccess\fP* onSuccess"
+A pointer to a callback function to be called if the disconnect successfully completes\&. Can be set to NULL, in which case no indication of successful completion will be received\&. 
+.SS "\fBMQTTAsync_onFailure\fP* onFailure"
+A pointer to a callback function to be called if the disconnect fails\&. Can be set to NULL, in which case no indication of unsuccessful completion will be received\&. 
+.SS "void* context"
+
+.PP
+.nf
+A pointer to any application-specific context\&. The
+
+.fi
+.PP
+ the \fIcontext\fP pointer is passed to success or failure callback functions to provide access to the context information in the callback\&. 
+.SS "\fBMQTTProperties\fP properties"
+MQTT V5 input properties 
+.SS "enum \fBMQTTReasonCodes\fP reasonCode"
+Reason code for MQTTV5 disconnect 
+.SS "\fBMQTTAsync_onSuccess5\fP* onSuccess5"
+A pointer to a callback function to be called if the disconnect successfully completes\&. Can be set to NULL, in which case no indication of successful completion will be received\&. 
+.SS "\fBMQTTAsync_onFailure5\fP* onFailure5"
+A pointer to a callback function to be called if the disconnect fails\&. Can be set to NULL, in which case no indication of unsuccessful completion will be received\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

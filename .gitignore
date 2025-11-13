@@ -1,3 +1,7 @@
 /dep/
 /build/
+/build.paho/
 *.swp
+*.pyc
+/build.paho
+.vscode/

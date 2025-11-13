@@ -1,0 +1,305 @@
+.TH "MQTTClientPersistence.h" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClientPersistence.h \- This structure represents a persistent data store, used to store outbound and inbound messages, in order to achieve reliable messaging\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+.SS "Data Structures"
+
+.in +1c
+.ti -1c
+.RI "struct \fBMQTTClient_persistence\fP"
+.br
+.RI "A structure containing the function pointers to a persistence implementation and the context or state that will be shared across all the persistence functions\&. "
+.in -1c
+.SS "Macros"
+
+.in +1c
+.ti -1c
+.RI "#define \fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP   0"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_PERSISTENCE_NONE\fP   1"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_PERSISTENCE_USER\fP   2"
+.br
+.ti -1c
+.RI "#define \fBMQTTCLIENT_PERSISTENCE_ERROR\fP   \-2"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef int(* \fBPersistence_open\fP) (void **handle, const char *clientID, const char *serverURI, void *context)"
+.br
+.RI "Initialize the persistent store\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_close\fP) (void *handle)"
+.br
+.RI "Close the persistent store referred to by the handle\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_put\fP) (void *handle, char *key, int bufcount, char *buffers[], int buflens[])"
+.br
+.RI "Put the specified data into the persistent store\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_get\fP) (void *handle, char *key, char **buffer, int *buflen)"
+.br
+.RI "Retrieve the specified data from the persistent store\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_remove\fP) (void *handle, char *key)"
+.br
+.RI "Remove the data for the specified key from the store\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_keys\fP) (void *handle, char ***keys, int *nkeys)"
+.br
+.RI "Returns the keys in this persistent data store\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_clear\fP) (void *handle)"
+.br
+.RI "Clears the persistence store, so that it no longer contains any persisted data\&. "
+.ti -1c
+.RI "typedef int(* \fBPersistence_containskey\fP) (void *handle, char *key)"
+.br
+.RI "Returns whether any data has been persisted using the specified key\&. "
+.ti -1c
+.RI "typedef int \fBMQTTPersistence_beforeWrite\fP(void *context, int bufcount, char *buffers[], int buflens[])"
+.br
+.ti -1c
+.RI "typedef int \fBMQTTPersistence_afterRead\fP(void *context, char **buffer, int *buflen)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+This structure represents a persistent data store, used to store outbound and inbound messages, in order to achieve reliable messaging\&. 
+
+The MQTT Client persists QoS1 and QoS2 messages in order to meet the assurances of delivery associated with these \fBQuality of service\fP levels\&. The messages are saved in persistent storage The type and context of the persistence implementation are specified when the MQTT client is created (see \fBMQTTClient_create()\fP)\&. The default persistence type (\fBMQTTCLIENT_PERSISTENCE_DEFAULT\fP) uses a file system-based persistence mechanism\&. The \fIpersistence_context\fP argument passed to \fBMQTTClient_create()\fP when using the default peristence is a string representing the location of the persistence directory\&. If the context argument is NULL, the working directory will be used\&.
+
+.PP
+To use memory-based persistence, an application passes \fBMQTTCLIENT_PERSISTENCE_NONE\fP as the \fIpersistence_type\fP to \fBMQTTClient_create()\fP\&. This can lead to message loss in certain situations, but can be appropriate in some cases (see \fBQuality of service\fP)\&.
+
+.PP
+Client applications can provide their own persistence mechanism by passing \fBMQTTCLIENT_PERSISTENCE_USER\fP as the \fIpersistence_type\fP\&. To implement a custom persistence mechanism, the application must pass an initialized \fBMQTTClient_persistence\fP structure as the \fIpersistence_context\fP argument to \fBMQTTClient_create()\fP\&.
+
+.PP
+If the functions defined return an \fBMQTTCLIENT_PERSISTENCE_ERROR\fP then the state of the persisted data should remain as it was prior to the function being called\&. For example, if \fBPersistence_put()\fP returns \fBMQTTCLIENT_PERSISTENCE_ERROR\fP, then it is assumed tha tthe persistent store does not contain the data that was passed to the function\&. Similarly, if \fBPersistence_remove()\fP returns \fBMQTTCLIENT_PERSISTENCE_ERROR\fP then it is assumed that the data to be removed is still held in the persistent store\&.
+
+.PP
+It is up to the persistence implementation to log any error information that may be required to diagnose a persistence mechanism failure\&. 
+.SH "Macro Definition Documentation"
+.PP 
+.SS "#define MQTTCLIENT_PERSISTENCE_DEFAULT   0"
+This \fIpersistence_type\fP value specifies the default file system-based persistence mechanism (see \fBMQTTClient_create()\fP)\&. 
+.SS "#define MQTTCLIENT_PERSISTENCE_NONE   1"
+This \fIpersistence_type\fP value specifies a memory-based persistence mechanism (see \fBMQTTClient_create()\fP)\&. 
+.SS "#define MQTTCLIENT_PERSISTENCE_USER   2"
+This \fIpersistence_type\fP value specifies an application-specific persistence mechanism (see \fBMQTTClient_create()\fP)\&. 
+.SS "#define MQTTCLIENT_PERSISTENCE_ERROR   \-2"
+Application-specific persistence functions must return this error code if there is a problem executing the function\&. 
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef int(* Persistence_open) (void **handle, const char *clientID, const char *serverURI, void *context)"
+
+.PP
+Initialize the persistent store\&. Either open the existing persistent store for this client ID or create a new one if one doesn't exist\&. If the persistent store is already open, return without taking any action\&.
+
+.PP
+An application can use the same client identifier to connect to many different servers\&. The \fIclientid\fP in conjunction with the \fIserverURI\fP uniquely identifies the persistence store required\&.
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The address of a pointer to a handle for this persistence implementation\&. This function must set handle to a valid reference to the persistence following a successful return\&. The handle pointer is passed as an argument to all the other persistence functions\&. It may include the context parameter and/or any other data for use by the persistence functions\&. 
+.br
+\fIclientID\fP The client identifier for which the persistent store should be opened\&. 
+.br
+\fIserverURI\fP The connection string specified when the MQTT client was created (see \fBMQTTClient_create()\fP)\&. 
+.br
+\fIcontext\fP A pointer to any data required to initialize the persistent store (see \fBMQTTClient_persistence\fP)\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_close) (void *handle)"
+
+.PP
+Close the persistent store referred to by the handle\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_put) (void *handle, char *key, int bufcount, char *buffers[], int buflens[])"
+
+.PP
+Put the specified data into the persistent store\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.br
+\fIkey\fP A string used as the key for the data to be put in the store\&. The key is later used to retrieve data from the store with \fBPersistence_get()\fP\&. 
+.br
+\fIbufcount\fP The number of buffers to write to the persistence store\&. 
+.br
+\fIbuffers\fP An array of pointers to the data buffers associated with this \fIkey\fP\&. 
+.br
+\fIbuflens\fP An array of lengths of the data buffers\&. \fIbuflen[n]\fP gives the length of \fIbuffer[n]\fP\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_get) (void *handle, char *key, char **buffer, int *buflen)"
+
+.PP
+Retrieve the specified data from the persistent store\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.br
+\fIkey\fP A string that is the key for the data to be retrieved\&. This is the same key used to save the data to the store with \fBPersistence_put()\fP\&. 
+.br
+\fIbuffer\fP The address of a pointer to a buffer\&. This function sets the pointer to point at the retrieved data, if successful\&. 
+.br
+\fIbuflen\fP The address of an int that is set to the length of \fIbuffer\fP by this function if successful\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_remove) (void *handle, char *key)"
+
+.PP
+Remove the data for the specified key from the store\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.br
+\fIkey\fP A string that is the key for the data to be removed from the store\&. This is the same key used to save the data to the store with \fBPersistence_put()\fP\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_keys) (void *handle, char ***keys, int *nkeys)"
+
+.PP
+Returns the keys in this persistent data store\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.br
+\fIkeys\fP The address of a pointer to pointers to strings\&. Assuming successful execution, this function allocates memory to hold the returned keys (strings used to store the data with \fBPersistence_put()\fP)\&. It also allocates memory to hold an array of pointers to these strings\&. \fIkeys\fP is set to point to the array of pointers to strings\&. 
+.br
+\fInkeys\fP A pointer to the number of keys in this persistent data store\&. This function sets the number of keys, if successful\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_clear) (void *handle)"
+
+.PP
+Clears the persistence store, so that it no longer contains any persisted data\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int(* Persistence_containskey) (void *handle, char *key)"
+
+.PP
+Returns whether any data has been persisted using the specified key\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhandle\fP The handle pointer from a successful call to \fBPersistence_open()\fP\&. 
+.br
+\fIkey\fP The string to be tested for existence in the store\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the key was found in the store, otherwise return \fBMQTTCLIENT_PERSISTENCE_ERROR\fP\&. 
+.RE
+.PP
+
+.SS "typedef int MQTTPersistence_beforeWrite(void *context, int bufcount, char *buffers[], int buflens[])"
+A callback which is invoked just before a write to persistence\&. This can be used to transform the data, for instance to encrypt it\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP The context as set in ::MQTTAsync_setBeforePersistenceWrite 
+.br
+\fIbufcount\fP The number of buffers to write to the persistence store\&. 
+.br
+\fIbuffers\fP An array of pointers to the data buffers\&. 
+.br
+\fIbuflens\fP An array of lengths of the data buffers\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise non 0\&. 
+.RE
+.PP
+
+.SS "typedef int MQTTPersistence_afterRead(void *context, char **buffer, int *buflen)"
+A callback which is invoked just after a read from persistence\&. This can be used to transform the data, for instance to decrypt it\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP The context as set in ::MQTTAsync_setAfterPersistenceRead 
+.br
+\fIbuffer\fP The address of a pointer to a buffer\&. 
+.br
+\fIbuflen\fP The address of an int that is the length of the buffer\&. 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+Return 0 if the function completes successfully, otherwise non 0\&. 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho MQTT C Client Library from the source code\&.

@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 IBM Corp.
+ * Copyright (c) 2009, 2022 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution. 
  *
  * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at 
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -17,6 +17,14 @@
 
 #if !defined(LOG_H)
 #define LOG_H
+
+#if defined(_WIN32)
+	#include <windows.h>
+	#define thread_id_type DWORD
+#else
+	#include <pthread.h>
+	#define thread_id_type pthread_t
+#endif
 
 /*BE
 map LOG_LEVELS
@@ -76,7 +84,7 @@ int Log_initialize(Log_nameValue*);
 void Log_terminate(void);
 
 void Log(enum LOG_LEVELS, int, const char *, ...);
-void Log_stackTrace(enum LOG_LEVELS, int, int, int, const char*, int, int*);
+void Log_stackTrace(enum LOG_LEVELS, int, thread_id_type, int, const char*, int, int*);
 
 typedef void Log_traceCallback(enum LOG_LEVELS level, const char *message);
 void Log_setTraceCallback(Log_traceCallback* callback);

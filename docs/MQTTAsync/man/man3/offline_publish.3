@@ -1,0 +1,13 @@
+.TH "offline_publish" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+offline_publish \- Publish While Disconnected 
+.PP
+This feature was not originally available because with persistence enabled, messages could be stored locally without ever knowing if they could be sent\&. The client application could have created the client with an erroneous broker address or port for instance\&.
+
+.PP
+To enable messages to be published when the application is disconnected \fBMQTTAsync_createWithOptions\fP must be used instead of \fBMQTTAsync_create\fP to create the client object\&. The \fBMQTTAsync_createOptions\fP field sendWhileDisconnected must be set to non-zero, and the maxBufferedMessages field set as required - the default being 100\&.
+
+.PP
+\fBMQTTAsync_getPendingTokens\fP can be called to return the ids of the messages waiting to be sent, or for which the sending process has not completed\&. 

@@ -1,0 +1,10 @@
+.TH "callbacks" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+callbacks \- Callbacks 
+.PP
+Any function from this API may be used within a callback\&. It is not advisable to use \fBMQTTAsync_waitForCompletion\fP within a callback, however, as it is the only API call that may take some time to complete, which may cause unpredictable behaviour\&. All the other API calls are intended to complete quickly, starting a request in the background, with success or failure notified by other callbacks\&.
+
+.PP
+If no callbacks are assigned, this will include the message arrived callback\&. This could be done if the application is a pure publisher, and does not subscribe to any topics\&. If however messages are received, and no message arrived callback is set, then those messages will accumulate and take up memory, as there is no place for them to be delivered\&. A log message will be written to highlight the issue, but it is up to the application to protect against this situation\&. 

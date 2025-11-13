@@ -1,0 +1,38 @@
+.TH "MQTTAsync_failureData" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_failureData
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "\fBMQTTAsync_token\fP \fBtoken\fP"
+.br
+.ti -1c
+.RI "int \fBcode\fP"
+.br
+.ti -1c
+.RI "const char * \fBmessage\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The data returned on completion of an unsuccessful API call in the response callback onFailure\&. 
+.SH "Field Documentation"
+.PP 
+.SS "\fBMQTTAsync_token\fP token"
+A token identifying the failed request\&. 
+.SS "int code"
+A numeric code identifying the error\&. 
+.SS "const char* message"
+Optional text explaining the error\&. Can be NULL\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

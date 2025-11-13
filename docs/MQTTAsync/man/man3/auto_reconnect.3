@@ -1,0 +1,13 @@
+.TH "auto_reconnect" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+auto_reconnect \- Automatic Reconnect 
+.PP
+The ability for the client library to reconnect automatically in the event of a connection failure was added in 1\&.1\&. The connection lost callback allows a flexible response to the loss of a connection, so almost any behaviour can be implemented in that way\&. Automatic reconnect does have the advantage of being a little simpler to use\&.
+
+.PP
+To switch on automatic reconnect, the connect options field automaticReconnect should be set to non-zero\&. The minimum and maximum times before the next connection attempt can also be set, the defaults being 1 and 60 seconds\&. At each failure to reconnect, the retry interval is doubled until the maximum value is reached, and there it stays until the connection is successfully re-established whereupon it is reset\&.
+
+.PP
+When a reconnection attempt is successful, the \fBMQTTAsync_connected\fP callback function is invoked, if set by calling \fBMQTTAsync_setConnected\fP\&. This allows the application to take any actions needed, such as amending subscriptions\&. 

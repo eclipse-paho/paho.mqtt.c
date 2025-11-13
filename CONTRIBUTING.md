@@ -10,12 +10,12 @@ In order for your contribution to be accepted, it must comply with the Eclipse F
 
 Please read the [Eclipse Foundation policy on accepting contributions via Git](http://wiki.eclipse.org/Development_Resources/Contributing_via_Git).
 
-1. Sign the [Eclipse CLA](http://www.eclipse.org/legal/CLA.php)
+1. Sign the [Eclipse ECA](http://www.eclipse.org/legal/ECA.php)
   1. Register for an Eclipse Foundation User ID. You can register [here](https://dev.eclipse.org/site_login/createaccount.php).
-  2. Log into the [Projects Portal](https://projects.eclipse.org/), and click on the '[Eclipse CLA](https://projects.eclipse.org/user/sign/cla)' link.
+  2. Log into the [Eclipse projects forge](https://www.eclipse.org/contribute/cla), and click on 'Eclipse Contributor Agreement'.
 2. Go to your [account settings](https://dev.eclipse.org/site_login/myaccount.php#open_tab_accountsettings) and add your GitHub username to your account.
 3. Make sure that you _sign-off_ your Git commits in the following format:
-  ``` Signed-off-by: John Smith <johnsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
+  ``` Signed-off-by: Alex Smith <alexsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
 4. Ensure that the email address that you make your commits with is the same one you used to sign up to the Eclipse Foundation website with.
 
 ## Contributing a change
@@ -31,14 +31,11 @@ Please read the [Eclipse Foundation policy on accepting contributions via Git](h
 9. Push the changes in your branch to your forked repository.
 10. Finally, go to [https://github.com/eclipse/paho.mqtt.c](https://github.com/eclipse/paho.mqtt.c) and create a pull request from your "YOUR_BRANCH_NAME" branch to the ```develop``` one to request review and merge of the commits in your pushed branch.
 
-
-What happens next depends on the content of the patch. If it is 100% authored
-by the contributor and is less than 1000 lines (and meets the needs of the
-project), then it can be pulled into the main repository. If not, more steps
-are required. These are detailed in the
-[legal process poster](http://www.eclipse.org/legal/EclipseLegalProcessPoster.pdf).
-
-
+What happens next depends on the content of the patch.
+If it is 100% authored by the contributor with less than 1000 lines of new product code that meets
+the needs of the project (refactored, test code and sample code is excluded from the count), then it
+can be pulled into the main repository. When there are more than 1000 lines of new product code,
+more steps are required. More details are provided in the [handbook](https://www.eclipse.org/projects/handbook/#ip).
 
 ## Developer resources:
 

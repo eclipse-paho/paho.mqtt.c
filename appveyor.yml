@@ -1,32 +1,100 @@
-version: 1.1.{build}
-image: Visual Studio 2015
+version: 1.3.{build}
+ 
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2013
+      PAHO_WINDOWS_BUILD_BIT: x64
+      OPENSSL_ROOT_DIR: "C:/OpenSSL-v111-Win64"
+      PAHO_BUILD_STATIC: FALSE
+      PAHO_BUILD_SHARED: TRUE
+      PAHO_HIGH_PERFORMANCE: FALSE
+      PYTHON_VERSION: Python36
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      PAHO_WINDOWS_BUILD_BIT: x64
+      OPENSSL_ROOT_DIR: "C:/OpenSSL-Win64"
+      PAHO_BUILD_STATIC: TRUE
+      PAHO_BUILD_SHARED: FALSE
+      PAHO_HIGH_PERFORMANCE: TRUE
+      PYTHON_VERSION: Python36
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+      PAHO_WINDOWS_BUILD_BIT: x86
+      OPENSSL_ROOT_DIR: "C:/OpenSSL-Win32"
+      PAHO_BUILD_STATIC: FALSE
+      PAHO_BUILD_SHARED: TRUE
+      PAHO_HIGH_PERFORMANCE: TRUE
+      PYTHON_VERSION: Python37
+    
 configuration: Debug
 install:
-  - cmd: python --version
-    
-  - cmd: netsh advfirewall firewall add rule name="Python 2.7" dir=in action=allow program="C:\Python27\python.exe" enable=yes
-
+  - cmd: ver
+  - cmd: openssl version
+  - cmd: C:\%PYTHON_VERSION%\python --version
+  - cmd: netsh advfirewall firewall add rule name="Python 3" dir=in action=allow program="C:\%PYTHON_VERSION%\python.exe" enable=yes
   - cmd: netsh advfirewall firewall add rule name="Open Port 1883" dir=in action=allow protocol=TCP localport=1883
-
   - cmd: netsh advfirewall set allprofiles state off
-    
-  - ps: Start-Process python -ArgumentList 'test\mqttsas2.py', 'mqtt.iotree.co.uk'
-  
+  - ps: Start-Process C:\$Env:PYTHON_VERSION\python -ArgumentList 'test\mqttsas.py'
+  - cmd: git clone https://github.com/eclipse/paho.mqtt.testing.git
+  - cmd: cd paho.mqtt.testing\interoperability
+  - ps: Start-Process C:\$Env:PYTHON_VERSION\python -ArgumentList 'startbroker.py -c localhost_testing.conf'
+  - cmd: cd ..\..
+
 build_script:
 - cmd: >-
     mkdir build.paho
 
     cd build.paho
 
-    "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+    echo %APPVEYOR_BUILD_WORKER_IMAGE%
 
-    cmake -G "NMake Makefiles" -DPAHO_WITH_SSL=TRUE -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=TRUE ..
+    if "%APPVEYOR_BUILD_WORKER_IMAGE%" == "Visual Studio 2019" call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %PAHO_WINDOWS_BUILD_BIT%
+
+    if "%APPVEYOR_BUILD_WORKER_IMAGE%" == "Visual Studio 2015" call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %PAHO_WINDOWS_BUILD_BIT%
+
+    if "%APPVEYOR_BUILD_WORKER_IMAGE%" == "Visual Studio 2013" call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" %PAHO_WINDOWS_BUILD_BIT%
+
+    cmake -G "NMake Makefiles" -DPAHO_WITH_SSL=TRUE -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT_DIR% -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=TRUE -DPAHO_BUILD_STATIC=%PAHO_BUILD_STATIC% -DPAHO_BUILD_SHARED=%PAHO_BUILD_SHARED% -DPAHO_HIGH_PERFORMANCE=%PAHO_HIGH_PERFORMANCE% ..
 
     nmake
 
-    ctest -T test -VV
+    ctest -T test -VV 
 
     cd ..
+
+after_build:
+- cmd: >-
+    set ZIPNAME=eclipse-paho-mqtt-c-windows.zip 
+
+    7z a %ZIPNAME% %APPVEYOR_BUILD_FOLDER%\*.html
+
+    7z a %ZIPNAME% %APPVEYOR_BUILD_FOLDER%\*.md
+
+    7z a %ZIPNAME% %APPVEYOR_BUILD_FOLDER%\*-v10
+
+    7z a %ZIPNAME% build.paho\src\*.dll
+
+    7z a %ZIPNAME% build.paho\src\*.lib
+
+    7z rn %ZIPNAME% build.paho\src lib
+
+    7z a %ZIPNAME% build.paho\src\samples\*.exe
+
+    7z rn %ZIPNAME% build.paho\src\samples bin
+
+    if "%PAHO_BUILD_SHARED%" == "TRUE" 7z a %ZIPNAME% "%APPVEYOR_BUILD_FOLDER%\build.paho\src\MQTTVersion.exe"
+
+    7z rn %ZIPNAME% MQTTVersion.exe bin\MQTTVersion.exe
+
+    7z a %ZIPNAME% src\MQTTClient.h src\MQTTAsync.h src\MQTTClientPersistence.h src\MQTTProperties.h src\MQTTReasonCodes.h src\MQTTSubscribeOpts.h src\MQTTExportDeclarations.h
+
+    7z rn %ZIPNAME% src include
+
+    7z a %ZIPNAME% src\samples\*.c
+
+    7z rn %ZIPNAME% src\samples samples
+
+artifacts:
+- path: eclipse-paho-mqtt-c-windows.zip
+  name: paho-mqtt-c
 
 test:
   assemblies: build/Testing/*/Test.xml

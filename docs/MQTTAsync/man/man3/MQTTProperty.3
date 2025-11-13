@@ -1,0 +1,67 @@
+.TH "MQTTProperty" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTProperty
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTProperties\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "enum \fBMQTTPropertyCodes\fP \fBidentifier\fP"
+.br
+.ti -1c
+.RI "union {"
+.br
+.ti -1c
+.RI "   unsigned char \fBbyte\fP"
+.br
+.ti -1c
+.RI "   unsigned short \fBinteger2\fP"
+.br
+.ti -1c
+.RI "   unsigned int \fBinteger4\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      \fBMQTTLenString\fP \fBdata\fP"
+.br
+.ti -1c
+.RI "      \fBMQTTLenString\fP \fBvalue\fP"
+.br
+.ti -1c
+.RI "   } "
+.br
+.ti -1c
+.RI "} \fBvalue\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Structure to hold an MQTT version 5 property of any type 
+.SH "Field Documentation"
+.PP 
+.SS "enum \fBMQTTPropertyCodes\fP identifier"
+The MQTT V5 property id\&. A multi-byte integer\&. 
+.SS "unsigned char byte"
+holds the value of a byte property type 
+.SS "unsigned short integer2"
+holds the value of a 2 byte integer property type 
+.SS "unsigned int integer4"
+holds the value of a 4 byte integer property type 
+.SS "\fBMQTTLenString\fP data"
+The value of a string property, or the name of a user property\&. 
+.SS "\fBMQTTLenString\fP value"
+The value of a user property\&. 
+.SS "union  { \&.\&.\&. }  value"
+The value of the property, as a union of the different possible types\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

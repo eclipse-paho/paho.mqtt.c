@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2016 IBM Corp.
+ * Copyright (c) 2009, 2024 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -17,7 +17,7 @@
 
 /**
  * @file
- * Multi-threaded tests for the MQ Telemetry MQTT C client
+ * Multi-threaded tests for the Eclipse Paho MQTT C client
  */
 
 #include "MQTTClient.h"
@@ -55,7 +55,7 @@ struct Options
 	int iterations;
 } options =
 {
-	"tcp://m2m.eclipse.org:1883",
+	"tcp://localhost:1883",
 	NULL,
 	0,
 	0,
@@ -141,18 +141,30 @@ void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
 	va_list args;
+#if defined(_WIN32) || defined(_WINDOWS)
 	struct timeb ts;
-
-	struct tm *timeinfo;
+#else
+	struct timeval ts;
+#endif
+	struct tm timeinfo;
 
 	if (LOGA_level == LOGA_DEBUG && options.verbose == 0)
 	  return;
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	ftime(&ts);
-	timeinfo = localtime(&ts.time);
-	strftime(msg_buf, 80, "%Y%m%d %H%M%S", timeinfo);
+	localtime_s(&timeinfo, &ts.time);
+#else
+	gettimeofday(&ts, NULL);
+	localtime_r(&ts.tv_sec, &timeinfo);
+#endif
+	strftime(msg_buf, 80, "%Y%m%d %H%M%S", &timeinfo);
 
+#if defined(_WIN32) || defined(_WINDOWS)
 	sprintf(&msg_buf[strlen(msg_buf)], ".%.3hu ", ts.millitm);
+#else
+	sprintf(&msg_buf[strlen(msg_buf)], ".%.3lu ", ts.tv_usec / 1000L);
+#endif
 
 	va_start(args, format);
 	vsnprintf(&msg_buf[strlen(msg_buf)], sizeof(msg_buf) - strlen(msg_buf), format, args);
@@ -163,7 +175,7 @@ void MyLog(int LOGA_level, char* format, ...)
 }
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(_WIN32) || defined(_WINDOWS)
 #define mqsleep(A) Sleep(1000*A)
 #define START_TIME_TYPE DWORD
 static DWORD start_time = 0;
@@ -193,7 +205,7 @@ START_TIME_TYPE start_clock(void)
 #endif
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 long elapsed(START_TIME_TYPE start_time)
 {
 	return GetTickCount() - start_time;
@@ -267,7 +279,7 @@ void myassert(char* filename, int lineno, char* description, int value, char* fo
 }
 
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 mutex_type deliveryCompleted_mutex = NULL;
 #else
 pthread_mutex_t deliveryCompleted_mutex_store = PTHREAD_MUTEX_INITIALIZER;
@@ -276,14 +288,14 @@ mutex_type deliveryCompleted_mutex = &deliveryCompleted_mutex_store;
 
 void lock_mutex(mutex_type amutex)
 {
-	int rc = Thread_lock_mutex(amutex);
+	int rc = Paho_thread_lock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s locking mutex", strerror(rc));
 }
 
 void unlock_mutex(mutex_type amutex)
 {
-	int rc = Thread_unlock_mutex(amutex);
+	int rc = Paho_thread_unlock_mutex(amutex);
 	if (rc != 0)
 		MyLog(LOGA_INFO, "Error %s unlocking mutex", strerror(rc));
 }
@@ -353,7 +365,7 @@ thread_return_type WINAPI test1_sendAndReceive(void* n)
 	rc = MQTTClient_subscribe(c, test_topic, subsqos);
 	assert("Good rc from subscribe", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
 
-	MyLog(LOGA_INFO, "Thread %u, %d messages at QoS %d", Thread_getid(), iterations, qos);
+	MyLog(LOGA_INFO, "Thread %u, %d messages at QoS %d", Paho_thread_getid(), iterations, qos);
 	test1_pubmsg.payload = test1_pubmsg_check.payload;
 	test1_pubmsg.payloadlen = test1_pubmsg_check.payloadlen;
 	test1_pubmsg.retained = 0;
@@ -368,7 +380,7 @@ thread_return_type WINAPI test1_sendAndReceive(void* n)
 			rc = MQTTClient_publishMessage(c, test_topic, &test1_pubmsg, &dt);
 		assert("Good rc from publish", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
 
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(100000L);
@@ -378,7 +390,7 @@ thread_return_type WINAPI test1_sendAndReceive(void* n)
 		while ((test1_arrivedcount_qos[qos] < i) && (wait_seconds-- > 0))
 		{
 			MyLog(LOGA_DEBUG, "Arrived %d count %d", test1_arrivedcount_qos[qos], i);
-			#if defined(WIN32)
+			#if defined(_WIN32)
 				Sleep(1000);
 			#else
 				usleep(1000000L);
@@ -450,13 +462,13 @@ int test1(struct Options options)
 	test1_deliveryCompleted = test1_arrivedcount = 0;
 
 	struct thread_parms parms0 = {c, 0, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms0);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms0);
 
 	struct thread_parms parms1 = {c, 1, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms1);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms1);
 
 	struct thread_parms parms2 = {c, 2, test_topic};
-	Thread_start(test1_sendAndReceive, (void*)&parms2);
+	Paho_thread_start(test1_sendAndReceive, (void*)&parms2);
 
 	/* MQTT servers can send a message to a subscriber before the server has
 	   completed the QoS 2 handshake with the publisher. For QoS 1 and 2,
@@ -466,7 +478,7 @@ int test1(struct Options options)
 	int wait_seconds = 90;
 	while (((test1_arrivedcount < iterations*3) || (test1_deliveryCompleted < iterations*2)) && (wait_seconds-- > 0))
 	{
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(1000);
 		#else
 			usleep(1000000L);
@@ -560,7 +572,7 @@ void test2_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 			rc = MQTTClient_publishMessage(c, test_topic, &test2_pubmsg, &dt);
 		assert("Good rc from publish", rc == MQTTCLIENT_SUCCESS, "rc was %d", rc);
 
-		#if defined(WIN32)
+		#if defined(_WIN32)
 			Sleep(100);
 		#else
 			usleep(100000L);
@@ -570,7 +582,7 @@ void test2_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 		while ((test2_arrivedcount < i) && (wait_seconds-- > 0))
 		{
 			MyLog(LOGA_DEBUG, "Arrived %d count %d", test2_arrivedcount, i);
-			#if defined(WIN32)
+			#if defined(_WIN32)
 				Sleep(1000);
 			#else
 				usleep(1000000L);
@@ -589,7 +601,7 @@ void test2_sendAndReceive(MQTTClient* c, int qos, char* test_topic)
 		while ((test2_deliveryCompleted < iterations) && (wait_seconds-- > 0))
 		{
 			MyLog(LOGA_DEBUG, "Delivery Completed %d count %d", test2_deliveryCompleted, i);
-			#if defined(WIN32)
+			#if defined(_WIN32)
 				Sleep(1000);
 			#else
 				usleep(1000000L);
@@ -664,10 +676,10 @@ exit:
 int main(int argc, char** argv)
 {
 	int rc = 0;
- 	int (*tests[])() = {NULL, test1};
+ 	int (*tests[])(struct Options) = {NULL, test1};
 	int i;
 
-	#if defined(WIN32) || defined(WIN64)
+	#if defined(_WIN32)
 	deliveryCompleted_mutex = CreateMutex(NULL, 0, NULL);
 	#endif
 
@@ -675,7 +687,7 @@ int main(int argc, char** argv)
 	fprintf(xml, "<testsuite name=\"test1\" tests=\"%d\">\n", (int)(ARRAY_SIZE(tests) - 1));
 
 	setenv("MQTT_C_CLIENT_TRACE", "ON", 1);
-	setenv("MQTT_C_CLIENT_TRACE_LEVEL", "ERROR", 0);
+	setenv("MQTT_C_CLIENT_TRACE_LEVEL", "ERROR", 1);
 
 	getopts(argc, argv);
 

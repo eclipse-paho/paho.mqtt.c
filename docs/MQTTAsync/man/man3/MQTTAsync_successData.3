@@ -1,0 +1,87 @@
+.TH "MQTTAsync_successData" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_successData
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "\fBMQTTAsync_token\fP \fBtoken\fP"
+.br
+.ti -1c
+.RI "union {"
+.br
+.ti -1c
+.RI "   int \fBqos\fP"
+.br
+.ti -1c
+.RI "   int * \fBqosList\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      \fBMQTTAsync_message\fP \fBmessage\fP"
+.br
+.ti -1c
+.RI "      char * \fBdestinationName\fP"
+.br
+.ti -1c
+.RI "   } \fBpub\fP"
+.br
+.ti -1c
+.RI "   struct {"
+.br
+.ti -1c
+.RI "      char * \fBserverURI\fP"
+.br
+.ti -1c
+.RI "      int \fBMQTTVersion\fP"
+.br
+.ti -1c
+.RI "      int \fBsessionPresent\fP"
+.br
+.ti -1c
+.RI "   } \fBconnect\fP"
+.br
+.ti -1c
+.RI "} \fBalt\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The data returned on completion of a successful API call in the response callback onSuccess\&. 
+.SH "Field Documentation"
+.PP 
+.SS "\fBMQTTAsync_token\fP token"
+A token identifying the successful request\&. Can be used to refer to the request later\&. 
+.SS "int qos"
+For subscribe, the granted QoS of the subscription returned by the server\&. Also for subscribeMany, if only 1 subscription was requested\&. 
+.SS "int* qosList"
+For subscribeMany, if more than one subscription was requested, the list of granted QoSs of the subscriptions returned by the server\&. 
+.SS "\fBMQTTAsync_message\fP message"
+the message being sent to the server 
+.SS "char* destinationName"
+the topic destination for the message 
+.SS "struct  { \&.\&.\&. }  pub"
+For publish, the message being sent to the server\&. 
+.SS "char* serverURI"
+the connection string of the server 
+.SS "int MQTTVersion"
+the version of MQTT being used 
+.SS "int sessionPresent"
+the session present flag returned from the server 
+.SS "struct  { \&.\&.\&. }  connect"
+
+.SS "union  { \&.\&.\&. }  alt"
+A union of the different values that can be returned for subscribe, unsubscribe and publish\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

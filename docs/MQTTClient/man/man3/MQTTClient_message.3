@@ -1,0 +1,96 @@
+.TH "MQTTClient_message" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClient_message
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTClient\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "int \fBpayloadlen\fP"
+.br
+.ti -1c
+.RI "void * \fBpayload\fP"
+.br
+.ti -1c
+.RI "int \fBqos\fP"
+.br
+.ti -1c
+.RI "int \fBretained\fP"
+.br
+.ti -1c
+.RI "int \fBdup\fP"
+.br
+.ti -1c
+.RI "int \fBmsgid\fP"
+.br
+.ti -1c
+.RI "\fBMQTTProperties\fP \fBproperties\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+A structure representing the payload and attributes of an MQTT message\&. The message topic is not part of this structure (see \fBMQTTClient_publishMessage()\fP, \fBMQTTClient_publish()\fP, \fBMQTTClient_receive()\fP, \fBMQTTClient_freeMessage()\fP and \fBMQTTClient_messageArrived()\fP)\&. 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. must be MQTM\&. 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0 or 1 0 indicates no message properties 
+.SS "int payloadlen"
+The length of the MQTT message payload in bytes\&. 
+.SS "void* payload"
+A pointer to the payload of the MQTT message\&. 
+.SS "int qos"
+The quality of service (QoS) assigned to the message\&. There are three levels of QoS: 
+
+.PP
+.IP "\fB\fBQoS0\fP 
+.IP "" 1c
+Fire and forget - the message may not be delivered 
+
+.PP
+.IP "\fB\fBQoS1\fP 
+.IP "" 1c
+At least once - the message will be delivered, but may be delivered more than once in some circumstances\&. 
+
+.PP
+.IP "\fB\fBQoS2\fP 
+.IP "" 1c
+Once and one only - the message will be delivered exactly once\&. 
+
+.PP
+
+.SS "int retained"
+The retained flag serves two purposes depending on whether the message it is associated with is being published or received\&.
+
+.PP
+\fBretained = true\fP
+.br
+ For messages being published, a true setting indicates that the MQTT server should retain a copy of the message\&. The message will then be transmitted to new subscribers to a topic that matches the message topic\&. For subscribers registering a new subscription, the flag being true indicates that the received message is not a new one, but one that has been retained by the MQTT server\&.
+
+.PP
+\fBretained = false\fP 
+.br
+ For publishers, this indicates that this message should not be retained by the MQTT server\&. For subscribers, a false setting indicates this is a normal message, received as a result of it being published to the server\&. 
+.SS "int dup"
+The dup flag indicates whether or not this message is a duplicate\&. It is only meaningful when receiving QoS1 messages\&. When true, the client application should take appropriate action to deal with the duplicate message\&. 
+.SS "int msgid"
+The message identifier is normally reserved for internal use by the MQTT client and server\&. 
+.SS "\fBMQTTProperties\fP properties"
+The MQTT V5 properties associated with the message\&. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho MQTT C Client Library from the source code\&.

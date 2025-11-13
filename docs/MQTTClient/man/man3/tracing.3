@@ -1,0 +1,126 @@
+.TH "tracing" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+tracing \- Tracing 
+.PP
+Runtime tracing is controlled by environment variables\&.
+
+.PP
+Tracing is switched on by setting MQTT_C_CLIENT_TRACE\&. A value of ON, or stdout, prints to stdout, any other value is interpreted as a file name to use\&.
+
+.PP
+The amount of trace detail is controlled with the MQTT_C_CLIENT_TRACE_LEVEL environment variable - valid values are ERROR, PROTOCOL, MINIMUM, MEDIUM and MAXIMUM (from least to most verbose)\&.
+
+.PP
+The variable MQTT_C_CLIENT_TRACE_MAX_LINES limits the number of lines of trace that are output to a file\&. Two files are used at most, when they are full, the last one is overwritten with the new trace entries\&. The default size is 1000 lines\&.
+
+.PP
+.SS "MQTT Packet Tracing"
+
+.PP
+A feature that can be very useful is printing the MQTT packets that are sent and received\&. To achieve this, use the following environment variable settings: 
+.PP
+.nf
+MQTT_C_CLIENT_TRACE=ON
+MQTT_C_CLIENT_TRACE_LEVEL=PROTOCOL
+
+.fi
+.PP
+ The output you should see looks like this: 
+.PP
+.nf
+20130528 155936\&.813 3 stdout\-subscriber \-> CONNECT cleansession: 1 (0)
+20130528 155936\&.813 3 stdout\-subscriber <\- CONNACK rc: 0
+20130528 155936\&.813 3 stdout\-subscriber \-> SUBSCRIBE msgid: 1 (0)
+20130528 155936\&.813 3 stdout\-subscriber <\- SUBACK msgid: 1
+20130528 155941\&.818 3 stdout\-subscriber \-> DISCONNECT (0)
+
+.fi
+.PP
+ where the fields are:
+.IP "1." 4
+date
+.IP "2." 4
+time
+.IP "3." 4
+socket number
+.IP "4." 4
+client id
+.IP "5." 4
+direction (-> from client to server, <- from server to client)
+.IP "6." 4
+packet details
+.PP
+
+.PP
+.SS "Default Level Tracing"
+
+.PP
+This is an extract of a default level trace of a call to connect: 
+.PP
+.nf
+19700101 010000\&.000 (1152206656) (0)> MQTTClient_connect:893
+19700101 010000\&.000 (1152206656)  (1)> MQTTClient_connectURI:716
+20130528 160447\&.479 Connecting to serverURI localhost:1883
+20130528 160447\&.479 (1152206656)   (2)> MQTTProtocol_connect:98
+20130528 160447\&.479 (1152206656)    (3)> MQTTProtocol_addressPort:48
+20130528 160447\&.479 (1152206656)    (3)< MQTTProtocol_addressPort:73
+20130528 160447\&.479 (1152206656)    (3)> Socket_new:599
+20130528 160447\&.479 New socket 4 for localhost, port 1883
+20130528 160447\&.479 (1152206656)     (4)> Socket_addSocket:163
+20130528 160447\&.479 (1152206656)      (5)> Socket_setnonblocking:73
+20130528 160447\&.479 (1152206656)      (5)< Socket_setnonblocking:78 (0)
+20130528 160447\&.479 (1152206656)     (4)< Socket_addSocket:176 (0)
+20130528 160447\&.479 (1152206656)     (4)> Socket_error:95
+20130528 160447\&.479 (1152206656)     (4)< Socket_error:104 (115)
+20130528 160447\&.479 Connect pending
+20130528 160447\&.479 (1152206656)    (3)< Socket_new:683 (115)
+20130528 160447\&.479 (1152206656)   (2)< MQTTProtocol_connect:131 (115)
+
+.fi
+.PP
+ where the fields are:
+.IP "1." 4
+date
+.IP "2." 4
+time
+.IP "3." 4
+thread id
+.IP "4." 4
+function nesting level
+.IP "5." 4
+function entry (>) or exit (<)
+.IP "6." 4
+function name : line of source code file
+.IP "7." 4
+return value (if there is one)
+.PP
+
+.PP
+.SS "Memory Allocation Tracing"
+
+.PP
+Setting the trace level to maximum causes memory allocations and frees to be traced along with the default trace entries, with messages like the following: 
+.PP
+.nf
+20130528 161819\&.657 Allocating 16 bytes in heap at file /home/icraggs/workspaces/mqrtc/mqttv3c/src/MQTTPacket\&.c line 177 ptr 0x179f930
+
+20130528 161819\&.657 Freeing 16 bytes in heap at file /home/icraggs/workspaces/mqrtc/mqttv3c/src/MQTTPacket\&.c line 201, heap use now 896 bytes
+
+.fi
+.PP
+ When the last MQTT client object is destroyed, if the trace is being recorded and all memory allocated by the client library has not been freed, an error message will be written to the trace\&. This can help with fixing memory leaks\&. The message will look like this: 
+.PP
+.nf
+20130528 163909\&.208 Some memory not freed at shutdown, possible memory leak
+20130528 163909\&.208 Heap scan start, total 880 bytes
+20130528 163909\&.208 Heap element size 32, line 354, file /home/icraggs/workspaces/mqrtc/mqttv3c/src/MQTTPacket\&.c, ptr 0x260cb00
+20130528 163909\&.208   Content
+20130528 163909\&.209 Heap scan end
+
+.fi
+.PP
+
+.PP
+√* 

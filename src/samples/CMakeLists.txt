@@ -1,12 +1,12 @@
 #*******************************************************************************
-#  Copyright (c) 2015, 2017 logi.cals GmbH and others
+#  Copyright (c) 2015, 2020 logi.cals GmbH and others
 #
 #  All rights reserved. This program and the accompanying materials
-#  are made available under the terms of the Eclipse Public License v1.0
+#  are made available under the terms of the Eclipse Public License v2.0
 #  and Eclipse Distribution License v1.0 which accompany this distribution.
 #
 #  The Eclipse Public License is available at
-#     http://www.eclipse.org/legal/epl-v10.html
+#     https://www.eclipse.org/legal/epl-2.0/
 #  and the Eclipse Distribution License is available at
 #    http://www.eclipse.org/org/documents/edl-v10.php.
 #
@@ -15,51 +15,136 @@
 #     Ian Craggs - update sample names
 #*******************************************************************************/
 
-# Note: on OS X you should install XCode and the associated command-line tools
-
 ## compilation/linkage settings
-INCLUDE_DIRECTORIES(
-    .
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}
-    )
+include_directories(
+  .
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_BINARY_DIR}
+)
 
-IF (WIN32)
-  	ADD_DEFINITIONS(/DCMAKE_BUILD /D_CRT_SECURE_NO_DEPRECATE)
-ENDIF()
+if(WIN32)
+  add_definitions(/DCMAKE_BUILD /D_CRT_SECURE_NO_DEPRECATE)
+endif()
 
 # sample files c
-ADD_EXECUTABLE(paho_c_pub paho_c_pub.c)
-ADD_EXECUTABLE(paho_c_sub paho_c_sub.c)
-ADD_EXECUTABLE(paho_cs_pub paho_cs_pub.c)
-ADD_EXECUTABLE(paho_cs_sub paho_cs_sub.c)
 
-TARGET_LINK_LIBRARIES(paho_c_pub paho-mqtt3a)
-TARGET_LINK_LIBRARIES(paho_c_sub paho-mqtt3a)
-TARGET_LINK_LIBRARIES(paho_cs_pub paho-mqtt3c)
-TARGET_LINK_LIBRARIES(paho_cs_sub paho-mqtt3c)
+if(PAHO_BUILD_SHARED)
+  if(PAHO_WITH_SSL)
+    foreach(TARGET paho_c_pub paho_c_sub paho_cs_pub paho_cs_sub)
+      add_executable(${TARGET} ${TARGET}.c pubsub_opts.c)
+      set_target_properties(${TARGET} PROPERTIES
+        COMPILE_DEFINITIONS "PAHO_MQTT_IMPORTS=1"
+      )
+    endforeach()
 
-ADD_EXECUTABLE(MQTTAsync_subscribe MQTTAsync_subscribe.c)
-ADD_EXECUTABLE(MQTTAsync_publish MQTTAsync_publish.c)
-ADD_EXECUTABLE(MQTTClient_subscribe MQTTClient_subscribe.c)
-ADD_EXECUTABLE(MQTTClient_publish MQTTClient_publish.c)
-ADD_EXECUTABLE(MQTTClient_publish_async MQTTClient_publish_async.c)
+    target_link_libraries(paho_c_pub paho-mqtt3as)
+    target_link_libraries(paho_c_sub paho-mqtt3as)
 
-TARGET_LINK_LIBRARIES(MQTTAsync_subscribe paho-mqtt3a)
-TARGET_LINK_LIBRARIES(MQTTAsync_publish paho-mqtt3a)
-TARGET_LINK_LIBRARIES(MQTTClient_subscribe paho-mqtt3c)
-TARGET_LINK_LIBRARIES(MQTTClient_publish paho-mqtt3c)
-TARGET_LINK_LIBRARIES(MQTTClient_publish_async paho-mqtt3c)
+    target_link_libraries(paho_cs_pub paho-mqtt3cs)
+    target_link_libraries(paho_cs_sub paho-mqtt3cs)
 
-INSTALL(TARGETS paho_c_sub
-                paho_c_pub
-                paho_cs_sub
-                paho_cs_pub
-                MQTTAsync_subscribe
-                MQTTAsync_publish
-                MQTTClient_subscribe
-                MQTTClient_publish
-                MQTTClient_publish_async
+    install(
+      TARGETS
+        paho_c_sub
+        paho_c_pub
+        paho_cs_sub
+        paho_cs_pub
 
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION ${PAHO_LIBRARY_DIR_NAME})
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+  endif()
+
+  foreach(TARGET
+    MQTTAsync_subscribe
+    MQTTAsync_publish
+    MQTTAsync_publish_time
+    MQTTClient_subscribe
+    MQTTClient_publish
+    MQTTClient_publish_async
+  )
+    add_executable(${TARGET} ${TARGET}.c)
+    set_target_properties(${TARGET} PROPERTIES
+      COMPILE_DEFINITIONS "PAHO_MQTT_IMPORTS=1"
+  )
+  endforeach()
+
+  foreach(TARGET MQTTAsync_subscribe MQTTAsync_publish MQTTAsync_publish_time)
+    target_link_libraries(${TARGET} paho-mqtt3a)
+  endforeach()
+
+  foreach(TARGET MQTTClient_subscribe MQTTClient_publish MQTTClient_publish_async)
+    target_link_libraries(${TARGET} paho-mqtt3c)
+  endforeach()
+
+  install(
+    TARGETS
+      MQTTAsync_subscribe
+      MQTTAsync_publish
+      MQTTAsync_publish_time
+      MQTTClient_subscribe
+      MQTTClient_publish
+      MQTTClient_publish_async
+
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+
+if(PAHO_BUILD_STATIC)
+  if(PAHO_WITH_SSL)
+    foreach(TARGET paho_c_pub paho_c_sub paho_cs_pub paho_cs_sub)
+      add_executable(${TARGET}_static ${TARGET}.c pubsub_opts.c)
+    endforeach()
+
+    target_link_libraries(paho_c_pub_static paho-mqtt3as-static)
+    target_link_libraries(paho_c_sub_static paho-mqtt3as-static)
+
+    target_link_libraries(paho_cs_pub_static paho-mqtt3cs-static)
+    target_link_libraries(paho_cs_sub_static paho-mqtt3cs-static)
+
+    install(
+      TARGETS
+        paho_c_sub_static
+        paho_c_pub_static
+        paho_cs_sub_static
+        paho_cs_pub_static
+
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+  endif()
+
+  foreach(TARGET
+    MQTTAsync_subscribe
+    MQTTAsync_publish
+    MQTTAsync_publish_time
+    MQTTClient_subscribe
+    MQTTClient_publish
+    MQTTClient_publish_async
+  )
+    add_executable(${TARGET}_static ${TARGET}.c)
+  endforeach()
+
+  foreach(TARGET MQTTAsync_subscribe MQTTAsync_publish MQTTAsync_publish_time)
+    target_link_libraries(${TARGET}_static paho-mqtt3a-static)
+  endforeach()
+
+  foreach(TARGET MQTTClient_subscribe MQTTClient_publish MQTTClient_publish_async)
+    target_link_libraries(${TARGET}_static paho-mqtt3c-static)
+  endforeach()
+
+  install(
+    TARGETS
+      MQTTAsync_subscribe_static
+      MQTTAsync_publish_static
+      MQTTAsync_publish_time_static
+      MQTTClient_subscribe_static
+      MQTTClient_publish_static
+      MQTTClient_publish_async_static
+
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+

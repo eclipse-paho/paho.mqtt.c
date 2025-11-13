@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 IBM Corp.
+ * Copyright (c) 2009, 2020 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution. 
  *
  * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at 
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -19,7 +19,7 @@
 #if !defined(LINKEDLIST_H)
 #define LINKEDLIST_H
 
-#include <stdlib.h> // for size_t definition
+#include <stdlib.h> /* for size_t definition */
 
 /*BE
 defm defList(T)
@@ -76,9 +76,9 @@ typedef struct
 void ListZero(List*);
 List* ListInitialize(void);
 
-void ListAppend(List* aList, void* content, size_t size);
+ListElement* ListAppend(List* aList, void* content, size_t size);
 void ListAppendNoMalloc(List* aList, void* content, ListElement* newel, size_t size);
-void ListInsert(List* aList, void* content, size_t size, ListElement* index);
+ListElement* ListInsert(List* aList, void* content, size_t size, ListElement* index);
 
 int ListRemove(List* aList, void* content);
 int ListRemoveItem(List* aList, void* content, int(*callback)(void*, void*));

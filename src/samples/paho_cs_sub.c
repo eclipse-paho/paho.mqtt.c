@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2013 IBM Corp.
+ * Copyright (c) 2012, 2025 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *   http://www.eclipse.org/legal/epl-v10.html
+ *   https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -14,40 +14,20 @@
  *    Ian Craggs - initial contribution
  *    Ian Craggs - change delimiter option from char to string
  *    Guilherme Maciel Ferreira - add keep alive option
+ *    Ian Craggs - add full capability
  *******************************************************************************/
 
-/*
-
- stdout subscriber
-
- compulsory parameters:
-
-  --topic topic to subscribe to
-
- defaulted parameters:
-
-	--host localhost
-	--port 1883
-	--qos 2
-	--delimiter \n
-	--clientid stdout-subscriber
-	--showtopics off
-	--keepalive 10
-
-	--userid none
-	--password none
-
-*/
 #include "MQTTClient.h"
 #include "MQTTClientPersistence.h"
+#include "pubsub_opts.h"
 
 #include <stdio.h>
 #include <signal.h>
-#include <memory.h>
+#include <string.h>
 #include <stdlib.h>
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 #define sleep Sleep
 #else
 #include <sys/time.h>
@@ -57,49 +37,91 @@
 volatile int toStop = 0;
 
 
-struct opts_struct
+struct pubsub_opts opts =
 {
-	char* clientid;
-	int nodelimiter;
-	char* delimiter;
-	int qos;
-	char* username;
-	char* password;
-	char* host;
-	char* port;
-	int showtopics;
-	int keepalive;
-} opts =
-{
-	"stdout-subscriber", 0, "\n", 2, NULL, NULL, "localhost", "1883", 0, 10
+	0, 0, 0, 0, "\n", 100,  	/* debug/app options */
+	NULL, NULL, 1, 0, 0, /* message options */
+	MQTTVERSION_DEFAULT, NULL, "paho-cs-sub", 0, 0, NULL, NULL, "localhost", "1883", NULL, 10, /* MQTT options */
+	NULL, NULL, 0, 0, /* will options */
+	0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* TLS options */
+	0, {NULL, NULL}, /* MQTT V5 options */
+	NULL, NULL, /* HTTP and HTTPS proxies */
 };
 
 
-void usage(void)
+int myconnect(MQTTClient client)
 {
-	printf("MQTT stdout subscriber\n");
-	printf("Usage: stdoutsub topicname <options>, where options are:\n");
-	printf("  --host <hostname> (default is %s)\n", opts.host);
-	printf("  --port <port> (default is %s)\n", opts.port);
-	printf("  --qos <qos> (default is %d)\n", opts.qos);
-	printf("  --delimiter <delim> (default is \\n)\n");
-	printf("  --clientid <clientid> (default is %s)\n", opts.clientid);
-	printf("  --username none\n");
-	printf("  --password none\n");
-	printf("  --showtopics <on or off> (default is on if the topic has a wildcard, else off)\n");
-	printf("  --keepalive <seconds> (default is %d seconds)\n", opts.keepalive);
-	exit(EXIT_FAILURE);
-}
-
-
-void myconnect(MQTTClient* client, MQTTClient_connectOptions* opts)
-{
+	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+	MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
+	MQTTClient_willOptions will_opts = MQTTClient_willOptions_initializer;
 	int rc = 0;
-	if ((rc = MQTTClient_connect(*client, opts)) != 0)
+
+	if (opts.verbose)
+		printf("Connecting\n");
+
+	if (opts.MQTTVersion == MQTTVERSION_5)
 	{
-		printf("Failed to connect, return code %d\n", rc);
-		exit(EXIT_FAILURE);
+		MQTTClient_connectOptions conn_opts5 = MQTTClient_connectOptions_initializer5;
+		conn_opts = conn_opts5;
 	}
+
+	conn_opts.keepAliveInterval = opts.keepalive;
+	conn_opts.username = opts.username;
+	conn_opts.password = opts.password;
+	conn_opts.MQTTVersion = opts.MQTTVersion;
+	conn_opts.httpProxy = opts.http_proxy;
+	conn_opts.httpsProxy = opts.https_proxy;
+
+	if (opts.will_topic) 	/* will options */
+	{
+		will_opts.message = opts.will_payload;
+		will_opts.topicName = opts.will_topic;
+		will_opts.qos = opts.will_qos;
+		will_opts.retained = opts.will_retain;
+		conn_opts.will = &will_opts;
+	}
+
+	if (opts.connection && (strncmp(opts.connection, "ssl://", 6) == 0 ||
+			strncmp(opts.connection, "tls://", 6) == 0 ||
+			strncmp(opts.connection, "mqtts://", 7) == 0 ||
+			strncmp(opts.connection, "wss://", 6) == 0))
+	{
+		if (opts.insecure)
+			ssl_opts.verify = 0;
+		else
+			ssl_opts.verify = 1;
+		ssl_opts.CApath = opts.capath;
+		ssl_opts.keyStore = opts.cert;
+		ssl_opts.trustStore = opts.cafile;
+		ssl_opts.privateKey = opts.key;
+		ssl_opts.privateKeyPassword = opts.keypass;
+		ssl_opts.enabledCipherSuites = opts.ciphers;
+		conn_opts.ssl = &ssl_opts;
+	}
+
+	if (opts.MQTTVersion == MQTTVERSION_5)
+	{
+		MQTTProperties props = MQTTProperties_initializer;
+		MQTTProperties willProps = MQTTProperties_initializer;
+		MQTTResponse response = MQTTResponse_initializer;
+
+		conn_opts.cleanstart = 1;
+		response = MQTTClient_connect5(client, &conn_opts, &props, &willProps);
+		rc = response.reasonCode;
+		MQTTResponse_free(response);
+	}
+	else
+	{
+		conn_opts.cleansession = 1;
+		rc = MQTTClient_connect(client, &conn_opts);
+	}
+
+	if (opts.verbose && rc == MQTTCLIENT_SUCCESS)
+		fprintf(stderr, "Connected\n");
+	else if (rc != MQTTCLIENT_SUCCESS && !opts.quiet)
+		fprintf(stderr, "Connect failed return code: %s\n", MQTTClient_strerror(rc));
+
+	return rc;
 }
 
 
@@ -109,43 +131,92 @@ void cfinish(int sig)
 	toStop = 1;
 }
 
-void getopts(int argc, char** argv);
+
+void trace_callback(enum MQTTCLIENT_TRACE_LEVELS level, char* message)
+{
+	fprintf(stderr, "Trace : %d, %s\n", level, message);
+}
+
 
 int main(int argc, char** argv)
 {
 	MQTTClient client;
 	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-	char* topic = NULL;
+	MQTTClient_createOptions createOpts = MQTTClient_createOptions_initializer;
 	int rc = 0;
-	char url[100];
+	char* url;
+	const char* version = NULL;
+#if !defined(_WIN32)
+    struct sigaction sa;
+#endif
+	const char* program_name = "paho_cs_sub";
+	MQTTClient_nameValue* infos = MQTTClient_getVersionInfo();
 
 	if (argc < 2)
-		usage();
+		usage(&opts, (pubsub_opts_nameValue*)infos, program_name);
 
-	topic = argv[1];
+	if (getopts(argc, argv, &opts) != 0)
+		usage(&opts, (pubsub_opts_nameValue*)infos, program_name);
 
-	if (strchr(topic, '#') || strchr(topic, '+'))
-		opts.showtopics = 1;
-	if (opts.showtopics)
-		printf("topic is %s\n", topic);
+	if (strchr(opts.topic, '#') || strchr(opts.topic, '+'))
+		opts.verbose = 1;
 
-	getopts(argc, argv);
-	sprintf(url, "%s:%s", opts.host, opts.port);
+	if (opts.connection)
+		url = opts.connection;
+	else
+	{
+		url = malloc(100);
+		sprintf(url, "%s:%s", opts.host, opts.port);
+	}
+	if (opts.verbose)
+		printf("URL is %s\n", url);
 
-	rc = MQTTClient_create(&client, url, opts.clientid, MQTTCLIENT_PERSISTENCE_NONE, NULL);
+	if (opts.tracelevel > 0)
+	{
+		MQTTClient_setTraceCallback(trace_callback);
+		MQTTClient_setTraceLevel(opts.tracelevel);
+	}
 
+	if (opts.MQTTVersion >= MQTTVERSION_5)
+		createOpts.MQTTVersion = MQTTVERSION_5;
+	rc = MQTTClient_createWithOptions(&client, url, opts.clientid, MQTTCLIENT_PERSISTENCE_NONE,
+			NULL, &createOpts);
+	if (rc != MQTTCLIENT_SUCCESS)
+	{
+		if (!opts.quiet)
+			fprintf(stderr, "Failed to create client, return code: %s\n", MQTTClient_strerror(rc));
+		exit(EXIT_FAILURE);
+	}
+
+#if defined(_WIN32)
 	signal(SIGINT, cfinish);
 	signal(SIGTERM, cfinish);
+#else
+    memset(&sa, 0, sizeof(struct sigaction));
+    sa.sa_handler = cfinish;
+    sa.sa_flags = 0;
 
-	conn_opts.keepAliveInterval = opts.keepalive;
-	conn_opts.reliable = 0;
-	conn_opts.cleansession = 1;
-	conn_opts.username = opts.username;
-	conn_opts.password = opts.password;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+#endif
 
-	myconnect(&client, &conn_opts);
+	if (myconnect(client) != MQTTCLIENT_SUCCESS)
+		goto exit;
 
-	rc = MQTTClient_subscribe(client, topic, opts.qos);
+	if (opts.MQTTVersion >= MQTTVERSION_5)
+	{
+		MQTTResponse response = MQTTClient_subscribe5(client, opts.topic, opts.qos, NULL, NULL);
+		rc = response.reasonCode;
+		MQTTResponse_free(response);
+	}
+	else
+		rc = MQTTClient_subscribe(client, opts.topic, opts.qos);
+	if (rc != MQTTCLIENT_SUCCESS && rc != opts.qos)
+	{
+		if (!opts.quiet)
+			fprintf(stderr, "Error %d subscribing to topic %s\n", rc, opts.topic);
+		goto exit;
+	}
 
 	while (!toStop)
 	{
@@ -154,117 +225,33 @@ int main(int argc, char** argv)
 		MQTTClient_message* message = NULL;
 
 		rc = MQTTClient_receive(client, &topicName, &topicLen, &message, 1000);
-		if (message)
+		if (rc == MQTTCLIENT_DISCONNECTED)
+			myconnect(client);
+		else if (message)
 		{
-			if (opts.showtopics)
+			size_t delimlen = 0;
+
+			if (opts.verbose)
 				printf("%s\t", topicName);
-			if (opts.nodelimiter)
+			if (opts.delimiter)
+				delimlen = strlen(opts.delimiter);
+			if (opts.delimiter == NULL || (message->payloadlen > delimlen &&
+				strncmp(opts.delimiter, &((char*)message->payload)[message->payloadlen - delimlen], delimlen) == 0))
 				printf("%.*s", message->payloadlen, (char*)message->payload);
 			else
 				printf("%.*s%s", message->payloadlen, (char*)message->payload, opts.delimiter);
+			if (message->struct_version == 1 && opts.verbose)
+				logProperties(&message->properties);
 			fflush(stdout);
 			MQTTClient_freeMessage(&message);
 			MQTTClient_free(topicName);
 		}
-		if (rc != 0)
-			myconnect(&client, &conn_opts);
 	}
 
-	printf("Stopping\n");
-
+exit:
 	MQTTClient_disconnect(client, 0);
 
 	MQTTClient_destroy(&client);
 
 	return EXIT_SUCCESS;
-}
-
-void getopts(int argc, char** argv)
-{
-	int count = 2;
-
-	while (count < argc)
-	{
-		if (strcmp(argv[count], "--qos") == 0)
-		{
-			if (++count < argc)
-			{
-				if (strcmp(argv[count], "0") == 0)
-					opts.qos = 0;
-				else if (strcmp(argv[count], "1") == 0)
-					opts.qos = 1;
-				else if (strcmp(argv[count], "2") == 0)
-					opts.qos = 2;
-				else
-					usage();
-			}
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--host") == 0)
-		{
-			if (++count < argc)
-				opts.host = argv[count];
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--port") == 0)
-		{
-			if (++count < argc)
-				opts.port = argv[count];
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--clientid") == 0)
-		{
-			if (++count < argc)
-				opts.clientid = argv[count];
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--username") == 0)
-		{
-			if (++count < argc)
-				opts.username = argv[count];
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--password") == 0)
-		{
-			if (++count < argc)
-				opts.password = argv[count];
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--delimiter") == 0)
-		{
-			if (++count < argc)
-				opts.delimiter = argv[count];
-			else
-				opts.nodelimiter = 1;
-		}
-		else if (strcmp(argv[count], "--showtopics") == 0)
-		{
-			if (++count < argc)
-			{
-				if (strcmp(argv[count], "on") == 0)
-					opts.showtopics = 1;
-				else if (strcmp(argv[count], "off") == 0)
-					opts.showtopics = 0;
-				else
-					usage();
-			}
-			else
-				usage();
-		}
-		else if (strcmp(argv[count], "--keepalive") == 0)
-		{
-			if (++count < argc)
-				opts.keepalive = atoi(argv[count]);
-			else
-				usage();
-		}
-		count++;
-	}
-
 }

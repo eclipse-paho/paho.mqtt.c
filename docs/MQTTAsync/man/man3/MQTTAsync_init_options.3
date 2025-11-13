@@ -1,0 +1,38 @@
+.TH "MQTTAsync_init_options" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTAsync_init_options
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTAsync\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "int \fBdo_openssl_init\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Initialization options 
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Must be MQTG\&. 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0 
+.SS "int do_openssl_init"
+1 = we do openssl init, 0 = leave it to the application 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho Asynchronous MQTT C Client Library from the source code\&.

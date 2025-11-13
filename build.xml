@@ -1,15 +1,15 @@
 <!--****************************************************************************
-  Copyright (c) 2012, 2016 IBM Corp.
- 
+  Copyright (c) 2012, 2020 IBM Corp.
+
   All rights reserved. This program and the accompanying materials
-  are made available under the terms of the Eclipse Public License v1.0
-  and Eclipse Distribution License v1.0 which accompany this distribution. 
- 
-  The Eclipse Public License is available at 
-     http://www.eclipse.org/legal/epl-v10.html
-  and the Eclipse Distribution License is available at 
+  are made available under the terms of the Eclipse Public License v2.0
+  and Eclipse Distribution License v1.0 which accompany this distribution.
+
+  The Eclipse Public License is available at
+     https://www.eclipse.org/legal/epl-2.0/
+  and the Eclipse Distribution License is available at
     http://www.eclipse.org/org/documents/edl-v10.php.
- 
+
   Contributors:
      Ian Craggs - initial API and implementation and/or initial documentation
 *******************************************************************************-->
@@ -23,8 +23,11 @@
     </classpath>
   </taskdef>
 
-  <property name="output.folder" value="build/output" /> 
-  <property name="release.version" value="1.1.0" />
+  <property name="output.folder" value="build/output" />
+  <loadfile property="version.major" srcFile="version.major"/>
+  <loadfile property="version.minor" srcFile="version.minor"/>
+  <loadfile property="version.patch" srcFile="version.patch"/>
+  <property name="release.version" value="${version.major}.${version.minor}.${version.patch}" />
 
   <property name="libname" value="mqttv3c" />
   <property name="libname.ssl" value="mqttv3cs" />
@@ -33,7 +36,8 @@
   <property name="ssl" value="yes" />
   <property name="windows.openssl.folder" value="c:\openssl\bin" />
   <property name="test.hostname" value="iot.eclipse.org"/>
-  <property name="test.port" value="18883"/>
+  <property name="test.port" value="1883"/>
+  <property name="proxy.port" value="18883"/>
   <if>
     <os family="windows"/>
     <then>
@@ -52,7 +56,7 @@
     </else>
   </if>
   <echo message="os.family is '${os.family}'" />
-	
+
   <target name="init">
     <tstamp>
       <format property="buildTimestamp" pattern="yyyyMMddHHmm" />
@@ -73,22 +77,24 @@
     <pathconvert refid="async.source.fileset" property="async.source.files" pathsep=" "/>
 
   </target>
-		
+
   <target name="version" depends="init" description="replace tags with the right levels">
-    <property name="build.level" value="${DSTAMP}${TSTAMP}" />	
-    <copy file="src/VersionInfo.h.in" tofile="src/VersionInfo.h" />
+    <property name="build.level" value="${DSTAMP}${TSTAMP}" />
+    <copy file="src/VersionInfo.h.in" tofile="src/VersionInfo.h" overwrite="true"/>
     <replace file="src/VersionInfo.h" token="@BUILD_TIMESTAMP@" value="${build.level}" />
     <replace file="src/VersionInfo.h" token="@CLIENT_VERSION@" value="${release.version}" />
   </target>
-	
+
   <target name="test" >
     <!-- display Python version -->
     <exec executable="python" failonerror="true">
-      <arg line="-V"/>	
+      <arg line="-V"/>
     </exec>
-    <exec executable="python" dir="test" spawn="true"> 
+    <exec executable="python" dir="test" spawn="true">
         <arg value="mqttsas2.py" />
         <arg value="${test.hostname}" />
+        <arg value="${test.port}" />
+        <arg value="${proxy.port}" />
     </exec>
     <if>
       <os family="windows"/>
@@ -105,19 +111,23 @@
   <target name="runAtest">
     <if>
       <os family="windows"/>
-    <then> 
-      <exec executable="cmd.exe" failonerror="true" dir="${output.folder}/test" > 
+    <then>
+      <exec executable="cmd.exe" failonerror="true" dir="${output.folder}/test" >
         <arg value="/c" />
         <arg value="${aTest}.exe" />
         <arg value="--connection" />
         <arg value="tcp://${test.hostname}:${test.port}" />
+        <arg value="--proxy_connection" />
+        <arg value="tcp://localhost:${proxy.port}" />
         <env key="PATH" path="${output.folder}" />
       </exec>
     </then>
-    <else> 
-      <exec executable="./${aTest}" failonerror="true" dir="${output.folder}/test" > 
+    <else>
+      <exec executable="./${aTest}" failonerror="true" dir="${output.folder}/test" >
         <arg value="--connection" />
-        <arg value="tcp://${test.hostname}:1883" />
+        <arg value="tcp://${test.hostname}:${test.port}" />
+        <arg value="--proxy_connection" />
+        <arg value="tcp://localhost:${proxy.port}" />
         <env key="LD_LIBRARY_PATH" path="${output.folder}" />
         <env key="DYLD_LIBRARY_PATH" path="${output.folder}" />
       </exec>
@@ -128,8 +138,8 @@
   <target name="runSSLtest">
     <if>
       <os family="windows"/>
-    <then> 
-      <exec executable="cmd.exe" failonerror="true" dir="${output.folder}/test" > 
+    <then>
+      <exec executable="cmd.exe" failonerror="true" dir="${output.folder}/test" >
         <arg value="/c" />
         <arg value="${aTest}.exe" />
         <arg value="--hostname" />
@@ -137,8 +147,8 @@
         <env key="PATH" path="${output.folder};${windows.openssl.folder}" />
       </exec>
     </then>
-    <else> 
-      <exec executable="./${aTest}" failonerror="true" dir="${output.folder}/test" > 
+    <else>
+      <exec executable="./${aTest}" failonerror="true" dir="${output.folder}/test" >
         <arg value="--hostname" />
         <arg value="${test.hostname}" />
         <env key="LD_LIBRARY_PATH" path="${output.folder}" />
@@ -161,10 +171,10 @@
         </exec>
         <zip destfile="${output.folder}/MQTTClient_doc.zip">
           <zipfileset dir="${output.folder}/doc/MQTTClient" />
-        </zip> 
+        </zip>
         <zip destfile="${output.folder}/MQTTAsync_doc.zip">
 	        <zipfileset dir="${output.folder}/doc/MQTTAsync" prefix="MQTTAsync/"/>
-        </zip> 
+        </zip>
         <delete dir="${output.folder}/doc" />
       </then>
       <else>
@@ -176,11 +186,11 @@
   <target name="build" >
     <if>
     <os family="unix"/>
-    <then> 
+    <then>
     <delete dir="${output.folder}" />
     <!-- display gcc version -->
     <exec executable="gcc" failonerror="true">
-      <arg line="-v"/>	
+      <arg line="-v"/>
     </exec>
     <if>
       <available file="/usr/bin/make"/>
@@ -192,7 +202,7 @@
     </if>
     <if>
     <os family="windows"/>
-    <then> 
+    <then>
     <delete dir="${output.folder}" />
     <!-- display gcc version -->
     <exec executable="cl" failonerror="true">
@@ -209,9 +219,9 @@
     <mkdir dir="${output.folder}/include"/>
     <copy overwrite="true" todir="${output.folder}/include">
       <fileset dir="src" includes="MQTTClient.h,MQTTAsync.h,MQTTClientPersistence.h"/>
-    </copy> 
+    </copy>
     <copy overwrite="true" todir="${output.folder}">
-      <fileset dir="." includes="README.md,CONTRIBUTING.md,about.html,notice.html,edl-v10,epl-v10"/>
+      <fileset dir="." includes="README.md,CONTRIBUTING.md,about.html,notice.html,edl-v10,epl-v20"/>
     </copy>
     <mkdir dir="${output.folder}/lib"/>
     <move overwrite="true" todir="${output.folder}/lib">
@@ -224,7 +234,7 @@
     </move>
     <copy overwrite="true" todir="${output.folder}/samples">
       <fileset dir="src/samples" includes="*"/>
-    </copy> 
+    </copy>
     <delete>
        <fileset dir="." includes="eclipse-paho-mqtt-c-windows-${release.version}.zip"/>
        <fileset dir="." includes="eclipse-paho-mqtt-c-${os.family}-${release.version}.tar.gz"/>
@@ -240,7 +250,7 @@
       <arg value="notice.html"/>
       <arg value="README.md"/>
       <arg value="CONTRIBUTING.md"/>
-      <arg value="epl-v10"/>
+      <arg value="epl-v20"/>
       <arg value="edl-v10"/>
       <arg value="include"/>
 	  <arg value="samples"/>
@@ -256,14 +266,14 @@
       <arg value="notice.html"/>
       <arg value="README.md"/>
       <arg value="CONTRIBUTING.md"/>
-      <arg value="epl-v10"/>
+      <arg value="epl-v20"/>
       <arg value="edl-v10"/>
       <arg value="include"/>
 	  <arg value="samples"/>
       <arg value="lib"/>
       <arg value="bin"/>
     </exec>
-    </else> 
+    </else>
     </if>
 
    <if>
@@ -276,7 +286,7 @@
       <arg value="notice.html"/>
       <arg value="README.md"/>
       <arg value="CONTRIBUTING.md"/>
-      <arg value="epl-v10"/>
+      <arg value="epl-v20"/>
       <arg value="edl-v10"/>
       <arg value="Makefile"/>
       <arg value="build.xml"/>
@@ -284,7 +294,7 @@
       <arg value="test"/>
       <arg value="Windows Build"/>
     </exec>
-    </then> 
+    </then>
    </if>
   </target>
 
@@ -299,7 +309,7 @@
 	          <include name="*.gz"/>
 	          <include name="*.zip"/>
           </fileset>
-        </copy> 
+        </copy>
       </then>
     </if>
   </target>
@@ -307,4 +317,3 @@
   <target name="full" depends="init, version, build, test, doc, package, copy" />
 
 </project>
-

@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2015 IBM Corp.
+ * Copyright (c) 2012, 2025 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution. 
  *
  * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at 
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -15,20 +15,23 @@
  *******************************************************************************/
 
 #include <stdio.h>
+
+#if !defined(_WRS_KERNEL)
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <memory.h>
 #include <ctype.h>
 #include "MQTTAsync.h"
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 #include <windows.h>
 #include <tchar.h>
 #include <io.h>
 #include <sys/stat.h>
+#define snprintf _snprintf
 #else
 #include <dlfcn.h>
 #include <sys/mman.h>
@@ -51,14 +54,14 @@
  * */
  
  
- char* libraries[] = {"paho-mqtt3c", "paho-mqtt3cs", "paho-mqtt3a", "paho-mqtt3as"};
- char* eyecatchers[] = {"MQTTAsyncV3_Version", "MQTTAsyncV3_Timestamp", 
+ static const char* libraries[] = {"paho-mqtt3c", "paho-mqtt3cs", "paho-mqtt3a", "paho-mqtt3as"};
+ static const char* eyecatchers[] = {"MQTTAsyncV3_Version", "MQTTAsyncV3_Timestamp",
  					 "MQTTClientV3_Version", "MQTTClientV3_Timestamp"};
  
 
-char* FindString(char* filename, char* eyecatcher_input);
+char* FindString(char* filename, const char* eyecatcher_input);
 int printVersionInfo(MQTTAsync_nameValue* info);
-int loadandcall(char* libname);
+int loadandcall(const char* libname);
 void printEyecatchers(char* filename);
 
 
@@ -68,43 +71,49 @@ void printEyecatchers(char* filename);
  * @param eyecatcher_input the eyecatcher string to look for
  * @return the value found - "" if not found 
  */
-char* FindString(char* filename, char* eyecatcher_input)
+char* FindString(char* filename, const char* eyecatcher_input)
 {
 	FILE* infile = NULL;
 	static char value[100];
-	char* eyecatcher = eyecatcher_input;
+	const char* eyecatcher = eyecatcher_input;
 	
 	memset(value, 0, 100);
 	if ((infile = fopen(filename, "rb")) != NULL)
 	{
 		size_t buflen = strlen(eyecatcher);
-		char* buffer = (char*) malloc(buflen);
-		int count = 0;
-		int c = fgetc(infile);
+		char* buffer = (char*) malloc(buflen + 1); /* added space for unused null terminator to stop LGTM complaint */
 
-		while (feof(infile) == 0)
+		if (buffer != NULL)
 		{
-			buffer[count++] = c;
-			if (memcmp(eyecatcher, buffer, buflen) == 0)
+			int c = fgetc(infile);
+
+			while (feof(infile) == 0)
 			{
-				char* ptr = value;
-				c = fgetc(infile); /* skip space */
-				c = fgetc(infile);
-				while (isprint(c))
+				int count = 0;
+				buffer[count++] = c;
+				if (memcmp(eyecatcher, buffer, buflen) == 0)
 				{
-					*ptr++ = c;
+					char* ptr = value;
+					c = fgetc(infile); /* skip space */
 					c = fgetc(infile);
+					while (isprint((unsigned char)c))
+					{
+						*ptr++ = c;
+						c = fgetc(infile);
+					}
+					break;
 				}
-				break;
+				if (count == buflen)
+				{
+					memmove(buffer, &buffer[1], buflen - 1);
+					count--;
+				}
+				c = fgetc(infile);
 			}
-			if (count == buflen)
-			{
-				memmove(buffer, &buffer[1], buflen - 1);
-				count--;
-			}
-			c = fgetc(infile);
+			free(buffer);
 		}
-		free(buffer);
+
+		fclose(infile);
 	}
 	return value;
 }
@@ -125,16 +134,13 @@ int printVersionInfo(MQTTAsync_nameValue* info)
 
 typedef MQTTAsync_nameValue* (*func_type)(void);
 
-int loadandcall(char* libname)
+int loadandcall(const char* libname)
 {
 	int rc = 0;
 	MQTTAsync_nameValue* (*func_address)(void) = NULL;
-#if defined(WIN32) || defined(WIN64)
-	wchar_t wlibname[30];
-	HMODULE APILibrary;
-
-	mbstowcs(wlibname, libname, strlen(libname) + 1);
-	if ((APILibrary = LoadLibrary(wlibname)) == NULL)
+#if defined(_WIN32)
+	HMODULE APILibrary = LoadLibraryA(libname);
+	if (APILibrary == NULL)
 		printf("Error loading library %s, error code %d\n", libname, GetLastError());
 	else
 	{
@@ -147,11 +153,10 @@ int loadandcall(char* libname)
 	}
 #else
 	void* APILibrary = dlopen(libname, RTLD_LAZY); /* Open the Library in question */
-	char* ErrorOutput = dlerror(); 	               /* Check it opened properly */
-	if (ErrorOutput != NULL)
-		printf("Error loading library %s, error %s\n", libname, ErrorOutput);
+	if (APILibrary == NULL)
+		printf("Error loading library %s, error %s\n", libname, dlerror());
 	else
-	{	
+	{
 		*(void **) (&func_address) = dlsym(APILibrary, "MQTTAsync_getVersionInfo");
 		if (func_address == NULL)
 			func_address = dlsym(APILibrary, "MQTTClient_getVersionInfo");
@@ -184,7 +189,7 @@ void printEyecatchers(char* filename)
 int main(int argc, char** argv)
 {
 	printf("MQTTVersion: print the version strings of an MQTT client library\n"); 
-	printf("Copyright (c) 2012, 2015 IBM Corp.\n");
+	printf("Copyright (c) 2012, 2018 IBM Corp.\n");
 	
 	if (argc == 1)
 	{
@@ -195,10 +200,14 @@ int main(int argc, char** argv)
 		 
 		for (i = 0; i < ARRAY_SIZE(libraries); ++i)
 		{
-#if defined(WIN32) || defined(WIN64)
-			sprintf(namebuf, "%s.dll", libraries[i]);
+#if defined(__CYGWIN__)
+			snprintf(namebuf, sizeof(namebuf), "cyg%s-1.dll", libraries[i]);
+#elif defined(_WIN32)
+			snprintf(namebuf, sizeof(namebuf), "%s.dll", libraries[i]);
+#elif defined(OSX)
+			snprintf(namebuf, sizeof(namebuf), "lib%s.1.dylib", libraries[i]);
 #else
-			sprintf(namebuf, "lib%s.so.1", libraries[i]);
+			snprintf(namebuf, sizeof(namebuf), "lib%s.so.1", libraries[i]);
 #endif
 			printf("--- Trying library %s ---\n", libraries[i]);
 			if (!loadandcall(namebuf))
@@ -213,3 +222,10 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+#else
+int main(void)
+{
+    fprintf(stderr, "This tool is not supported on this platform yet.\n");
+    return 1;
+}
+#endif /* !defined(_WRS_KERNEL) */

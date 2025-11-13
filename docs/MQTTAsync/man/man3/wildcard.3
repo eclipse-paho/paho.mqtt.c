@@ -1,0 +1,26 @@
+.TH "wildcard" 3 "Sat Aug 16 2025 14:15:23" "Paho Asynchronous MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+wildcard \- Subscription wildcards 
+.PP
+Every MQTT message includes a topic that classifies it\&. MQTT servers use topics to determine which subscribers should receive messages published to the server\&.
+
+.PP
+Consider the server receiving messages from several environmental sensors\&. Each sensor publishes its measurement data as a message with an associated topic\&. Subscribing applications need to know which sensor originally published each received message\&. A unique topic is thus used to identify each sensor and measurement type\&. Topics such as SENSOR1TEMP, SENSOR1HUMIDITY, SENSOR2TEMP and so on achieve this but are not very flexible\&. If additional sensors are added to the system at a later date, subscribing applications must be modified to receive them\&.
+
+.PP
+To provide more flexibility, MQTT supports a hierarchical topic namespace\&. This allows application designers to organize topics to simplify their management\&. Levels in the hierarchy are delimited by the '/' character, such as SENSOR/1/HUMIDITY\&. Publishers and subscribers use these hierarchical topics as already described\&.
+
+.PP
+For subscriptions, two wildcard characters are supported: 
+.PD 0
+.IP "\(bu" 2
+A '#' character represents a complete sub-tree of the hierarchy and thus must be the last character in a subscription topic string, such as SENSOR/#\&. This will match any topic starting with SENSOR/, such as SENSOR/1/TEMP and SENSOR/2/HUMIDITY\&. 
+.IP "\(bu" 2
+A '+' character represents a single level of the hierarchy and is used between delimiters\&. For example, SENSOR/+/TEMP will match SENSOR/1/TEMP and SENSOR/2/TEMP\&. 
+.PP
+Publishers are not allowed to use the wildcard characters in their topic names\&.
+
+.PP
+Deciding on your topic hierarchy is an important step in your system design\&. 

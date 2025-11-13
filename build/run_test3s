@@ -1,1 +1,0 @@
-LD_LIBRARY_PATH=. ./test3 --test_no 7 --connection ssl://localhost:8885 --server_key /home/icraggs/nobackup/mosquitto-1.2/pkeys/server.pem

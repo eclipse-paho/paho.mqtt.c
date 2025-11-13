@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 IBM Corp.
+ * Copyright (c) 2009, 2020 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution. 
  *
  * The Eclipse Public License is available at 
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at 
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
@@ -28,7 +28,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <memory.h>
 
 #include "Heap.h"
 
@@ -43,10 +42,6 @@ static int ListUnlink(List* aList, void* content, int(*callback)(void*, void*), 
 void ListZero(List* newl)
 {
 	memset(newl, '\0', sizeof(List));
-	/*newl->first = NULL;
-	newl->last = NULL;
-	newl->current = NULL;
-	newl->count = newl->size = 0;*/
 }
 
 
@@ -57,7 +52,8 @@ void ListZero(List* newl)
 List* ListInitialize(void)
 {
 	List* newl = malloc(sizeof(List));
-	ListZero(newl);
+	if (newl)
+		ListZero(newl);
 	return newl;
 }
 
@@ -91,10 +87,12 @@ void ListAppendNoMalloc(List* aList, void* content, ListElement* newel, size_t s
  * @param content the list item content itself
  * @param size the size of the element
  */
-void ListAppend(List* aList, void* content, size_t size)
+ListElement* ListAppend(List* aList, void* content, size_t size)
 {
 	ListElement* newel = malloc(sizeof(ListElement));
-	ListAppendNoMalloc(aList, content, newel, size);
+	if (newel)
+		ListAppendNoMalloc(aList, content, newel, size);
+	return newel;
 }
 
 
@@ -106,10 +104,12 @@ void ListAppend(List* aList, void* content, size_t size)
  * @param index the position in the list. If NULL, this function is equivalent
  * to ListAppend.
  */
-void ListInsert(List* aList, void* content, size_t size, ListElement* index)
+ListElement* ListInsert(List* aList, void* content, size_t size, ListElement* index)
 {
 	ListElement* newel = malloc(sizeof(ListElement));
 
+	if (newel == NULL)
+		return newel;
 	if ( index == NULL )
 		ListAppendNoMalloc(aList, content, newel, size);
 	else
@@ -127,6 +127,7 @@ void ListInsert(List* aList, void* content, size_t size, ListElement* index)
 		++(aList->count);
 		aList->size += size;
 	}
+	return newel;
 }
 
 
@@ -219,7 +220,10 @@ static int ListUnlink(List* aList, void* content, int(*callback)(void*, void*), 
 
 	next = aList->current->next;
 	if (freeContent)
+    {
 		free(aList->current->content);
+                aList->current->content = NULL;
+    }
 	if (saved == aList->current)
 		saveddeleted = 1;
 	free(aList->current);
@@ -358,7 +362,10 @@ void ListEmpty(List* aList)
 	{
 		ListElement* first = aList->first;
 		if (first->content != NULL)
+                {
 			free(first->content);
+                        first->content = NULL;
+                }
 		aList->first = first->next;
 		free(first);
 	}
@@ -474,7 +481,7 @@ int main(int argc, char *argv[])
 	while (ListPrevElement(l, &current) != NULL)
 		printf("List element: %d\n", *((int*)(current->content)));
 
-	//if ListFindItem(l, *ip, intcompare)->content
+	/* if ListFindItem(l, *ip, intcompare)->content */
 
 	printf("List contents having deleted element %d:\n", *todelete);
 	ListRemove(l, todelete);

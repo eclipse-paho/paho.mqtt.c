@@ -1,0 +1,121 @@
+.TH "MQTTClient_SSLOptions" 3 "Sat Aug 16 2025 14:15:23" "Paho MQTT C Client Library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+MQTTClient_SSLOptions
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fR#include <MQTTClient\&.h>\fP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char \fBstruct_id\fP [4]"
+.br
+.ti -1c
+.RI "int \fBstruct_version\fP"
+.br
+.ti -1c
+.RI "const char * \fBtrustStore\fP"
+.br
+.ti -1c
+.RI "const char * \fBkeyStore\fP"
+.br
+.ti -1c
+.RI "const char * \fBprivateKey\fP"
+.br
+.ti -1c
+.RI "const char * \fBprivateKeyPassword\fP"
+.br
+.ti -1c
+.RI "const char * \fBenabledCipherSuites\fP"
+.br
+.ti -1c
+.RI "int \fBenableServerCertAuth\fP"
+.br
+.ti -1c
+.RI "int \fBsslVersion\fP"
+.br
+.ti -1c
+.RI "int \fBverify\fP"
+.br
+.ti -1c
+.RI "const char * \fBCApath\fP"
+.br
+.ti -1c
+.RI "int(* \fBssl_error_cb\fP )(const char *str, size_t len, void *u)"
+.br
+.ti -1c
+.RI "void * \fBssl_error_context\fP"
+.br
+.ti -1c
+.RI "unsigned int(* \fBssl_psk_cb\fP )(const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len, void *u)"
+.br
+.ti -1c
+.RI "void * \fBssl_psk_context\fP"
+.br
+.ti -1c
+.RI "int \fBdisableDefaultTrustStore\fP"
+.br
+.ti -1c
+.RI "const unsigned char * \fBprotos\fP"
+.br
+.ti -1c
+.RI "unsigned int \fBprotos_len\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+MQTTClient_sslProperties defines the settings to establish an SSL/TLS connection using the OpenSSL library\&. It covers the following scenarios:
+.IP "\(bu" 2
+Server authentication: The client needs the digital certificate of the server\&. It is included in a store containting trusted material (also known as "trust store")\&.
+.IP "\(bu" 2
+Mutual authentication: Both client and server are authenticated during the SSL handshake\&. In addition to the digital certificate of the server in a trust store, the client will need its own digital certificate and the private key used to sign its digital certificate stored in a "key store"\&.
+.IP "\(bu" 2
+Anonymous connection: Both client and server do not get authenticated and no credentials are needed to establish an SSL connection\&. Note that this scenario is not fully secure since it is subject to man-in-the-middle attacks\&. 
+.PP
+
+.SH "Field Documentation"
+.PP 
+.SS "char struct_id[4]"
+The eyecatcher for this structure\&. Must be MQTS 
+.SS "int struct_version"
+The version number of this structure\&. Must be 0, 1, 2, 3, 4 or 5\&. 0 means no sslVersion 1 means no verify, CApath 2 means no ssl_error_context, ssl_error_cb 3 means no ssl_psk_cb, ssl_psk_context, disableDefaultTrustStore 4 means no protos, protos_len 
+.SS "const char* trustStore"
+The file in PEM format containing the public digital certificates trusted by the client\&. 
+.SS "const char* keyStore"
+The file in PEM format containing the public certificate chain of the client\&. It may also include the client's private key\&. 
+.SS "const char* privateKey"
+If not included in the sslKeyStore, this setting points to the file in PEM format containing the client's private key\&. 
+.SS "const char* privateKeyPassword"
+The password to load the client's privateKey if encrypted\&. 
+.SS "const char* enabledCipherSuites"
+The list of cipher suites that the client will present to the server during the SSL handshake\&. For a full explanation of the cipher list format, please see the OpenSSL on-line documentation: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT If this setting is ommitted, its default value will be "ALL", that is, all the cipher suites -excluding those offering no encryption- will be considered\&. This setting can be used to set an SSL anonymous connection ("aNULL" string value, for instance)\&. 
+.SS "int enableServerCertAuth"
+True/False option to enable verification of the server certificate 
+.SS "int sslVersion"
+The SSL/TLS version to use\&. Specify one of MQTT_SSL_VERSION_DEFAULT (0), MQTT_SSL_VERSION_TLS_1_0 (1), MQTT_SSL_VERSION_TLS_1_1 (2) or MQTT_SSL_VERSION_TLS_1_2 (3)\&. Only used if struct_version is >= 1\&. 
+.SS "int verify"
+Whether to carry out post-connect checks, including that a certificate matches the given host name\&. Exists only if struct_version >= 2 
+.SS "const char* CApath"
+From the OpenSSL documentation: If CApath is not NULL, it points to a directory containing CA certificates in PEM format\&. Exists only if struct_version >= 2 
+.SS "int(* ssl_error_cb) (const char *str, size_t len, void *u)"
+Callback function for OpenSSL error handler ERR_print_errors_cb Exists only if struct_version >= 3 
+.SS "void* ssl_error_context"
+Application-specific contex for OpenSSL error handler ERR_print_errors_cb Exists only if struct_version >= 3 
+.SS "unsigned int(* ssl_psk_cb) (const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len, void *u)"
+Callback function for setting TLS-PSK options\&. Parameters correspond to that of SSL_CTX_set_psk_client_callback, except for u which is the pointer ssl_psk_context\&. Exists only if struct_version >= 4 
+.SS "void* ssl_psk_context"
+Application-specific contex for ssl_psk_cb Exists only if struct_version >= 4 
+.SS "int disableDefaultTrustStore"
+Don't load default SSL CA\&. Should be used together with PSK to make sure regular servers with certificate in place is not accepted\&. Exists only if struct_version >= 4 
+.SS "const unsigned char* protos"
+The protocol-lists must be in wire-format, which is defined as a vector of non-empty, 8-bit length-prefixed, byte strings\&. The length-prefix byte is not included in the length\&. Each string is limited to 255 bytes\&. A byte-string length of 0 is invalid\&. A truncated byte-string is invalid\&. Check documentation for SSL_CTX_set_alpn_protos Exists only if struct_version >= 5 
+.SS "unsigned int protos_len"
+The length of the vector protos vector Exists only if struct_version >= 5 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Paho MQTT C Client Library from the source code\&.
