@@ -777,8 +777,27 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 		error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
 		if (error == SSL_FATAL)
 			rc = error;
-		if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
-			rc = TCPSOCKET_INTERRUPTED;
+		else
+		{
+			switch (error)
+			{
+			case SSL_ERROR_WANT_READ:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_clearPendingWrite(sock);
+				break;
+			case SSL_ERROR_WANT_WRITE:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_addPendingWrite(sock);
+				break;
+			default:
+				Socket_clearPendingWrite(sock);
+				break;
+			}
+		}
+	}
+	else
+	{
+		Socket_clearPendingWrite(sock);
 	}
 #if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
 	else if (verify)
