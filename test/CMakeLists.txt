@@ -1207,8 +1207,53 @@ if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
 			PROPERTIES TIMEOUT 540
 		)
 	
-	endif()
-endif()
+	ENDIF()
+
+	# SSL WANT_WRITE handshake test - validates proper handling of SSL_ERROR_WANT_WRITE/WANT_READ
+	IF (PAHO_BUILD_STATIC)
+		ADD_EXECUTABLE(
+			test_ssl_want_write-static
+			test_ssl_want_write.c
+		)
+		
+		TARGET_LINK_LIBRARIES(
+			test_ssl_want_write-static
+			paho-mqtt3cs-static
+		)
+		
+		ADD_TEST(
+			NAME test-ssl-want-write-handshake-static
+			COMMAND test_ssl_want_write-static "--hostname" ${MQTT_SSL_HOSTNAME} "--client_key" "${CERTDIR}/client.pem" "--server_key" "${CERTDIR}/test-root-ca.crt"
+		)
+		
+		SET_TESTS_PROPERTIES(
+			test-ssl-want-write-handshake-static
+			PROPERTIES TIMEOUT 60
+		)
+	ENDIF()
+	
+	IF (PAHO_BUILD_SHARED)
+		ADD_EXECUTABLE(
+			test_ssl_want_write
+			test_ssl_want_write.c
+		)
+		
+		TARGET_LINK_LIBRARIES(
+			test_ssl_want_write
+			paho-mqtt3cs
+		)
+		
+		ADD_TEST(
+			NAME test-ssl-want-write-handshake
+			COMMAND test_ssl_want_write "--hostname" ${MQTT_SSL_HOSTNAME} "--client_key" "${CERTDIR}/client.pem" "--server_key" "${CERTDIR}/test-root-ca.crt"
+		)
+		
+		SET_TESTS_PROPERTIES(
+			test-ssl-want-write-handshake
+			PROPERTIES TIMEOUT 60
+		)
+	ENDIF()
+ENDIF()
 
 
 if(PAHO_BUILD_STATIC)
