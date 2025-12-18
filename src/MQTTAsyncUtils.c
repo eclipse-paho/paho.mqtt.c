@@ -1032,7 +1032,7 @@ static void MQTTProtocol_checkPendingWrites(void)
 		ListElement* le = state.pending_writes.first;
 		while (le)
 		{
-			if (Socket_noPendingWrites(((pending_write*)(le->content))->socket))
+			if (MQTTAsync_Socket_noPendingWrites(((pending_write*)(le->content))->socket))
 			{
 				MQTTProtocol_removePublication(((pending_write*)(le->content))->p);
 				state.pending_writes.current = le;
@@ -2479,7 +2479,7 @@ static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode
 	if (client->net.socket > 0)
 	{
 		MQTTProtocol_checkPendingWrites();
-		if (client->connected && Socket_noPendingWrites(client->net.socket))
+		if (client->connected && MQTTAsync_Socket_noPendingWrites(client->net.socket))
 			MQTTPacket_send_disconnect(client, reasonCode, props);
 		MQTTAsync_lock_mutex(socket_mutex);
 		WebSocket_close(&client->net, WebSocket_CLOSE_NORMAL, NULL);
