@@ -5,7 +5,7 @@ LOCAL_PATH := $(call my-dir)
 libpaho-mqtt3_lib_path := ../src
 libpaho-mqtt3_c_includes := $(LOCAL_PATH)/$(libpaho-mqtt3_lib_path) \
 	external/hdc/android-ifaddrs \
-	external/openssl/include \
+	external/boringssl/include \
 	external/zlib
 
 # build sample util
@@ -38,9 +38,15 @@ libpaho-mqtt3_local_src_c_files_common := \
 	$(libpaho-mqtt3_lib_path)/MQTTPacketOut.c \
 	$(libpaho-mqtt3_lib_path)/SocketBuffer.c \
 	$(libpaho-mqtt3_lib_path)/MQTTPersistenceDefault.c \
+	$(libpaho-mqtt3_lib_path)/MQTTProperties.c \
+	$(libpaho-mqtt3_lib_path)/MQTTTime.c \
+	$(libpaho-mqtt3_lib_path)/Base64.c \
+	$(libpaho-mqtt3_lib_path)/WebSocket.c \
+    $(libpaho-mqtt3_lib_path)/../../boringssl/src/decrepit/bio/base64_bio.c
 
 libpaho-mqtt3_local_src_c_files_c := \
 	$(libpaho-mqtt3_lib_path)/MQTTClient.c \
+	$(libpaho-mqtt3_lib_path)/SHA1.c \
 
 libpaho-mqtt3_local_src_c_files_cs := \
 	$(libpaho-mqtt3_lib_path)/MQTTClient.c \
@@ -48,6 +54,7 @@ libpaho-mqtt3_local_src_c_files_cs := \
 
 libpaho-mqtt3_local_src_c_files_a := \
 	$(libpaho-mqtt3_lib_path)/MQTTAsync.c \
+	$(libpaho-mqtt3_lib_path)/SHA1.c \
 
 libpaho-mqtt3_local_src_c_files_as := \
 	$(libpaho-mqtt3_lib_path)/MQTTAsync.c \
@@ -64,6 +71,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE    := libpaho-mqtt3c
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/$(libpaho-mqtt3_lib_path)
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_c)
 include $(BUILD_STATIC_LIBRARY)
 
@@ -72,6 +80,7 @@ LOCAL_MODULE    := libpaho-mqtt3cs
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/$(libpaho-mqtt3_lib_path)
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
 LOCAL_CFLAGS += -DOPENSSL
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_cs)
 include $(BUILD_STATIC_LIBRARY)
 
@@ -79,6 +88,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE    := libpaho-mqtt3a
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/${libpaho-mqtt3_lib_path}
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized -Wno-missing-field-initializers
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_a)
 include $(BUILD_STATIC_LIBRARY)
   
@@ -86,6 +96,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE    := libpaho-mqtt3as
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/${libpaho-mqtt3_lib_path}
 LOCAL_CFLAGS += -DOPENSSL
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized -Wno-missing-field-initializers
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_as)
 include $(BUILD_STATIC_LIBRARY)
@@ -97,6 +108,7 @@ LOCAL_MODULE    := libpaho-mqtt3c
 LOCAL_SHARED_LIBRARIES := libdl
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/$(libpaho-mqtt3_lib_path)
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_c)
 include $(BUILD_SHARED_LIBRARY)
 
@@ -106,6 +118,7 @@ LOCAL_SHARED_LIBRARIES := libcrypto libssl libdl
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/$(libpaho-mqtt3_lib_path)
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
 LOCAL_CFLAGS += -DOPENSSL
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_cs)
 include $(BUILD_SHARED_LIBRARY)
 
@@ -114,6 +127,7 @@ LOCAL_MODULE    := libpaho-mqtt3a
 LOCAL_SHARED_LIBRARIES := libdl
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/${libpaho-mqtt3_lib_path}
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized -Wno-missing-field-initializers
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_a)
 include $(BUILD_SHARED_LIBRARY)
  
@@ -122,6 +136,7 @@ LOCAL_MODULE    := libpaho-mqtt3as
 LOCAL_SHARED_LIBRARIES := libcrypto libssl libdl
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/${libpaho-mqtt3_lib_path}
 LOCAL_CFLAGS += -DOPENSSL
+LOCAL_CFLAGS += -Wno-sign-compare -Wno-unused-parameter -Wno-sometimes-uninitialized -Wno-missing-field-initializers
 LOCAL_C_INCLUDES:= $(libpaho-mqtt3_c_includes)
 LOCAL_SRC_FILES := $(libpaho-mqtt3_local_src_c_files_common) $(libpaho-mqtt3_local_src_c_files_as)
 include $(BUILD_SHARED_LIBRARY)
