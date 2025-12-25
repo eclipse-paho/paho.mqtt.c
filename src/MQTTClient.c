@@ -1309,7 +1309,7 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 			setSocketForSSLrc = SSLSocket_setSocketForSSL(&m->c->net, m->c->sslopts,
 				serverURI, hostname_len);
 
-			if (setSocketForSSLrc != MQTTCLIENT_SUCCESS)
+			if (setSocketForSSLrc == 1)
 			{
 				if (m->c->session != NULL)
 					if ((rc = SSL_set_session(m->c->net.ssl, m->c->session)) != 1)
