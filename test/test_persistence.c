@@ -101,7 +101,9 @@ void getopts(int argc, char** argv)
 #define LOGA_INFO 1
 #include <stdarg.h>
 #include <time.h>
+#if !defined(__OpenBSD__)
 #include <sys/timeb.h>
+#endif
 void MyLog(int LOGA_level, char* format, ...)
 {
 	static char msg_buf[256];
