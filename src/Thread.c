@@ -262,16 +262,6 @@ evt_type Thread_create_evt(int *rc)
 	*rc = -1;
 	pthread_condattr_init(&attr);
 
-#if 0
-    /* in theory, a monotonic clock should be able to be used.  However on at least
-     * one system reported, even though setclock() reported success, it didn't work.
-     */
-	if ((rc = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) == 0)
-		use_clock_monotonic = 1;
-	else
-		Log(LOG_ERROR, -1, "Error %d calling pthread_condattr_setclock(CLOCK_MONOTONIC)", rc);
-#endif
-
 	evt = malloc(sizeof(evt_type_struct));
 	if (evt)
 	{
@@ -295,7 +285,8 @@ int Thread_signal_evt(evt_type evt)
 	FUNC_ENTRY;
 	pthread_mutex_lock(&evt->mutex);
     evt->val = 1;
-	rc = pthread_cond_signal(&evt->cond);
+	// TODO: Determine if this could be more efficient with pthread_cond_signal()
+	rc = pthread_cond_broadcast(&evt->cond);
 	pthread_mutex_unlock(&evt->mutex);
 
 	FUNC_EXIT_RC(rc);
@@ -349,19 +340,19 @@ int Thread_destroy_evt(evt_type evt)
  * @param rc return code: 0 for success, negative otherwise
  * @return the new condition variable
  */
-sem_type Thread_create_evt(int *rc)
+evt_type Thread_create_evt(int *rc)
 {
 	FUNC_ENTRY;
-	sem_type sem = CreateEvent(
+	evt_type evt = CreateEvent(
 		NULL,     /* default security attributes */
 		FALSE,    /* manual-reset event? */
 		FALSE,    /* initial state is nonsignaled */
 		NULL      /* object name */
 	);
 	if (rc)
-		*rc = (sem == NULL) ? GetLastError() : 0;
+		*rc = (evt == NULL) ? GetLastError() : 0;
 	FUNC_EXIT_RC(*rc);
-	return sem;
+	return evt;
 }
 
 /**

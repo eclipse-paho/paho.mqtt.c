@@ -129,7 +129,7 @@ void MQTTAsync_init_rand(void)
 mutex_type mqttasync_mutex = NULL;
 mutex_type socket_mutex = NULL;
 mutex_type mqttcommand_mutex = NULL;
-sem_type send_evt = NULL;
+evt_type send_evt = NULL;
 #if !defined(NO_HEAP_TRACKING)
 extern mutex_type stack_mutex;
 extern mutex_type heap_mutex;

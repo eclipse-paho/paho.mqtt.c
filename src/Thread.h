@@ -41,9 +41,7 @@
 	#define thread_id_type DWORD
 	#define thread_return_type DWORD
 	#define thread_fn LPTHREAD_START_ROUTINE
-	#define cond_type HANDLE
 	#define evt_type HANDLE
-	#define sem_type HANDLE
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
@@ -56,13 +54,6 @@
 	typedef thread_return_type (*thread_fn)(void*);
 	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; int val; } evt_type_struct;
 	typedef evt_type_struct *evt_type;
-	#if defined(OSX)
-	  #include <dispatch/dispatch.h>
-	  typedef dispatch_semaphore_t sem_type;
-	#else
-	  #include <semaphore.h>
-	  typedef sem_t *sem_type;
-	#endif
 #endif
 
 LIBMQTT_API void Paho_thread_start(thread_fn, void*);
