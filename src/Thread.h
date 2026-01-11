@@ -33,39 +33,27 @@
 
 #include "MQTTClient.h"
 
-#include "mutex_type.h" /* Needed for mutex_type */
-
 #if defined(_WIN32)
 	#include <windows.h>
+
+	#define mutex_type HANDLE
 	#define thread_type HANDLE
 	#define thread_id_type DWORD
 	#define thread_return_type DWORD
 	#define thread_fn LPTHREAD_START_ROUTINE
-	#define cond_type HANDLE
-	#define sem_type HANDLE
+	#define evt_type HANDLE
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
 	#include <pthread.h>
 
+	#define mutex_type pthread_mutex_t*
 	#define thread_type pthread_t
 	#define thread_id_type pthread_t
 	#define thread_return_type void*
 	typedef thread_return_type (*thread_fn)(void*);
-	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; } cond_type_struct;
-	typedef cond_type_struct *cond_type;
-	#if defined(OSX)
-	  #include <dispatch/dispatch.h>
-	  typedef dispatch_semaphore_t sem_type;
-	#else
-	  #include <semaphore.h>
-	  typedef sem_t *sem_type;
-	#endif
-
-	cond_type Thread_create_cond(int*);
-	int Thread_signal_cond(cond_type);
-	int Thread_wait_cond(cond_type condvar, int timeout);
-	int Thread_destroy_cond(cond_type);
+	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; int val; } evt_type_struct;
+	typedef evt_type_struct *evt_type;
 #endif
 
 LIBMQTT_API void Paho_thread_start(thread_fn, void*);
@@ -78,11 +66,9 @@ int Paho_thread_destroy_mutex(mutex_type);
 
 LIBMQTT_API thread_id_type Paho_thread_getid();
 
-sem_type Thread_create_sem(int*);
-int Thread_wait_sem(sem_type sem, int timeout);
-int Thread_check_sem(sem_type sem);
-int Thread_post_sem(sem_type sem);
-int Thread_destroy_sem(sem_type sem);
-
+evt_type Thread_create_evt(int*);
+int Thread_signal_evt(evt_type);
+int Thread_wait_evt(evt_type condvar, int timeout);
+int Thread_destroy_evt(evt_type);
 
 #endif
