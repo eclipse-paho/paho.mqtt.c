@@ -313,8 +313,8 @@ int test_evt(struct Options options)
 
 	MyLog(LOGA_DEBUG, "Main thread ending");
 
-	exit: MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
-			(failures == 0) ? "passed" : "failed", testname, tests, failures);
+	MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+          (failures == 0) ? "passed" : "failed", testname, tests, failures);
 	write_test_result();
 
 	return failures;
@@ -354,6 +354,7 @@ int test_mutex(struct Options options)
 	MyLog(LOGA_INFO, "Starting mutex test");
 	fprintf(xml, "<testcase classname=\"test\" name=\"%s\"", testname);
 	global_start_time = start_clock();
+	assert("rc 0 from create mutex", rc == 0, "rc was %d", rc);
 
 	/* this should happen immediately, as there is no other lock held */
 	start = start_clock();

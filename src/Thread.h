@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2023 IBM Corp.
+ * Copyright (c) 2009, 2023, 2026 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -15,6 +15,7 @@
  *    Ian Craggs, Allan Stockdill-Mander - async client updates
  *    Ian Craggs - fix for bug #420851
  *    Ian Craggs - change MacOS semaphore implementation
+ *    Frank Pagliughi - Consolidated semaphores and conditions into "events"
  *******************************************************************************/
 
 #if !defined(THREAD_H)
@@ -56,16 +57,18 @@
 	typedef evt_type_struct *evt_type;
 #endif
 
+/* Thread functions */
 LIBMQTT_API void Paho_thread_start(thread_fn, void*);
 int Thread_set_name(const char* thread_name);
+LIBMQTT_API thread_id_type Paho_thread_getid();
 
+/* Mutex functions */
 LIBMQTT_API mutex_type Paho_thread_create_mutex(int*);
 LIBMQTT_API int Paho_thread_lock_mutex(mutex_type);
 LIBMQTT_API int Paho_thread_unlock_mutex(mutex_type);
 int Paho_thread_destroy_mutex(mutex_type);
 
-LIBMQTT_API thread_id_type Paho_thread_getid();
-
+/* Event Functions */
 evt_type Thread_create_evt(int*);
 int Thread_signal_evt(evt_type);
 int Thread_wait_evt(evt_type condvar, int timeout);

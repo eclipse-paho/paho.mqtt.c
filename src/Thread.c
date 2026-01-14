@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2025, 2026 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -17,6 +17,7 @@
  *    Ian Craggs - fix for bug #420851
  *    Ian Craggs - change MacOS semaphore implementation
  *    Ian Craggs - fix for clock #284
+ *    Frank Pagliughi - Consolidated semaphores and conditions into "events"
  *******************************************************************************/
 
 /**
@@ -87,10 +88,12 @@ void Paho_thread_start(thread_fn fn, void* parameter)
 int Thread_set_name(const char* thread_name)
 {
 	int rc = 0;
+/*
 #if defined(_WIN32)
 #define MAX_THREAD_NAME_LENGTH 30
 	wchar_t wchars[MAX_THREAD_NAME_LENGTH];
 #endif
+*/
 	FUNC_ENTRY;
 
 #if defined(_WIN32)
@@ -116,6 +119,19 @@ int Thread_set_name(const char* thread_name)
 	return rc;
 }
 
+/**
+ * Get the thread id of the thread from which this function is called
+ * @return thread id, type varying according to OS
+ */
+thread_id_type Paho_thread_getid(void)
+{
+	#if defined(_WIN32)
+		return GetCurrentThreadId();
+	#else
+		return pthread_self();
+	#endif
+}
+
 #if !defined(_WIN32)
 struct timespec Thread_time_from_now(int ms)
 {
@@ -124,7 +140,11 @@ struct timespec Thread_time_from_now(int ms)
 	interval.tv_sec = ms / 1000;
 	interval.tv_nsec = (ms % 1000) * 1000000L;
 
-#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200 /* for older versions of MacOS */
+    /*
+     * Note that MacOS v10.11 was fully deprecated in Aug 2018.
+     * So this __APPLE__ path only applies to very old, deprecated systems.
+    */
+#if defined(__APPLE__) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 	struct timeval cur_time;
 	gettimeofday(&cur_time, NULL);
 	from_now.tv_sec = cur_time.tv_sec;
@@ -136,15 +156,17 @@ struct timespec Thread_time_from_now(int ms)
 	from_now.tv_sec += interval.tv_sec;
 	from_now.tv_nsec += interval.tv_sec;
 
-	if (from_now.tv_nsec >= 1000000000L)
+	while (from_now.tv_nsec >= NSEC_PER_SEC)
 	{
 		from_now.tv_sec++;
-		from_now.tv_nsec -= 1000000000L;
+		from_now.tv_nsec -= NSEC_PER_SEC;
 	}
 
 	return from_now;
 }
 #endif
+
+/* Mutex Functions */
 
 /**
  * Create a new mutex
@@ -234,20 +256,7 @@ int Paho_thread_destroy_mutex(mutex_type mutex)
 }
 
 
-/**
- * Get the thread id of the thread from which this function is called
- * @return thread id, type varying according to OS
- */
-thread_id_type Paho_thread_getid(void)
-{
-	#if defined(_WIN32)
-		return GetCurrentThreadId();
-	#else
-		return pthread_self();
-	#endif
-}
-
-#if !defined(_WIN32)
+/* Event functions */
 
 /**
  * Create a new event
@@ -256,11 +265,23 @@ thread_id_type Paho_thread_getid(void)
 evt_type Thread_create_evt(int *rc)
 {
 	evt_type evt = NULL;
+#if !defined(_WIN32)
 	pthread_condattr_t attr;
+#endif
 
 	FUNC_ENTRY;
 	*rc = -1;
-	pthread_condattr_init(&attr);
+#if defined(_WIN32)
+    evt = CreateEvent(
+        NULL,     /* default security attributes */
+        FALSE,    /* manual-reset event? */
+        FALSE,    /* initial state is nonsignaled */
+        NULL      /* object name */
+    );
+    if (rc)
+        *rc = (evt == NULL) ? GetLastError() : 0;
+#else
+    pthread_condattr_init(&attr);
 
 	evt = malloc(sizeof(evt_type_struct));
 	if (evt)
@@ -269,40 +290,50 @@ evt_type Thread_create_evt(int *rc)
 		*rc = pthread_mutex_init(&evt->mutex, NULL);
 		evt->val = 0;
 	}
-
+#endif
 	FUNC_EXIT_RC(*rc);
 	return evt;
 }
 
 /**
  * Signal an event
- * @return completion code
+ * @return completion code, 0 is success
  */
 int Thread_signal_evt(evt_type evt)
 {
 	int rc = 0;
 
-	FUNC_ENTRY;
+    FUNC_ENTRY;
+#if defined(_WIN32)
+	if (SetEvent(evt) == 0)
+		rc = GetLastError();
+#else
 	pthread_mutex_lock(&evt->mutex);
     evt->val = 1;
 	// TODO: Determine if this could be more efficient with pthread_cond_signal()
 	rc = pthread_cond_broadcast(&evt->cond);
 	pthread_mutex_unlock(&evt->mutex);
-
-	FUNC_EXIT_RC(rc);
-	return rc;
+#endif
+ 	FUNC_EXIT_RC(rc);
+ 	return rc;
 }
 
 /**
- * Wait with a timeout (ms) for condition variable
- * @return 0 for success, ETIMEDOUT otherwise
+ * Wait with a timeout (ms) for the event to become signaled.
+ * @return The completion code: 0 for success, ETIMEDOUT otherwise
  */
 int Thread_wait_evt(evt_type evt, int timeout_ms)
 {
 	int rc = 0;
-	struct timespec evt_timeout;
 
 	FUNC_ENTRY;
+#if defined(_WIN32)
+	/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
+	rc = WaitForSingleObject(evt, timeout_ms < 0 ? 0 : timeout_ms);
+	if (rc == WAIT_TIMEOUT)
+		rc = ETIMEDOUT;
+#else
+	struct timespec evt_timeout;
 	evt_timeout = Thread_time_from_now(timeout_ms);
 
 	pthread_mutex_lock(&evt->mutex);
@@ -313,93 +344,32 @@ int Thread_wait_evt(evt_type evt, int timeout_ms)
 		evt->val = 0;
 	}
 	pthread_mutex_unlock(&evt->mutex);
-
-	FUNC_EXIT_RC(rc);
-	return rc;
-}
-
-/**
- * Destroy a condition variable
- * @return completion code
- */
-int Thread_destroy_evt(evt_type evt)
-{
-	int rc = 0;
-
-	rc = pthread_mutex_destroy(&evt->mutex);
-	rc = pthread_cond_destroy(&evt->cond);
-	free(evt);
-
-	return rc;
-}
-
-#else
-
-/**
- * Create a new semaphore
- * @param rc return code: 0 for success, negative otherwise
- * @return the new condition variable
- */
-evt_type Thread_create_evt(int *rc)
-{
-	FUNC_ENTRY;
-	evt_type evt = CreateEvent(
-		NULL,     /* default security attributes */
-		FALSE,    /* manual-reset event? */
-		FALSE,    /* initial state is nonsignaled */
-		NULL      /* object name */
-	);
-	if (rc)
-		*rc = (evt == NULL) ? GetLastError() : 0;
-	FUNC_EXIT_RC(*rc);
-	return evt;
-}
-
-/**
- * Wait for an event to be signaled, or timeout.
- * @param evt the event
- * @param timeout the maximum time to wait, in milliseconds
- * @return completion code
- */
-int Thread_wait_evt(evt_type evt, int timeout)
-{
-	FUNC_ENTRY;
-	/* returns 0 (WAIT_OBJECT_0) on success, non-zero (WAIT_TIMEOUT) if timeout occurred */
-	int rc = WaitForSingleObject(evt, timeout < 0 ? 0 : timeout);
-	if (rc == WAIT_TIMEOUT)
-		rc = ETIMEDOUT;
- 	FUNC_EXIT_RC(rc);
- 	return rc;
-}
-
-/**
- * Post an event
- * @param evt the event
- * @return 0 on success
- */
-int Thread_signal_evt(evt_type evt)
-{
-	FUNC_ENTRY;
-	int rc = 0;
-	if (SetEvent(evt) == 0)
-		rc = GetLastError();
- 	FUNC_EXIT_RC(rc);
- 	return rc;
-}
-
-/**
- * Destroy a semaphore which has already been created
- * @param sem the semaphore
- */
-int Thread_destroy_evt(evt_type evt)
-{
-	FUNC_ENTRY;
-	int rc = CloseHandle(evt);
-	FUNC_EXIT_RC(rc);
-	return rc;
-}
-
 #endif
+	FUNC_EXIT_RC(rc);
+	return rc;
+}
+
+/**
+ * Destroy an event object
+ * @return completion code, 0 for success
+ */
+int Thread_destroy_evt(evt_type evt)
+{
+	int rc = 0;
+
+    FUNC_ENTRY;
+#if defined(_WIN32)
+	rc = CloseHandle(evt);
+#else
+	rc = pthread_mutex_destroy(&evt->mutex);
+	int rcc = pthread_cond_destroy(&evt->cond);
+    if (rcc != 0)
+        rc = rcc;
+	free(evt);
+#endif
+	FUNC_EXIT_RC(rc);
+	return rc;
+}
 
 
 #if defined(THREAD_UNIT_TESTS)
