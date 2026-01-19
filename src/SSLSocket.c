@@ -552,6 +552,24 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 	{
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 		net->ctx = SSL_CTX_new(TLS_client_method());
+
+        /*Sets the minimum TLS version supported by the SSL/TLS context.*/
+        int sslVersion = MQTT_SSL_VERSION_DEFAULT;
+        if (opts->struct_version >= 1) sslVersion = opts->sslVersion;
+        switch (sslVersion)
+        {
+            case MQTT_SSL_VERSION_DEFAULT || MQTT_SSL_VERSION_TLS_1_0:
+                SSL_CTX_set_min_proto_version(net->ctx, TLS1_VERSION);
+                break;
+            case MQTT_SSL_VERSION_TLS_1_1:
+                SSL_CTX_set_min_proto_version(net->ctx, TLS1_1_VERSION);
+                break;
+            case MQTT_SSL_VERSION_TLS_1_2:
+                SSL_CTX_set_min_proto_version(net->ctx, TLS1_2_VERSION);
+                break;
+            default:
+                break;
+        }
 #else
 		int sslVersion = MQTT_SSL_VERSION_DEFAULT;
 		if (opts->struct_version >= 1) sslVersion = opts->sslVersion;
