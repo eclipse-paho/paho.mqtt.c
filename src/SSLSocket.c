@@ -86,6 +86,32 @@ static int tls_ex_index_ssl_opts;
 #endif
 
 /**
+ * Gets the hostname to use for SNI and host verification.
+ * This will use the `serverName` in the SSL options if one is provided,
+ * otherise will extract the host name from the URI and use that.
+ * @param serverURI The server URI
+ * @param opts The SSL options
+ * @param hostname_len Gets the string length of the returned host name.
+ * @return The host name to use for SNI and verification.
+ */
+const char* SSLSocket_getHostName(const char* serverURI, MQTTClient_SSLOptions* opts, size_t* hostname_len)
+{
+	const char *hostname = NULL;
+	int port;
+
+	/* If servername is set in the SSL options, use that for the hostname */
+	if (opts->struct_version >= 6 && opts->serverName != NULL) {
+		hostname = opts->serverName;
+		*hostname_len = strnlen(hostname, MAXHOSTNAMELEN);
+	}
+	else {
+		hostname = serverURI;
+		*hostname_len = MQTTProtocol_addressPort(serverURI, &port, NULL, 0);
+	}
+	return hostname;
+}
+
+/**
  * Gets the specific error corresponding to SOCKET_ERROR
  * @param aString the function that was being used when the error occurred
  * @param sock the socket on which the error occurred
@@ -744,6 +770,7 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 		if (hostname_plus_null)
 		{
 			MQTTStrncpy(hostname_plus_null, hostname, hostname_len + 1u);
+			Log(TRACE_PROTOCOL, -1, "SNI server/host name is %s", hostname_plus_null);
 			if ((rc = SSL_set_tlsext_host_name(net->ssl, hostname_plus_null)) != 1) {
 				if (opts->struct_version >= 3)
 					SSLSocket_error("SSL_set_tlsext_host_name", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
@@ -763,7 +790,8 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 /*
  * Return value: 1 - success, TCPSOCKET_INTERRUPTED - try again, anything else is failure
  */
-int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, int (*cb)(const char *str, size_t len, void *u), void* u)
+int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, size_t hostname_len,
+					  int verify, int (*cb)(const char *str, size_t len, void *u), void* u)
 {
 	int rc = 0;
 
@@ -784,12 +812,10 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 	else if (verify)
 	{
 		char* peername = NULL;
-		int port;
-		size_t hostname_len;
 
 		X509* cert = SSL_get_peer_certificate(ssl);
-		hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, MQTT_DEFAULT_PORT);
 
+		Log(TRACE_PROTOCOL, -1, "X509_check_host for hostname %s", hostname);
 		rc = X509_check_host(cert, hostname, hostname_len, 0, &peername);
 		if (rc == 1)
 			Log(TRACE_PROTOCOL, -1, "peername from X509_check_host is %s", peername);

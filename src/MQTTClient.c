@@ -1008,10 +1008,14 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 #if defined(OPENSSL)
 			else if (m->c->connect_state == SSL_IN_PROGRESS)
 			{
+				const char* hostname;
+				size_t hostname_len;
+
+				hostname = SSLSocket_getHostName(m->serverURI, m->c->sslopts, &hostname_len);
 				rc = m->c->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, m->serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, m->c->sslopts->ssl_error_cb, m->c->sslopts->ssl_error_context) :
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, m->serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, NULL, NULL);
 				if (rc == 1 || rc == SSL_FATAL)
 				{
@@ -1295,7 +1299,7 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 #if defined(OPENSSL)
 		if (m->ssl)
 		{
-			int port1;
+			const char* hostname;
 			size_t hostname_len;
 			const char *topic;
 			int setSocketForSSLrc = 0;
@@ -1306,9 +1310,10 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 					goto exit;
 			}
 
-			hostname_len = MQTTProtocol_addressPort(serverURI, &port1, &topic, MQTT_DEFAULT_PORT);
+			hostname = SSLSocket_getHostName(serverURI, m->c->sslopts, &hostname_len);
+
 			setSocketForSSLrc = SSLSocket_setSocketForSSL(&m->c->net, m->c->sslopts,
-				serverURI, hostname_len);
+				hostname, hostname_len);
 
 			if (setSocketForSSLrc != MQTTCLIENT_SUCCESS)
 			{
@@ -1316,9 +1321,9 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 					if ((rc = SSL_set_session(m->c->net.ssl, m->c->session)) != 1)
 						Log(TRACE_MIN, -1, "Failed to set SSL session with stored data, non critical");
 				rc = m->c->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, m->c->sslopts->ssl_error_cb, m->c->sslopts->ssl_error_context) :
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 					m->c->connect_state = SSL_IN_PROGRESS;  /* the connect is still in progress */
@@ -1643,6 +1648,11 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 			if (m->c->sslopts->CApath)
 				free((void*)m->c->sslopts->CApath);
 		}
+		if (m->c->sslopts->struct_version >= 6)
+		{
+			if (m->c->sslopts->serverName)
+				free((void*)m->c->sslopts->serverName);
+		}
 		free(m->c->sslopts);
 		m->c->sslopts = NULL;
 	}
@@ -1690,6 +1700,11 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 		{
 		    m->c->sslopts->protos = options->ssl->protos;
 		    m->c->sslopts->protos_len = options->ssl->protos_len;
+		}
+		if (m->c->sslopts->struct_version >= 6)
+		{
+			if (options->ssl->serverName)
+				m->c->sslopts->serverName = MQTTStrdup(options->ssl->serverName);
 		}
 	}
 #endif
@@ -1843,7 +1858,7 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 #if defined(OPENSSL)
 	if (options->struct_version != 0 && options->ssl) /* check validity of SSL options structure */
 	{
-		if (strncmp(options->ssl->struct_id, "MQTS", 4) != 0 || options->ssl->struct_version < 0 || options->ssl->struct_version > 5)
+		if (strncmp(options->ssl->struct_id, "MQTS", 4) != 0 || options->ssl->struct_version < 0 || options->ssl->struct_version > 6)
 		{
 			rc.reasonCode = MQTTCLIENT_BAD_STRUCTURE;
 			goto exit;
@@ -2767,11 +2782,15 @@ static MQTTPacket* MQTTClient_waitfor(MQTTClient handle, int packet_type, int* r
 #if defined(OPENSSL)
 				else if (m->c->connect_state == SSL_IN_PROGRESS)
 				{
+					const char* hostname;
+					size_t hostname_len;
+
+					hostname = SSLSocket_getHostName(m->currentServerURI, m->c->sslopts, &hostname_len);
 
 					*rc = m->c->sslopts->struct_version >= 3 ?
-						SSLSocket_connect(m->c->net.ssl, sock, m->currentServerURI,
+						SSLSocket_connect(m->c->net.ssl, sock, hostname, hostname_len,
 							m->c->sslopts->verify, m->c->sslopts->ssl_error_cb, m->c->sslopts->ssl_error_context) :
-						SSLSocket_connect(m->c->net.ssl, sock, m->currentServerURI,
+						SSLSocket_connect(m->c->net.ssl, sock, hostname, hostname_len,
 							m->c->sslopts->verify, NULL, NULL);
 					if (*rc == SSL_FATAL)
 						break;
