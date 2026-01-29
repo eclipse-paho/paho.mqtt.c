@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025, 2026 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2026 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
