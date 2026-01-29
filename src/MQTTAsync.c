@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -129,7 +129,7 @@ void MQTTAsync_init_rand(void)
 mutex_type mqttasync_mutex = NULL;
 mutex_type socket_mutex = NULL;
 mutex_type mqttcommand_mutex = NULL;
-sem_type send_sem = NULL;
+evt_type send_evt = NULL;
 #if !defined(NO_HEAP_TRACKING)
 extern mutex_type stack_mutex;
 extern mutex_type heap_mutex;
@@ -142,52 +142,47 @@ int MQTTAsync_init(void)
 
 	if (mqttasync_mutex == NULL)
 	{
-		if ((mqttasync_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        mqttasync_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("mqttasync_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((mqttcommand_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        mqttcommand_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("mqttcommand_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((send_sem = CreateEvent(
-				NULL,               /* default security attributes */
-				FALSE,              /* manual-reset event? */
-				FALSE,              /* initial state is nonsignaled */
-				NULL                /* object name */
-				)) == NULL)
+        send_evt = Thread_create_evt(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
-			printf("send_sem error %d\n", rc);
+			printf("send_evt error %d\n", rc);
 			goto exit;
 		}
 #if !defined(NO_HEAP_TRACKING)
-		if ((stack_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        stack_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("stack_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((heap_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        heap_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("heap_mutex error %d\n", rc);
 			goto exit;
 		}
 #endif
-		if ((log_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        log_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("log_mutex error %d\n", rc);
 			goto exit;
 		}
-		if ((socket_mutex = CreateMutex(NULL, 0, NULL)) == NULL)
+        socket_mutex = Paho_thread_create_mutex(&rc);
+		if (rc != 0)
 		{
-			rc = GetLastError();
 			printf("socket_mutex error %d\n", rc);
 			goto exit;
 		}
@@ -202,20 +197,20 @@ exit:
 
 void MQTTAsync_cleanup(void)
 {
-	if (send_sem)
-		CloseHandle(send_sem);
+	if (send_evt)
+		Thread_destroy_evt(send_evt);
 #if !defined(NO_HEAP_TRACKING)
 	if (stack_mutex)
-		CloseHandle(stack_mutex);
+		Paho_thread_destroy_mutex(stack_mutex);
 	if (heap_mutex)
-		CloseHandle(heap_mutex);
+		Paho_thread_destroy_mutex(heap_mutex);
 #endif
 	if (log_mutex)
-		CloseHandle(log_mutex);
+		Paho_thread_destroy_mutex(log_mutex);
 	if (socket_mutex)
-		CloseHandle(socket_mutex);
+		Paho_thread_destroy_mutex(socket_mutex);
 	if (mqttasync_mutex)
-		CloseHandle(mqttasync_mutex);
+		Paho_thread_destroy_mutex(mqttasync_mutex);
 }
 
 #if defined(PAHO_MQTT_STATIC)
@@ -264,8 +259,8 @@ mutex_type socket_mutex = &socket_mutex_store;
 static pthread_mutex_t mqttcommand_mutex_store = PTHREAD_MUTEX_INITIALIZER;
 mutex_type mqttcommand_mutex = &mqttcommand_mutex_store;
 
-static cond_type_struct send_cond_store = { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
-cond_type send_cond = &send_cond_store;
+static evt_type_struct send_evt_store = { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, 0 };
+evt_type send_evt = &send_evt_store;
 
 int MQTTAsync_init(void)
 {
@@ -284,10 +279,10 @@ int MQTTAsync_init(void)
 		printf("MQTTAsync: error %d initializing command_mutex\n", rc);
 	else if ((rc = pthread_mutex_init(socket_mutex, &attr)) != 0)
 		printf("MQTTClient: error %d initializing socket_mutex\n", rc);
-	else if ((rc = pthread_cond_init(&send_cond->cond, NULL)) != 0)
-		printf("MQTTAsync: error %d initializing send_cond cond\n", rc);
-	else if ((rc = pthread_mutex_init(&send_cond->mutex, &attr)) != 0)
-		printf("MQTTAsync: error %d initializing send_cond mutex\n", rc);
+	else if ((rc = pthread_cond_init(&send_evt->cond, NULL)) != 0)
+		printf("MQTTAsync: error %d initializing send_evt cond\n", rc);
+	else if ((rc = pthread_mutex_init(&send_evt->mutex, &attr)) != 0)
+		printf("MQTTAsync: error %d initializing send_evt mutex\n", rc);
 
 	return rc;
 }

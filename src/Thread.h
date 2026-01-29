@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2023 IBM Corp.
+ * Copyright (c) 2009, 2026 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -15,6 +15,7 @@
  *    Ian Craggs, Allan Stockdill-Mander - async client updates
  *    Ian Craggs - fix for bug #420851
  *    Ian Craggs - change MacOS semaphore implementation
+ *    Frank Pagliughi - Consolidated semaphores and conditions into "events"
  *******************************************************************************/
 
 #if !defined(THREAD_H)
@@ -33,56 +34,44 @@
 
 #include "MQTTClient.h"
 
-#include "mutex_type.h" /* Needed for mutex_type */
-
 #if defined(_WIN32)
 	#include <windows.h>
+
+	#define mutex_type HANDLE
 	#define thread_type HANDLE
 	#define thread_id_type DWORD
 	#define thread_return_type DWORD
 	#define thread_fn LPTHREAD_START_ROUTINE
-	#define cond_type HANDLE
-	#define sem_type HANDLE
+	#define evt_type HANDLE
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
 	#include <pthread.h>
 
+	#define mutex_type pthread_mutex_t*
 	#define thread_type pthread_t
 	#define thread_id_type pthread_t
 	#define thread_return_type void*
 	typedef thread_return_type (*thread_fn)(void*);
-	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; } cond_type_struct;
-	typedef cond_type_struct *cond_type;
-	#if defined(OSX)
-	  #include <dispatch/dispatch.h>
-	  typedef dispatch_semaphore_t sem_type;
-	#else
-	  #include <semaphore.h>
-	  typedef sem_t *sem_type;
-	#endif
-
-	cond_type Thread_create_cond(int*);
-	int Thread_signal_cond(cond_type);
-	int Thread_wait_cond(cond_type condvar, int timeout);
-	int Thread_destroy_cond(cond_type);
+	typedef struct { pthread_cond_t cond; pthread_mutex_t mutex; int val; } evt_type_struct;
+	typedef evt_type_struct *evt_type;
 #endif
 
+/* Thread functions */
 LIBMQTT_API void Paho_thread_start(thread_fn, void*);
 int Thread_set_name(const char* thread_name);
+LIBMQTT_API thread_id_type Paho_thread_getid();
 
+/* Mutex functions */
 LIBMQTT_API mutex_type Paho_thread_create_mutex(int*);
 LIBMQTT_API int Paho_thread_lock_mutex(mutex_type);
 LIBMQTT_API int Paho_thread_unlock_mutex(mutex_type);
 int Paho_thread_destroy_mutex(mutex_type);
 
-LIBMQTT_API thread_id_type Paho_thread_getid();
-
-sem_type Thread_create_sem(int*);
-int Thread_wait_sem(sem_type sem, int timeout);
-int Thread_check_sem(sem_type sem);
-int Thread_post_sem(sem_type sem);
-int Thread_destroy_sem(sem_type sem);
-
+/* Event Functions */
+evt_type Thread_create_evt(int*);
+int Thread_signal_evt(evt_type);
+int Thread_wait_evt(evt_type condvar, int timeout);
+int Thread_destroy_evt(evt_type);
 
 #endif

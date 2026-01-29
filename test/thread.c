@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp.
+ * Copyright (c) 2009, 2026 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -226,159 +226,53 @@ void myassert(char* filename, int lineno, char* description, int value, char* fo
     	MyLog(LOGA_DEBUG, "Assertion succeeded, file %s, line %d, description: %s", filename, lineno, description);
 }
 
-static thread_return_type WINAPI sem_secondary(void* n)
+thread_return_type evt_secondary(void* n)
 {
 	int rc = 0;
-	sem_type sem = n;
-	START_TIME_TYPE start;
-	long duration;
-
-	MyLog(LOGA_DEBUG, "Secondary semaphore pointer %p", sem);
-
-	rc = Thread_check_sem(sem);
-	assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
-
-	MyLog(LOGA_DEBUG, "Secondary thread about to wait");
-	start = start_clock();
-	rc = Thread_wait_sem(sem, 99999);
-	duration = elapsed(start);
-	assert("rc 0 from lock mutex", rc == 0, "rc was %d", rc);
-	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
-	assert("duration is 2s", duration >= 1999L && duration < 2050L, "duration was %ld", duration);
-
-	MyLog(LOGA_DEBUG, "Secondary thread ending");
-	return 0;
-}
-
-
-int test_sem(struct Options options)
-{
-	char* testname = "test_sem";
-	int rc = 0, i = 0;
-	START_TIME_TYPE start;
-	long duration;
-	sem_type sem = Thread_create_sem(&rc);
-
-	MyLog(LOGA_INFO, "Starting semaphore test");
-	fprintf(xml, "<testcase classname=\"test\" name=\"%s\"", testname);
-	global_start_time = start_clock();
-
-	MyLog(LOGA_DEBUG, "Primary semaphore pointer %p\n", sem);
-
-	/* The semaphore should be created non-signaled */
-	rc = Thread_check_sem(sem);
-	assert("rc 0 from check_sem", rc == 0, "rc was %d\n", rc);
-
-	MyLog(LOGA_DEBUG, "Post semaphore so then check should be 1\n");
-	rc = Thread_post_sem(sem);
-	assert("rc 0 from post_sem", rc == 0, "rc was %d\n", rc);
-
-	/* should be 1, and then reset to 0 */
-	rc = Thread_check_sem(sem);
-	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
-
-	/* so now it'll be 0 */
-	rc = Thread_check_sem(sem);
-	assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
-
-	/* multiple posts */
-	for (i = 0; i < 10; ++i)
-	{
-		rc = Thread_post_sem(sem);
-		assert("rc 0 from post_sem", rc == 0, "rc was %d\n", rc);
-	}
-
-	rc = Thread_check_sem(sem);
-	assert("rc 1 from check_sem", rc == 1, "rc was %d", rc);
-
-	// Binary sem, so additional checks should be zero
-	for (i = 0; i < 10; ++i)
-	{
-		rc = Thread_check_sem(sem);
-		assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
-	}
-	rc = Thread_check_sem(sem);
-	assert("rc 0 from check_sem", rc == 0, "rc was %d", rc);
-
-	MyLog(LOGA_DEBUG, "Check timeout");
-	start = start_clock();
-	rc = Thread_wait_sem(sem, 1500);
-	duration = elapsed(start);
-	#if defined(EAGAIN)
-	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT || rc == EAGAIN, "rc was %d", rc);
-	#else
-	    assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
-	#endif
-	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
-	assert("duration is 2s", duration >= 1500L, "duration was %ld", duration);
-
-	MyLog(LOGA_DEBUG, "Starting secondary thread");
-	Paho_thread_start(sem_secondary, (void*)sem);
-
-	mysleep(2);
-	MyLog(LOGA_DEBUG, "post secondary");
-	rc = Thread_post_sem(sem);
-	assert("rc 0 from post_sem", rc == 0, "rc was %d", rc);
-
-	mysleep(1);
-
-	MyLog(LOGA_DEBUG, "Main thread ending");
-
-	/*exit: */ MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
-			(failures == 0) ? "passed" : "failed", testname, tests, failures);
-	write_test_result();
-
-	return failures;
-}
-
-#if !defined(_WIN32)
-thread_return_type cond_secondary(void* n)
-{
-	int rc = 0;
-	cond_type cond = n;
+	evt_type evt = n;
 	START_TIME_TYPE start;
 	long duration;
 
 	MyLog(LOGA_DEBUG, "This will time out");
 	start = start_clock();
-	rc = Thread_wait_cond(cond, 1000);
+	rc = Thread_wait_evt(evt, 1000);
 	duration = elapsed(start);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is about 1s", duration >= 999L && duration <= 1050L, "duration was %ld", duration);
-	assert("rc non 0 from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
+	assert("rc non 0 from wait_evt", rc == ETIMEDOUT, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "This should hang around a few seconds");
 	start = start_clock();
-	rc = Thread_wait_cond(cond, 99999);
+	rc = Thread_wait_evt(evt, 99999);
 	duration = elapsed(start);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
 	assert("duration is around 1s", duration >= 990L && duration <= 1010L, "duration was %ld", duration);
-	assert("rc 9 from wait_cond", rc == 0, "rc was %d", rc);
+	assert("rc 9 from wait_evt", rc == 0, "rc was %d", rc);
 
-	MyLog(LOGA_DEBUG, "Secondary cond thread ending");
+	MyLog(LOGA_DEBUG, "Secondary evt thread ending");
 	return 0;
 }
 
 
-int test_cond(struct Options options)
+int test_evt(struct Options options)
 {
-	char* testname = "test_cond";
+	char* testname = "test_evt";
 	int rc = 0, i = 0;
 	START_TIME_TYPE start;
 	long duration;
-	cond_type cond = Thread_create_cond(&rc);
+	evt_type evt = Thread_create_evt(&rc);
 
-	MyLog(LOGA_INFO, "Starting condition variable test");
-	fprintf(xml, "<testcase classname=\"cond\" name=\"%s\"", testname);
+	MyLog(LOGA_INFO, "Starting event test");
+	fprintf(xml, "<testcase classname=\"evt\" name=\"%s\"", testname);
 	global_start_time = start_clock();
 
 	/* The semaphore should be created non-signaled */
-	rc = Thread_wait_cond(cond, 0);
-	assert("rc 0 from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
+	rc = Thread_wait_evt(evt, 0);
+	assert("rc 0 from wait_evt", rc == ETIMEDOUT, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "Check timeout");
 	start = start_clock();
-	rc = Thread_wait_cond(cond, 2000);
+	rc = Thread_wait_evt(evt, 2000);
 	duration = elapsed(start);
 	assert("rc ETIMEDOUT from lock mutex", rc == ETIMEDOUT, "rc was %d", rc);
 	MyLog(LOGA_INFO, "Lock duration was %ld", duration);
@@ -387,42 +281,44 @@ int test_cond(struct Options options)
 	/* multiple posts */
 	for (i = 0; i < 10; ++i)
 	{
-		rc = Thread_signal_cond(cond);
-		assert("rc 0 from signal cond", rc == 0, "rc was %d\n", rc);
+		rc = Thread_signal_evt(evt);
+		assert("rc 0 from signal evt", rc == 0, "rc was %d\n", rc);
 	}
 
-	/* the signals are not stored */
-	for (i = 0; i < 10; ++i)
+	rc = Thread_wait_evt(evt, 0);
+	assert("rc zero from wait_evt", rc == 0, "rc was %d", rc);
+
+	/* the signals are not accumulated */
+	for (i = 0; i < 9; ++i)
 	{
-		rc = Thread_wait_cond(cond, 0);
-		assert("rc non-zero from wait_cond", rc == ETIMEDOUT, "rc was %d", rc);
+		rc = Thread_wait_evt(evt, 0);
+		assert("rc non-zero from wait_evt", rc == ETIMEDOUT, "rc was %d", rc);
 	}
 
-	MyLog(LOGA_DEBUG, "Post secondary but it will time out");
-	rc = Thread_signal_cond(cond);
-	assert("rc 0 from signal cond", rc == 0, "rc was %d", rc);
+//	MyLog(LOGA_DEBUG, "Post secondary but it will time out");
+//	rc = Thread_signal_evt(evt);
+//	assert("rc 0 from signal evt", rc == 0, "rc was %d", rc);
 
 	MyLog(LOGA_DEBUG, "Starting secondary thread");
-	Paho_thread_start(cond_secondary, (void*)cond);
+	Paho_thread_start(evt_secondary, (void*)evt);
 
 	MyLog(LOGA_DEBUG, "wait for secondary thread to enter second wait");
 	mysleep(2);
 
 	MyLog(LOGA_DEBUG, "post secondary");
-	rc = Thread_signal_cond(cond);
-	assert("rc 0 from signal cond", rc == 0, "rc was %d", rc);
+	rc = Thread_signal_evt(evt);
+	assert("rc 0 from signal evt", rc == 0, "rc was %d", rc);
 
 	mysleep(1);
 
 	MyLog(LOGA_DEBUG, "Main thread ending");
 
-	exit: MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
-			(failures == 0) ? "passed" : "failed", testname, tests, failures);
+	MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+          (failures == 0) ? "passed" : "failed", testname, tests, failures);
 	write_test_result();
 
 	return failures;
 }
-#endif
 
 
 static thread_return_type WINAPI mutex_secondary(void* n)
@@ -458,6 +354,7 @@ int test_mutex(struct Options options)
 	MyLog(LOGA_INFO, "Starting mutex test");
 	fprintf(xml, "<testcase classname=\"test\" name=\"%s\"", testname);
 	global_start_time = start_clock();
+	assert("rc 0 from create mutex", rc == 0, "rc was %d", rc);
 
 	/* this should happen immediately, as there is no other lock held */
 	start = start_clock();
@@ -497,12 +394,10 @@ int test_mutex(struct Options options)
 int main(int argc, char** argv)
 {
 	int rc = -1;
- 	int (*tests[])(struct Options) = {NULL,
+ 	int (*tests[])(struct Options) = {
+		NULL,
  		test_mutex,
- 		test_sem,
-#if !defined(_WIN32)
-		test_cond
-#endif
+		test_evt
  	}; /* indexed starting from 1 */
 	int i;
 
@@ -532,11 +427,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-	if (rc == 0)
-		MyLog(LOGA_INFO, "verdict pass");
-	else
-		MyLog(LOGA_INFO, "verdict fail");
-
+	MyLog(LOGA_INFO, (rc == 0) ? "verdict pass" : "verdict fail");
 	fprintf(xml, "</testsuite>\n");
 	fclose(xml);
 

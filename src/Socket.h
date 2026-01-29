@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -70,7 +70,7 @@
 #define SOCKET int
 #endif
 
-#include "mutex_type.h" /* Needed for mutex_type */
+#include "Thread.h" /* Needed for mutex_type */
 
 /** socket operation completed successfully */
 #define TCPSOCKET_COMPLETE 0
