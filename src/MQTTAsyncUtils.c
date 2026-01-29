@@ -1405,7 +1405,10 @@ static int MQTTAsync_processCommand(void)
 			make sure we check for writeability as well as readability, otherwise we wait around longer than we need to
 			in Socket_getReadySocket() */
 			if (rc == EINPROGRESS)
+			{
 				Socket_addPendingWrite(command->client->c->net.socket);
+				rc = MQTTAsync_connecting(command->client);
+			}
 		}
 	}
 	else if (command->command.type == SUBSCRIBE)
@@ -2107,7 +2110,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 
 		if (sock == 0)
 			continue;
-		timeout = 1000L;
+		timeout = 10L;
 
 		/* find client corresponding to socket */
 		if (ListFindItem(MQTTAsync_handles, &sock, clientSockCompare) == NULL)
@@ -3092,8 +3095,6 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 		MQTTAsync_lock_mutex(mqttasync_mutex);
 		should_stop = MQTTAsync_tostop;
 		MQTTAsync_unlock_mutex(mqttasync_mutex);
-		if (!should_stop && *sock == 0 && (timeout > 0L))
-			MQTTAsync_sleep(100L);
 #if defined(OPENSSL)
 	}
 #endif
@@ -3107,7 +3108,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 		{
 			Log(TRACE_MINIMUM, -1, "m->c->connect_state = %d", m->c->connect_state);
 			if (m->c->connect_state == TCP_IN_PROGRESS || m->c->connect_state == SSL_IN_PROGRESS || m->c->connect_state == WEBSOCKET_IN_PROGRESS)
-				*rc = MQTTAsync_connecting(m);
+				;
 			else
 				pack = MQTTPacket_Factory(m->c->MQTTVersion, &m->c->net, rc);
 			if (m->c->connect_state == WAIT_FOR_CONNACK && *rc == SOCKET_ERROR)
