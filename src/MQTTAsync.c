@@ -1022,7 +1022,7 @@ int MQTTAsync_inCallback()
 int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, const int* qos, MQTTAsync_responseOptions* response)
 {
 	MQTTAsyncs* m = handle;
-	int i = 0;
+	int i = 0, j = 0;
 	int rc = MQTTASYNC_SUCCESS;
 	MQTTAsync_queuedCommand* sub;
 	int msgid = 0;
@@ -1096,6 +1096,10 @@ int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, con
 				if ((sub->command.details.sub.optlist = malloc(sizeof(MQTTSubscribe_options) * count)) == NULL)
 				{
 					rc = PAHO_MEMORY_ERROR;
+					if(sub)
+					{
+						free(sub);
+					}
 					goto exit;
 				}
 				if (response->subscribeOptionsCount == 0)
@@ -1123,6 +1127,21 @@ int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, con
 			if ((sub->command.details.sub.topics[i] = MQTTStrdup(topic[i])) == NULL)
 			{
 				rc = PAHO_MEMORY_ERROR;
+				for(j = 0; j < i; ++j)
+				{
+					if(sub->command.details.sub.topics[j])
+					{
+						free(sub->command.details.sub.topics[j]);
+					}
+				}
+				if(sub->command.details.sub.optlist)
+				{
+					free(sub->command.details.sub.optlist);
+				}
+				free(sub->command.details.sub.topics);
+				free(sub->command.details.sub.qoss);
+				free(sub);
+
 				goto exit;
 			}
 			sub->command.details.sub.qoss[i] = qos[i];
@@ -1130,7 +1149,25 @@ int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, con
 		rc = MQTTAsync_addCommand(sub, sizeof(sub));
 	}
 	else
+	{
 		rc = PAHO_MEMORY_ERROR;
+		if(sub->command.details.sub.optlist)
+		{
+			free(sub->command.details.sub.optlist);
+		}
+		if(sub->command.details.sub.topics)
+		{
+			free(sub->command.details.sub.topics);
+		}
+		if(sub->command.details.sub.qoss)
+		{
+			free(sub->command.details.sub.qoss);
+		}
+		if(sub)
+		{
+			free(sub);
+		}
+	}
 
 exit:
 	if (!MQTTAsync_inCallback())
