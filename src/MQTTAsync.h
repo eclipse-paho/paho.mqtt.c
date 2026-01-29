@@ -918,13 +918,13 @@ LIBMQTT_API int MQTTAsync_reconnect(MQTTAsync handle);
  * <br>
  * @em tcp:// or @em mqtt:// - Insecure TCP
  * <br>
- * @em ssl:// or @em mqtts:// - Encrypted SSL/TLS
+ * @em ssl:// or @em tls:// or @em mqtts:// - Encrypted SSL/TLS
  * <br>
  * @em ws:// - Insecure websockets
  * <br>
  * @em wss:// - Secure web sockets
  * <br>
- * The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS
+ * The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS
  * version of the library is linked with.
  * For <i>host</i>, you can specify either an IP address or a host name. For
  * instance, to connect to a server running on the local machines with the
@@ -1311,8 +1311,8 @@ typedef struct
 	/**
 	  * An array of null-terminated strings specifying the servers to
       * which the client will connect. Each string takes the form <i>protocol://host:port</i>.
-      * <i>protocol</i> must be <i>tcp</i>, <i>ssl</i>, <i>ws</i> or <i>wss</i>.
-      * The TLS enabled prefixes (ssl, wss) are only valid if a TLS version of the library
+      * <i>protocol</i> must be <i>tcp</i>, <i>ssl</i>, <i>tls</i>, <i>ws</i> or <i>wss</i>.
+      * The TLS enabled prefixes (ssl, tls, wss) are only valid if a TLS version of the library
       * is linked with.
       * For <i>host</i>, you can
       * specify either an IP address or a domain name. For instance, to connect to
