@@ -777,53 +777,72 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 		error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
 		if (error == SSL_FATAL)
 			rc = error;
-		if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
-			rc = TCPSOCKET_INTERRUPTED;
-	}
-#if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
-	else if (verify)
-	{
-		char* peername = NULL;
-		int port;
-		size_t hostname_len;
-
-		X509* cert = SSL_get_peer_certificate(ssl);
-		hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, MQTT_DEFAULT_PORT);
-
-		rc = X509_check_host(cert, hostname, hostname_len, 0, &peername);
-		if (rc == 1)
-			Log(TRACE_PROTOCOL, -1, "peername from X509_check_host is %s", peername);
 		else
-			Log(TRACE_PROTOCOL, -1, "X509_check_host for hostname %.*s failed, rc %d",
-					(int)hostname_len, hostname, rc);
-
-		if (peername != NULL)
-			OPENSSL_free(peername);
-
-		/* 0 == fail, -1 == SSL internal error, -2 == malformed input */
-		if (rc == 0 || rc == -1 || rc == -2)
 		{
-			char* ip_addr = malloc(hostname_len + 1);
-			/* cannot use = strndup(hostname, hostname_len); here because of custom Heap */
-			if (ip_addr)
+			switch (error)
 			{
-				strncpy(ip_addr, hostname, hostname_len);
-				ip_addr[hostname_len] = '\0';
+			case SSL_ERROR_WANT_READ:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_clearPendingWrite(sock);
+				break;
+			case SSL_ERROR_WANT_WRITE:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_addPendingWrite(sock);
+				break;
+			default:
+				Socket_clearPendingWrite(sock);
+				break;
+			}
+		}
+	}
+	else
+	{
+		Socket_clearPendingWrite(sock);
+#if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
+		if (verify)
+		{
+			char* peername = NULL;
+			int port;
+			size_t hostname_len;
 
-				rc = X509_check_ip_asc(cert, ip_addr, 0);
-				Log(TRACE_MIN, -1, "rc from X509_check_ip_asc is %d", rc);
+			X509* cert = SSL_get_peer_certificate(ssl);
+			hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, MQTT_DEFAULT_PORT);
 
-				free(ip_addr);
+			rc = X509_check_host(cert, hostname, hostname_len, 0, &peername);
+			if (rc == 1)
+				Log(TRACE_PROTOCOL, -1, "peername from X509_check_host is %s", peername);
+			else
+				Log(TRACE_PROTOCOL, -1, "X509_check_host for hostname %.*s failed, rc %d",
+						(int)hostname_len, hostname, rc);
+
+			if (peername != NULL)
+				OPENSSL_free(peername);
+
+			/* 0 == fail, -1 == SSL internal error, -2 == malformed input */
+			if (rc == 0 || rc == -1 || rc == -2)
+			{
+				char* ip_addr = malloc(hostname_len + 1);
+				/* cannot use = strndup(hostname, hostname_len); here because of custom Heap */
+				if (ip_addr)
+				{
+					strncpy(ip_addr, hostname, hostname_len);
+					ip_addr[hostname_len] = '\0';
+
+					rc = X509_check_ip_asc(cert, ip_addr, 0);
+					Log(TRACE_MIN, -1, "rc from X509_check_ip_asc is %d", rc);
+
+					free(ip_addr);
+				}
+
+				if (rc == 0 || rc == -1 || rc == -2)
+					rc = SSL_FATAL;
 			}
 
-			if (rc == 0 || rc == -1 || rc == -2)
-				rc = SSL_FATAL;
+			if (cert)
+				X509_free(cert);
 		}
-
-		if (cert)
-			X509_free(cert);
-	}
 #endif
+	}
 
 	FUNC_EXIT_RC(rc);
 	return rc;
