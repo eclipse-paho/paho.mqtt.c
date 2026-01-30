@@ -272,6 +272,9 @@ char* SSLSocket_get_version_string(int version)
 #if defined(TLS3_VERSION)
 		{ TLS3_VERSION, "TLS 1.2" },
 #endif
+#if defined(TLS4_VERSION)
+		{TLS4_VERSION, "TLS 1.3"},
+#endif
 	};
 
 	for (i = 0; i < ARRAY_SIZE(version_string_table); ++i)
@@ -546,12 +549,13 @@ exit:
 int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 {
 	int rc = 1;
-
+	int tlsBoundsValid = 0;
 	FUNC_ENTRY;
 	if (net->ctx == NULL)
 	{
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 		net->ctx = SSL_CTX_new(TLS_client_method());
+		tlsBoundsValid = 1;
 #else
 		int sslVersion = MQTT_SSL_VERSION_DEFAULT;
 		if (opts->struct_version >= 1) sslVersion = opts->sslVersion;
@@ -563,6 +567,7 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 		{
 		case MQTT_SSL_VERSION_DEFAULT:
 			net->ctx = SSL_CTX_new(SSLv23_client_method()); /* SSLv23 for compatibility with SSLv2, SSLv3 and TLSv1 */
+			tlsBoundsValid = 1;
 			break;
 #if defined(SSL_OP_NO_TLSv1) && !defined(OPENSSL_NO_TLS1)
 		case MQTT_SSL_VERSION_TLS_1_0:
@@ -577,6 +582,11 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 #if defined(SSL_OP_NO_TLSv1_2) && !defined(OPENSSL_NO_TLS1)
 		case MQTT_SSL_VERSION_TLS_1_2:
 			net->ctx = SSL_CTX_new(TLSv1_2_client_method());
+			break;
+#endif
+#if defined(SSL_OP_NO_TLSv1_3) && !defined(OPENSSL_NO_TLS1)
+		case MQTT_SSL_VERSION_TLS_1_3:
+			net->ctx = SSL_CTX_NEW(TLS_client_method());
 			break;
 #endif
 		default:
@@ -695,6 +705,61 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 #endif
 
 	SSL_CTX_set_mode(net->ctx, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+	tlsBoundsValid &= opts->tlsMin <= opts->tlsMax;
+	if (opts->struct_version >= 1 && tlsBoundsValid)
+	{
+		switch (opts->tlsMin)
+		{
+		case MQTT_SSL_VERSION_TLS_1_0:
+	#ifdef TLS1_VERSION
+			SSL_CTX_set_min_proto_version(net->ctx, TLS1_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_1:
+	#ifdef TLS1_1_VERSION
+			SSL_CTX_set_min_proto_version(net->ctx, TLS1_1_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_2:
+	#ifdef TLS1_2_VERSION
+			SSL_CTX_set_min_proto_version(net->ctx, TLS1_2_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_3:
+	#ifdef TLS1_3_VERSION
+			SSL_CTX_set_min_proto_version(net->ctx, TLS1_3_VERSION);
+	#endif
+			break;
+		default:
+			break;
+		}
+
+		switch (opts->tlsMax)
+		{
+		case MQTT_SSL_VERSION_TLS_1_0:
+	#ifdef TLS1_VERSION
+			SSL_CTX_set_max_proto_version(net->ctx, TLS1_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_1:
+	#ifdef TLS1_1_VERSION
+			SSL_CTX_set_max_proto_version(net->ctx, TLS1_1_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_2:
+	#ifdef TLS1_2_VERSION
+			SSL_CTX_set_max_proto_version(net->ctx, TLS1_2_VERSION);
+	#endif
+			break;
+		case MQTT_SSL_VERSION_TLS_1_3:
+	#ifdef TLS1_3_VERSION
+			SSL_CTX_set_min_proto_version(net->ctx, TLS1_3_VERSION);
+	#endif
+			break;
+		default:
+			break;
+		}
+	}
 
 	goto exit;
 free_ctx:
