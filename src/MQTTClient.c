@@ -1668,7 +1668,11 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 			m->c->sslopts->enabledCipherSuites = MQTTStrdup(options->ssl->enabledCipherSuites);
 		m->c->sslopts->enableServerCertAuth = options->ssl->enableServerCertAuth;
 		if (m->c->sslopts->struct_version >= 1)
+		{
 			m->c->sslopts->sslVersion = options->ssl->sslVersion;
+			m->c->sslopts->tlsMin = options->ssl->tlsMin;
+			m->c->sslopts->tlsMax = options->ssl->tlsMax;
+		}
 		if (m->c->sslopts->struct_version >= 2)
 		{
 			m->c->sslopts->verify = options->ssl->verify;
