@@ -22,8 +22,8 @@ environment:
       PAHO_BUILD_STATIC: FALSE
       PAHO_BUILD_SHARED: TRUE
       PAHO_HIGH_PERFORMANCE: TRUE
-      PYTHON_VERSION: Python37
-    
+      PYTHON_VERSION: Python313
+
 configuration: Debug
 install:
   - cmd: ver
