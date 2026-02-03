@@ -2845,6 +2845,8 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 	char* serverURI = m->serverURI;
 #if defined(OPENSSL)
 	int default_port = MQTT_DEFAULT_PORT;
+	const char* hostname = NULL;  // Host name for SNI & verification
+	size_t hostname_len = 0;
 #endif
 
 	FUNC_ENTRY;
@@ -2917,7 +2919,6 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 		if (m->ssl)
 		{
 			int port;
-			size_t hostname_len;
 			int setSocketForSSLrc = 0;
 
 			if (m->c->net.https_proxy) {
@@ -2926,9 +2927,9 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 					goto exit;
 			}
 
-			hostname_len = MQTTProtocol_addressPort(serverURI, &port, NULL, default_port);
+			hostname = SSLSocket_getHostName(serverURI, m->c->sslopts, &hostname_len);
 			setSocketForSSLrc = SSLSocket_setSocketForSSL(&m->c->net, m->c->sslopts,
-					serverURI, hostname_len);
+					hostname, hostname_len);
 
 			if (setSocketForSSLrc != MQTTASYNC_SUCCESS)
 			{
@@ -2936,9 +2937,9 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 					if ((rc = SSL_set_session(m->c->net.ssl, m->c->session)) != 1)
 						Log(TRACE_MIN, -1, "Failed to set SSL session with stored data, non critical");
 				rc = m->c->sslopts->struct_version >= 3 ?
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, m->c->sslopts->ssl_error_cb, m->c->sslopts->ssl_error_context) :
-					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+					SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 						m->c->sslopts->verify, NULL, NULL);
 				if (rc == TCPSOCKET_INTERRUPTED)
 				{
@@ -3008,10 +3009,12 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 #if defined(OPENSSL)
 	else if (m->c->connect_state == SSL_IN_PROGRESS) /* SSL connect sent - wait for completion */
 	{
+		hostname = SSLSocket_getHostName(serverURI, m->c->sslopts, &hostname_len);
+
 		rc = m->c->sslopts->struct_version >= 3 ?
-			SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+			SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 				m->c->sslopts->verify, m->c->sslopts->ssl_error_cb, m->c->sslopts->ssl_error_context) :
-			SSLSocket_connect(m->c->net.ssl, m->c->net.socket, serverURI,
+			SSLSocket_connect(m->c->net.ssl, m->c->net.socket, hostname, hostname_len,
 				m->c->sslopts->verify, NULL, NULL);
 		if (rc != 1)
 			goto exit;
