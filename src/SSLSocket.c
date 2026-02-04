@@ -753,7 +753,7 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 			break;
 		case MQTT_SSL_VERSION_TLS_1_3:
 	#ifdef TLS1_3_VERSION
-			SSL_CTX_set_min_proto_version(net->ctx, TLS1_3_VERSION);
+			SSL_CTX_set_max_proto_version(net->ctx, TLS1_3_VERSION);
 	#endif
 			break;
 		default:
