@@ -40,6 +40,24 @@ Samples are available in the Doxygen docs and also in `src/samples` for referenc
 - *MQTTClient_publish.c, MQTTClient_subscribe.c* and *MQTTClient_publish_async.c:* MQTTClient simple code examples
 - *MQTTAsync_publish.c* and *MQTTAsync_subscribe.c:* MQTTAsync simple code examples
 
+There are differences between MQTTv3 and MQTTv5 in terms of how the client needs to be created, connections established and so forth
+
+e.g.
+
+```
+MQTTAsync_createOptions create_opts = MQTTAsync_createOptions_initializer5;
+...
+MQTTAsync_createWithOptions(&client, url, opts.clientid, MQTTCLIENT_PERSISTENCE_NONE,
+			NULL, &create_opts);
+...
+MQTTAsync_connectOptions conn_opts5 = MQTTAsync_connectOptions_initializer5;
+...
+MQTTAsync_connect(client, &conn_opts)) != MQTTASYNC_SUCCESS)
+...
+```
+
+For further details see one of the samples e.g. [here](https://github.com/eclipse/paho.mqtt.c/blob/6b1e202a701ffcdaa277b5644ed291287a70a7aa/src/samples/paho_c_sub.c)
+
 Some potentially useful blog posts:
 
 - [Paho client MQTT 5.0 support and command line utilities](https://modelbasedtesting.co.uk/2018/08/08/paho-c-client-mqtt-5-0-and-command-line-utilities/)
@@ -154,6 +172,8 @@ paho-mqtt3c-static | synchronous, no encryption, static linkage
 paho-mqtt3cs-static | synchronous with SSL/TLS support, static linkage
 
 Remember, though, that not all of these targets may be available. It depends on how the library was built.
+
+Also note that although these targets include "3" in the suffix they do support MQTTv5.
 
 A sample *CMakeLists.txt* for an application that uses the asynchronous library with encryption support *(paho-mqtt3as)* might look like this:
 
