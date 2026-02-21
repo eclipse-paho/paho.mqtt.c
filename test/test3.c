@@ -49,7 +49,9 @@ char* persistenceStore = NULL;
 #define LOGA_INFO 1
 #include <stdarg.h>
 #include <time.h>
+#if !defined(__OpenBSD__)
 #include <sys/timeb.h>
+#endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
