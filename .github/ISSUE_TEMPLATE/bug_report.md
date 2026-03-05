@@ -24,7 +24,10 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-** Environment (please complete the following information):**
+**Log files**
+Please try to attach log files rather than pasting the log contents. It makes the issues easier to read.
+
+**Environment (please complete the following information):**
  - OS: [e.g. Linux]
  - Version [e.g. 22]
 
