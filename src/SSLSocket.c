@@ -28,8 +28,6 @@
  */
 
 #if defined(OPENSSL)
-#include "Heap.h"
-
 #include "SocketBuffer.h"
 #include "MQTTClient.h"
 #include "MQTTProtocolOut.h"
@@ -37,8 +35,6 @@
 #include "Log.h"
 #include "StackTrace.h"
 #include "Socket.h"
-
-#include "Heap.h"
 
 #include <string.h>
 #include <openssl/ssl.h>
@@ -48,6 +44,8 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <wincrypt.h>
 #endif
+
+#include "Heap.h" /* must always be the last header as malloc, free are redefined */
 
 extern Sockets mod_s;
 
