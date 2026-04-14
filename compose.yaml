@@ -1,0 +1,12 @@
+services:
+  mosquitto:
+    image: docker.io/eclipse-mosquitto:1.6
+    ports:
+      - "1883:1883"
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    ports:
+      - "8474:8474"
+      - "1885:1885"
+      - "1886:1886"

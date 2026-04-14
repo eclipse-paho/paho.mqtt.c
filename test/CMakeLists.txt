@@ -20,6 +20,33 @@ elseif(UNIX)
 	endif()
 endif()
 
+# Add test_serveruris_reset for both static and shared builds
+if(PAHO_BUILD_STATIC)
+	add_executable(test_serveruris_reset-static test_serveruris_reset.c)
+	target_link_libraries(test_serveruris_reset-static paho-mqtt3a-static)
+	add_test(
+		NAME test_serveruris_reset-static
+		COMMAND test_serveruris_reset-static
+	)
+	set_tests_properties(
+		test_serveruris_reset-static
+		PROPERTIES TIMEOUT 540
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_serveruris_reset test_serveruris_reset.c)
+	target_link_libraries(test_serveruris_reset paho-mqtt3a)
+	add_test(
+		NAME test_serveruris_reset
+		COMMAND test_serveruris_reset
+	)
+	set_tests_properties(
+		test_serveruris_reset
+		PROPERTIES TIMEOUT 540
+	)
+endif()
+
 add_executable(
 	thread
 	thread.c ../src/Thread.c
