@@ -1684,6 +1684,8 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 
 	if (!more_to_try)
 	{
+		// resetting index so that if further connection attempts are made, they will start with the first URI in the list
+		m->connect.details.conn.currentURI = 0;
 		MQTTAsync_closeSession(m->c, MQTTREASONCODE_SUCCESS, NULL);
 		if (m->connect.onFailure)
 		{

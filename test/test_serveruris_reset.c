@@ -14,12 +14,8 @@
  * Dependencies: paho-mqtt-c (async), mosquitto broker, toxiproxy 2.x
  *
  * Setup (docker/podman):
- *   docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto:1.6
- *   docker run -d --name toxiproxy -p 8474:8474 -p 1885:1885 -p 1886:1886 \
- *     ghcr.io/shopify/toxiproxy:2.9.0
- *   curl -s -X POST http://localhost:8474/populate -H 'Content-Type: application/json' \
- *     -d '[{"name":"mqtt1","listen":"0.0.0.0:1885","upstream":"mosquitto:1883","enabled":true},
- *          {"name":"mqtt2","listen":"0.0.0.0:1886","upstream":"mosquitto:1883","enabled":true}]'
+ *   docker compose up -d   # from the repo root, uses compose.yaml
+ * Proxy setup is performed automatically by the test suite.
  */
 
 
@@ -142,6 +138,17 @@ static void toxi(const char *method, const char *path, const char *body) {
     }
 }
 
+static void setup_toxiproxy(void) {
+    const char *body =
+        "[{\"name\":\"mqtt1\",\"listen\":\"0.0.0.0:1885\",\"upstream\":\"mosquitto:1883\",\"enabled\":true},"
+        " {\"name\":\"mqtt2\",\"listen\":\"0.0.0.0:1886\",\"upstream\":\"mosquitto:1883\",\"enabled\":true}]";
+    if (toxiproxy_http("POST", "/populate", body) != 0) {
+        fprintf(stderr, "toxiproxy setup failed — is toxiproxy running on :8474?\n");
+        exit(1);
+    }
+    MyLog(LOGA_INFO, "toxiproxy proxies mqtt1 (1885) and mqtt2 (1886) configured");
+}
+
 /* ---- callbacks ---- */
 
 typedef struct {
@@ -210,38 +217,18 @@ static int test_serveruris_reset(void) {
         WAIT_TRUE(conn.connected || conn.connect_failed, 3000);
         assert("reconnected via 1886", MQTTAsync_isConnected(client), "\n");
 
-        /* take 1886 down, bring 1885 up */
+        /* take 1886 down */
         toxi("POST", "/proxies/mqtt2", "{\"enabled\":false}");
-        toxi("POST", "/proxies/mqtt1",  "{\"enabled\":true}");
         WAIT_TRUE(!MQTTAsync_isConnected(client), 3000);
         assert("disconnected after 1886 went down", !MQTTAsync_isConnected(client), "\n");
 
-         /* reconnect — expected to restart cycle from 1885, but URI index is not reset:
-             paho tries 1886 again (stuck at last index), fails, stays disconnected */
-         conn.connected = false; conn.connect_failed = false;
-         MQTTAsync_reconnect(client);
-         WAIT_TRUE(conn.connected || conn.connect_failed, 3000);
-         assert("BUG: reconnect did not restart cycle from 1885 — stayed stuck on 1886", !MQTTAsync_isConnected(client), "\n");
-
-        /* bring 1886 back, reconnect — succeeds on 1886 */
-        toxi("POST", "/proxies/mqtt2", "{\"enabled\":true}");
+        /* reconnect — restart cycle from 1885 */
+        conn.connected = false; conn.connect_failed = false;
+        toxi("POST", "/proxies/mqtt1",  "{\"enabled\":true}");
         conn.connected = false; conn.connect_failed = false;
         MQTTAsync_reconnect(client);
         WAIT_TRUE(conn.connected || conn.connect_failed, 3000);
-        assert("reconnected via 1886 after it came back", MQTTAsync_isConnected(client), "\n");
-
-        /* disconnect + connect (not reconnect) — resets URI index to 0, connects to 1885 */
-        int disc = 0;
-        MQTTAsync_disconnectOptions dco = MQTTAsync_disconnectOptions_initializer;
-        dco.onSuccess = on_disconnect; dco.context = &disc;
-        MQTTAsync_disconnect(client, &dco);
-        WAIT_TRUE(disc, 3000);
-
-        toxi("POST", "/proxies/mqtt2", "{\"enabled\":false}"); /* only 1885 available */
-        conn.connected = false; conn.connect_failed = false;
-        MQTTAsync_connect(client, &co);
-        WAIT_TRUE(conn.connected || conn.connect_failed, 3000);
-        assert("WORKAROUND: disconnect+connect resets URI cycle, reconnects to 1885", MQTTAsync_isConnected(client), "\n");
+        assert("reconnect, restart cycle from 1885", MQTTAsync_isConnected(client), "\n");
 
         MQTTAsync_destroy(&client);
         MyLog(LOGA_INFO, "TEST: test_serveruris_reset %s. %d assertions run, %d failures.", (failures == 0) ? "passed" : "failed", tests, failures);
@@ -274,6 +261,8 @@ int main(int argc, char** argv) {
     setenv("MQTT_C_CLIENT_TRACE_LEVEL", "ERROR", 1);
 
     getopts(argc, argv);
+
+    setup_toxiproxy();
 
     rc = test_serveruris_reset();
 
