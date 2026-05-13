@@ -28,17 +28,6 @@
 #include "LinkedList.h"
 #include "Clients.h"
 
-
-#ifdef __cplusplus
-    #include <stdbool.h>
-#else
-    #ifndef __bool_true_false_are_defined
-        #ifndef bool
-            typedef unsigned int bool;
-        #endif
-    #endif
-#endif
-
 typedef unsigned int bit;
 typedef void* (*pf)(int, unsigned char, char*, size_t);
 
