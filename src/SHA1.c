@@ -17,7 +17,7 @@
 #include "SHA1.h"
 
 // In the source files using endian functions (like SHA1.c):
-#ifdef QNX_OS
+#ifdef __QNXNTO__
 #include <gulliver.h>
 #define be32toh(x) ENDIAN_BE32(x)
 #define htobe32(x) ENDIAN_BE32(x)
