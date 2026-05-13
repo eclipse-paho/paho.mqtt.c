@@ -40,7 +40,6 @@
 #endif
 
 typedef unsigned int bit;
-
 typedef void* (*pf)(int, unsigned char, char*, size_t);
 
 #include "MQTTProperties.h"
@@ -70,13 +69,7 @@ enum msgTypes
 #endif
 
 /**
- * 
- 
- 
- 
- 
- 
- fields for the MQTT header byte.
+ * Bitfields for the MQTT header byte.
  */
 typedef union
 {
