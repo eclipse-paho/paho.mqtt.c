@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -29,11 +29,11 @@
  * @cond MQTTAsync_main
  * @mainpage Asynchronous MQTT client library for C (MQTTAsync)
  *
- * &copy; Copyright 2009, 2025 IBM Corp., Ian Craggs and others.
+ * &copy; Copyright 2009, 2026 IBM Corp., Ian Craggs and others.
  *
  * @brief An Asynchronous MQTT client library for C.
  *
- * Version 1.3.15
+ * Version 1.3.16
  *
  * An MQTT client application connects to MQTT-capable servers.
  * A typical client is responsible for collecting information from a telemetry
@@ -918,13 +918,13 @@ LIBMQTT_API int MQTTAsync_reconnect(MQTTAsync handle);
  * <br>
  * @em tcp:// or @em mqtt:// - Insecure TCP
  * <br>
- * @em ssl:// or @em mqtts:// - Encrypted SSL/TLS
+ * @em ssl:// or @em tls:// or @em mqtts:// - Encrypted SSL/TLS
  * <br>
  * @em ws:// - Insecure websockets
  * <br>
  * @em wss:// - Secure web sockets
  * <br>
- * The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS
+ * The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS
  * version of the library is linked with.
  * For <i>host</i>, you can specify either an IP address or a host name. For
  * instance, to connect to a server running on the local machines with the
@@ -1311,8 +1311,8 @@ typedef struct
 	/**
 	  * An array of null-terminated strings specifying the servers to
       * which the client will connect. Each string takes the form <i>protocol://host:port</i>.
-      * <i>protocol</i> must be <i>tcp</i>, <i>ssl</i>, <i>ws</i> or <i>wss</i>.
-      * The TLS enabled prefixes (ssl, wss) are only valid if a TLS version of the library
+      * <i>protocol</i> must be <i>tcp</i>, <i>ssl</i>, <i>tls</i>, <i>ws</i> or <i>wss</i>.
+      * The TLS enabled prefixes (ssl, tls, wss) are only valid if a TLS version of the library
       * is linked with.
       * For <i>host</i>, you can
       * specify either an IP address or a domain name. For instance, to connect to

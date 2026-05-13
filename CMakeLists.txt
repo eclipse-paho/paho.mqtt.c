@@ -1,5 +1,5 @@
 #*******************************************************************************
-#  Copyright (c) 2015, 2025 logi.cals GmbH, Frank Pagliughi <fpagliughi@mindspring.com> and others
+#  Copyright (c) 2015, 2026 logi.cals GmbH, Frank Pagliughi <fpagliughi@mindspring.com> and others
 #
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the Eclipse Public License v2.0
@@ -15,10 +15,10 @@
 #     Genis Riera Perez - Add support for building debian package
 #*******************************************************************************/
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 
 project("Eclipse Paho C" 
-  VERSION 1.3.15
+  VERSION 1.3.16
   LANGUAGES C
 )
 
@@ -64,6 +64,7 @@ option(PAHO_ENABLE_TESTING "Build tests and run" TRUE)
 option(PAHO_ENABLE_CPACK "Enable CPack" TRUE)
 option(PAHO_HIGH_PERFORMANCE "Disable tracing and heap tracking" FALSE)
 option(PAHO_USE_SELECT "Revert to select system call instead of poll" FALSE)
+option(PAHO_NO_TCP_NODELAY "Don't disable Nagle's algorithm on TCP sockets" FALSE)
 
 if(NOT WIN32)
     option(PAHO_WITH_UNIX_SOCKETS "Flag that defines whether to enable Unix-domain sockets" FALSE)
@@ -83,6 +84,10 @@ endif()
 
 if(PAHO_WITH_LIBUUID)
   add_definitions(-DUSE_LIBUUID=1)
+endif()
+
+if(PAHO_NO_TCP_NODELAY)
+  add_definitions(-DNO_TCP_NODELAY=1)
 endif()
 
 if(NOT PAHO_BUILD_SHARED AND NOT PAHO_BUILD_STATIC)

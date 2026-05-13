@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2026 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -334,11 +334,7 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 
 	/* Format and print publish data to trace */
 	{
-#if defined(_WIN32)
 		#define buflen 30
-#else
-		const int buflen = 30;
-#endif
 		char buf[buflen];
 		int len = 0;
 
@@ -463,7 +459,10 @@ int MQTTProtocol_handlePubacks(void* pack, SOCKET sock, Publications** pubToRemo
 	{
 		Messages* m = (Messages*)(client->outboundMsgs->current->content);
 		if (m->qos != 1)
-			Log(TRACE_MIN, 4, NULL, "PUBACK", client->clientID, puback->msgId, m->qos);
+		{
+			Log(LOG_ERROR, 4, NULL, "PUBACK", client->clientID, puback->msgId, m->qos);
+			rc = SOCKET_ERROR;
+		}
 		else
 		{
 			Log(TRACE_MIN, 6, NULL, "PUBACK", client->clientID, puback->msgId);

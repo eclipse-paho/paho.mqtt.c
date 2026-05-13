@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2023 IBM Corp.
+ * Copyright (c) 2009, 2026 IBM Corp.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -655,14 +655,10 @@ void MQTTPersistence_wrapMsgID(Clients *client)
 
 
 #if !defined(NO_PERSISTENCE)
+#define KEYSIZE PERSISTENCE_MAX_KEY_LENGTH + 1
 int MQTTPersistence_unpersistQueueEntry(Clients* client, MQTTPersistence_qEntry* qe)
 {
 	int rc = 0;
-#if defined(_WIN32)
-#define KEYSIZE PERSISTENCE_MAX_KEY_LENGTH + 1
-#else
-	const size_t KEYSIZE = PERSISTENCE_MAX_KEY_LENGTH + 1;
-#endif
 	char key[KEYSIZE];
 	int chars = 0;
 	
@@ -688,9 +684,6 @@ int MQTTPersistence_persistQueueEntry(Clients* aclient, MQTTPersistence_qEntry* 
 {
 	int rc = 0;
 	int bufindex = 0;
-#if !defined(_WIN32)
-	const size_t KEYSIZE = PERSISTENCE_MAX_KEY_LENGTH + 1;
-#endif
 	char key[KEYSIZE];
 	int chars = 0;
 	int lens[MAX_NO_OF_BUFFERS];

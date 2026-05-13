@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -296,11 +296,15 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 			}
 			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, address, addr_len) == 1)
 			{
-				rc = aClient->sslopts->struct_version >= 3 ?
+				int sslrc = aClient->sslopts->struct_version >= 3 ?
 					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, aClient->sslopts->ssl_error_cb, aClient->sslopts->ssl_error_context) :
 					SSLSocket_connect(aClient->net.ssl, aClient->net.socket, address,
 						aClient->sslopts->verify, NULL, NULL);
+				if (sslrc == 1) /* success */
+					rc = 0;
+				else if (sslrc < 0)
+					rc = sslrc;
 				if (rc == TCPSOCKET_INTERRUPTED)
 					aClient->connect_state = SSL_IN_PROGRESS; /* SSL connect called - wait for completion */
 			}

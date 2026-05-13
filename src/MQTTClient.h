@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -41,11 +41,11 @@
  * @endcond
  * @cond MQTTClient_main
  * @mainpage MQTT Client library for C (MQTTClient)
- * &copy; Copyright 2009, 2025 IBM Corp., Ian Craggs and others
+ * &copy; Copyright 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * @brief An MQTT client library in C.
  *
- * Version 1.3.15
+ * Version 1.3.16
  *
  * These pages describe the original more synchronous API which might be
  * considered easier to use.  Some of the calls will block.  For the new
@@ -508,13 +508,13 @@ LIBMQTT_API int MQTTClient_setPublished(MQTTClient handle, void* context, MQTTCl
  * <br>
  * @em tcp:// or @em mqtt:// - Insecure TCP
  * <br>
- * @em ssl:// or @em mqtts:// - Encrypted SSL/TLS
+ * @em ssl:// or @em tls:// or @em mqtts:// - Encrypted SSL/TLS
  * <br>
  * @em ws:// - Insecure websockets
  * <br>
  * @em wss:// - Secure web sockets
  * <br>
- * The TLS enabled prefixes (ssl, mqtts, wss) are only valid if a TLS
+ * The TLS enabled prefixes (ssl, tls, mqtts, wss) are only valid if a TLS
  * version of the library is linked with.
  * For <i>host</i>, you can specify either an IP address or a host name. For
  * instance, to connect to a server running on the local machines with the
@@ -927,7 +927,7 @@ typedef struct
    * An optional array of null-terminated strings specifying the servers to
    * which the client will connect. Each string takes the form <i>protocol://host:port</i>.
    * <i>protocol</i> must be <i>tcp</i>, <i>ssl</i>, <i>ws</i> or <i>wss</i>.
-   * The TLS enabled prefixes (ssl, wss) are only valid if a TLS version of the library
+   * The TLS enabled prefixes (ssl, tls, wss) are only valid if a TLS version of the library
    * is linked with.
    * For <i>host</i>, you can
    * specify either an IP address or a host name. For instance, to connect to

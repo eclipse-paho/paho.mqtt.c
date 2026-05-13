@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2025 IBM Corp., Ian Craggs and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -88,7 +88,6 @@ extern int MQTTAsync_tostop;
 extern mutex_type mqttasync_mutex;
 extern mutex_type socket_mutex;
 extern mutex_type mqttcommand_mutex;
-extern sem_type send_sem;
 #if !defined(NO_HEAP_TRACKING)
 extern mutex_type stack_mutex;
 extern mutex_type heap_mutex;
@@ -98,8 +97,9 @@ extern mutex_type log_mutex;
 extern mutex_type mqttasync_mutex;
 extern mutex_type socket_mutex;
 extern mutex_type mqttcommand_mutex;
-extern cond_type send_cond;
 #endif
+
+extern evt_type send_evt;
 
 #if !defined(min)
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -936,13 +936,8 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 	}
 exit:
 	MQTTAsync_unlock_mutex(mqttcommand_mutex);
-#if !defined(_WIN32)
-	if ((rc1 = Thread_signal_cond(send_cond)) != 0)
-		Log(LOG_ERROR, 0, "Error %d from signal cond", rc1);
-#else
-	if ((rc1 = Thread_post_sem(send_sem)) != 0)
-		Log(LOG_ERROR, 0, "Error %d from signal cond", rc1);
-#endif
+	if ((rc1 = Thread_signal_evt(send_evt)) != 0)
+		Log(LOG_ERROR, 0, "Error %d from signal event", rc1);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -1032,7 +1027,7 @@ static void MQTTProtocol_checkPendingWrites(void)
 		ListElement* le = state.pending_writes.first;
 		while (le)
 		{
-			if (Socket_noPendingWrites(((pending_write*)(le->content))->socket))
+			if (MQTTAsync_Socket_noPendingWrites(((pending_write*)(le->content))->socket))
 			{
 				MQTTProtocol_removePublication(((pending_write*)(le->content))->p);
 				state.pending_writes.current = le;
@@ -1860,13 +1855,8 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 			command_count = MQTTAsync_commands->count;
 			MQTTAsync_unlock_mutex(mqttcommand_mutex);
 		}
-#if !defined(_WIN32)
-		if ((rc = Thread_wait_cond(send_cond, timeout)) != 0 && rc != ETIMEDOUT)
-			Log(LOG_ERROR, -1, "Error %d waiting for condition variable", rc);
-#else
-		if ((rc = Thread_wait_sem(send_sem, timeout)) != 0 && rc != ETIMEDOUT)
-			Log(LOG_ERROR, -1, "Error %d waiting for semaphore", rc);
-#endif
+		if ((rc = Thread_wait_evt(send_evt, timeout)) != 0 && rc != ETIMEDOUT)
+			Log(LOG_ERROR, -1, "Error %d waiting for send event", rc);
 		timeout = 1000; /* 1 second for follow on waits */
 		MQTTAsync_checkTimeouts();
 	}
@@ -1877,7 +1867,7 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
 
 #if defined(OPENSSL)
-#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER))
+#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER)) || defined(OPENSSL_IS_BORINGSSL)
 	ERR_remove_state(0);
 #else
 	OPENSSL_thread_stop();
@@ -2071,11 +2061,7 @@ static int MQTTAsync_completeConnection(MQTTAsyncs* m, Connack* connack)
 			}
 		}
 		m->pack = NULL;
-#if !defined(_WIN32)
-		Thread_signal_cond(send_cond);
-#else
-		Thread_post_sem(send_sem);
-#endif
+		Thread_signal_evt(send_evt);
 	}
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -2100,7 +2086,9 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 		MQTTPacket* pack = NULL;
 
 		MQTTAsync_unlock_mutex(mqttasync_mutex);
+		Log(TRACE_MINIMUM, -1, "MQTTAsync_cycle call timeout %lu", timeout);
 		pack = MQTTAsync_cycle(&sock, timeout, &rc);
+		Log(TRACE_MINIMUM, -1, "MQTTAsync_cycle returns pack %p, sock %d, timeout %lu, rc %d", pack, sock, timeout, rc);
 		MQTTAsync_lock_mutex(mqttasync_mutex);
 		if (MQTTAsync_tostop)
 			break;
@@ -2401,16 +2389,11 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 	receiveThread_state = STOPPED;
 	receiveThread_id = 0;
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
-#if !defined(_WIN32)
 	if (sendThread_state != STOPPED)
-		Thread_signal_cond(send_cond);
-#else
-	if (sendThread_state != STOPPED)
-		Thread_post_sem(send_sem);
-#endif
+		Thread_signal_evt(send_evt);
 
 #if defined(OPENSSL)
-#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER))
+#if ((OPENSSL_VERSION_NUMBER < 0x1010000fL) || defined(LIBRESSL_VERSION_NUMBER)) || defined(OPENSSL_IS_BORINGSSL)
 	ERR_remove_state(0);
 #else
 	OPENSSL_thread_stop();
@@ -2479,7 +2462,7 @@ static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode
 	if (client->net.socket > 0)
 	{
 		MQTTProtocol_checkPendingWrites();
-		if (client->connected && Socket_noPendingWrites(client->net.socket))
+		if (client->connected && MQTTAsync_Socket_noPendingWrites(client->net.socket))
 			MQTTPacket_send_disconnect(client, reasonCode, props);
 		MQTTAsync_lock_mutex(socket_mutex);
 		WebSocket_close(&client->net, WebSocket_CLOSE_NORMAL, NULL);
@@ -2949,7 +2932,7 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 			setSocketForSSLrc = SSLSocket_setSocketForSSL(&m->c->net, m->c->sslopts,
 					serverURI, hostname_len);
 
-			if (setSocketForSSLrc != MQTTASYNC_SUCCESS)
+			if (setSocketForSSLrc == 1)
 			{
 				if (m->c->session != NULL)
 					if ((rc = SSL_set_session(m->c->net.ssl, m->c->session)) != 1)
@@ -3084,16 +3067,21 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 	if ((*sock = SSLSocket_getPendingRead()) == -1)
 	{
 #endif
-		int should_stop = 0;
+		/*int should_stop = 0;*/
+		int interrupted = 0;
 
 		/* 0 from getReadySocket indicates no work to do, rc -1 == error */
-		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, &rc1);
+		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, &rc1, &interrupted);
 		*rc = rc1;
-		MQTTAsync_lock_mutex(mqttasync_mutex);
+		/*MQTTAsync_lock_mutex(mqttasync_mutex);
 		should_stop = MQTTAsync_tostop;
-		MQTTAsync_unlock_mutex(mqttasync_mutex);
-		if (!should_stop && *sock == 0 && (timeout > 0L))
-			MQTTAsync_sleep(100L);
+		MQTTAsync_unlock_mutex(mqttasync_mutex);*/
+		/* Frank deleted this small delay on the suggestion of Claude.
+		 I want to preserve it as a comment in case we need it in the future.
+		 The preceeding 3 lines of code are only needed if the following line
+		 is reinstated - Ian
+		 if (!should_stop && *sock == 0 && (timeout > 0L) && (interrupted == 0))
+			MQTTAsync_sleep(50L);*/
 #if defined(OPENSSL)
 	}
 #endif
@@ -3152,11 +3140,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 				{
 					*rc = MQTTProtocol_handlePubcomps(pack, *sock, &pubToRemove);
 					if (sendThread_state != STOPPED)
-#if !defined(_WIN32)
-						Thread_signal_cond(send_cond);
-#else
-						Thread_post_sem(send_sem);
-#endif
+						Thread_signal_evt(send_evt);
 				}
 				else if (msgtype == PUBREC)
 					*rc = MQTTProtocol_handlePubrecs(pack, *sock, &pubToRemove);
@@ -3164,15 +3148,11 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 				{
 					*rc = MQTTProtocol_handlePubacks(pack, *sock, &pubToRemove);
 					if (sendThread_state != STOPPED)
-#if !defined(_WIN32)
-						Thread_signal_cond(send_cond);
-#else
-						Thread_post_sem(send_sem);
-#endif
+						Thread_signal_evt(send_evt);
 				}
 				if (!m)
 					Log(LOG_ERROR, -1, "PUBCOMP, PUBACK or PUBREC received for no client, msgid %d", msgid);
-				if (m && (msgtype != PUBREC || ackrc >= MQTTREASONCODE_UNSPECIFIED_ERROR))
+				if (m && *rc == 0 && (msgtype != PUBREC || ackrc >= MQTTREASONCODE_UNSPECIFIED_ERROR))
 				{
 					ListElement* current = NULL;
 

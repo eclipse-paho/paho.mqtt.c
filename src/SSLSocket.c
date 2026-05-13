@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2023 IBM Corp., Ian Craggs
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -27,7 +27,6 @@
  */
 
 #if defined(OPENSSL)
-
 #include "SocketBuffer.h"
 #include "MQTTClient.h"
 #include "MQTTProtocolOut.h"
@@ -36,13 +35,13 @@
 #include "StackTrace.h"
 #include "Socket.h"
 
-#include "Heap.h"
-
 #include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
+
+#include "Heap.h" /* must always be the last header as malloc, free are redefined */
 
 extern Sockets mod_s;
 
@@ -724,7 +723,15 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
    		if (opts->enableServerCertAuth)
 			SSL_CTX_set_verify(net->ctx, SSL_VERIFY_PEER, NULL);
 
-		net->ssl = SSL_new(net->ctx);
+		if ((net->ssl = SSL_new(net->ctx)) == NULL)
+		{
+			if (opts->struct_version >= 3)
+				SSLSocket_error("SSL_new", net->ssl, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
+			else
+				SSLSocket_error("SSL_new", net->ssl, net->socket, rc, NULL, NULL);
+			rc = PAHO_MEMORY_ERROR;
+			goto exit;
+		}
 
 		/* Log all ciphers available to the SSL sessions (loaded in ctx) */
 		for (i = 0; ;i++)
@@ -755,7 +762,7 @@ int SSLSocket_setSocketForSSL(networkHandles* net, MQTTClient_SSLOptions* opts,
 		else
 			rc = PAHO_MEMORY_ERROR;
 	}
-
+exit:
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -777,53 +784,72 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 		error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
 		if (error == SSL_FATAL)
 			rc = error;
-		if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
-			rc = TCPSOCKET_INTERRUPTED;
-	}
-#if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
-	else if (verify)
-	{
-		char* peername = NULL;
-		int port;
-		size_t hostname_len;
-
-		X509* cert = SSL_get_peer_certificate(ssl);
-		hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, MQTT_DEFAULT_PORT);
-
-		rc = X509_check_host(cert, hostname, hostname_len, 0, &peername);
-		if (rc == 1)
-			Log(TRACE_PROTOCOL, -1, "peername from X509_check_host is %s", peername);
 		else
-			Log(TRACE_PROTOCOL, -1, "X509_check_host for hostname %.*s failed, rc %d",
-					(int)hostname_len, hostname, rc);
-
-		if (peername != NULL)
-			OPENSSL_free(peername);
-
-		/* 0 == fail, -1 == SSL internal error, -2 == malformed input */
-		if (rc == 0 || rc == -1 || rc == -2)
 		{
-			char* ip_addr = malloc(hostname_len + 1);
-			/* cannot use = strndup(hostname, hostname_len); here because of custom Heap */
-			if (ip_addr)
+			switch (error)
 			{
-				strncpy(ip_addr, hostname, hostname_len);
-				ip_addr[hostname_len] = '\0';
+			case SSL_ERROR_WANT_READ:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_clearPendingWrite(sock);
+				break;
+			case SSL_ERROR_WANT_WRITE:
+				rc = TCPSOCKET_INTERRUPTED;
+				Socket_addPendingWrite(sock);
+				break;
+			default:
+				Socket_clearPendingWrite(sock);
+				break;
+			}
+		}
+	}
+	else
+	{
+		Socket_clearPendingWrite(sock);
+#if (OPENSSL_VERSION_NUMBER >= 0x010002000) /* 1.0.2 and later */
+		if (verify)
+		{
+			char* peername = NULL;
+			int port;
+			size_t hostname_len;
 
-				rc = X509_check_ip_asc(cert, ip_addr, 0);
-				Log(TRACE_MIN, -1, "rc from X509_check_ip_asc is %d", rc);
+			X509* cert = SSL_get_peer_certificate(ssl);
+			hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, MQTT_DEFAULT_PORT);
 
-				free(ip_addr);
+			rc = X509_check_host(cert, hostname, hostname_len, 0, &peername);
+			if (rc == 1)
+				Log(TRACE_PROTOCOL, -1, "peername from X509_check_host is %s", peername);
+			else
+				Log(TRACE_PROTOCOL, -1, "X509_check_host for hostname %.*s failed, rc %d",
+						(int)hostname_len, hostname, rc);
+
+			if (peername != NULL)
+				OPENSSL_free(peername);
+
+			/* 0 == fail, -1 == SSL internal error, -2 == malformed input */
+			if (rc == 0 || rc == -1 || rc == -2)
+			{
+				char* ip_addr = malloc(hostname_len + 1);
+				/* cannot use = strndup(hostname, hostname_len); here because of custom Heap */
+				if (ip_addr)
+				{
+					strncpy(ip_addr, hostname, hostname_len);
+					ip_addr[hostname_len] = '\0';
+
+					rc = X509_check_ip_asc(cert, ip_addr, 0);
+					Log(TRACE_MIN, -1, "rc from X509_check_ip_asc is %d", rc);
+
+					free(ip_addr);
+				}
+
+				if (rc == 0 || rc == -1 || rc == -2)
+					rc = SSL_FATAL;
 			}
 
-			if (rc == 0 || rc == -1 || rc == -2)
-				rc = SSL_FATAL;
+			if (cert)
+				X509_free(cert);
 		}
-
-		if (cert)
-			X509_free(cert);
-	}
 #endif
+	}
 
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -888,7 +914,8 @@ char *SSLSocket_getdata(SSL* ssl, SOCKET socket, size_t bytes, size_t* actual_le
 		goto exit;
 	}
 
-	buf = SocketBuffer_getQueuedData(socket, bytes, actual_len);
+	if ((buf = SocketBuffer_getQueuedData(socket, bytes, actual_len)) == NULL)
+		goto exit;
 
 	if (*actual_len != bytes)
 	{
