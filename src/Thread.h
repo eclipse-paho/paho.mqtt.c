@@ -46,7 +46,7 @@
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
-    #if defined(QNX_OS)
+    #ifdef __QNXNTO__
         #include <sys/neutrino.h>
         #include <process.h>
     #endif
