@@ -62,7 +62,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #ifdef __QNXNTO__
+#ifndef AI_ADDRCONFIG
 #define AI_ADDRCONFIG 0
+#endif
 #endif
 #include <stdio.h>
 #include <unistd.h>

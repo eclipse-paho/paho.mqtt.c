@@ -45,6 +45,13 @@ ifeq ($(OSTYPE),linux)
 	OSTYPE = Linux
 endif
 
+ifndef QNX_TARGET
+CC ?= gcc
+else
+CC ?= qcc
+OSTYPE = QNX
+endif
+
 # assume this is normally run in the main Paho directory
 ifndef srcdir
   srcdir = src
@@ -123,8 +130,6 @@ MQTTLIB_CS = paho-mqtt3cs
 MQTTLIB_A = paho-mqtt3a
 MQTTLIB_AS = paho-mqtt3as
 
-CC ?= gcc
-
 ifndef INSTALL
 INSTALL = install
 endif
@@ -159,14 +164,14 @@ PAHO_CS_SUB_TARGET = ${blddir}/samples/${PAHO_CS_SUB_NAME}
 #FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread -lssl -lcrypto ${END_GROUP} -L ${blddir}
 
 CCFLAGS_SO = -g -fPIC $(CFLAGS) -D_GNU_SOURCE -Os -Wall -fvisibility=hidden -I$(blddir_work) -DPAHO_MQTT_EXPORTS=1
-FLAGS_EXE = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread ${GAI_LIB} ${END_GROUP} -L ${blddir}
-FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread ${GAI_LIB} -lssl -lcrypto ${END_GROUP} -L ${blddir}
+FLAGS_EXE = $(LDFLAGS) -I ${srcdir} ${START_GROUP} ${THREAD_LIB} ${GAI_LIB} ${END_GROUP} -L ${blddir}
+FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} ${THREAD_LIB} ${GAI_LIB} -lssl -lcrypto ${END_GROUP} -L ${blddir}
 
 LDCONFIG ?= /sbin/ldconfig
-LDFLAGS_C = $(LDFLAGS) -shared -Wl,-init,$(MQTTCLIENT_INIT) $(START_GROUP) -pthread $(GAI_LIB) $(END_GROUP)
-LDFLAGS_CS = $(LDFLAGS) -shared $(START_GROUP) -pthread $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTCLIENT_INIT)
-LDFLAGS_A = $(LDFLAGS) -shared -Wl,-init,$(MQTTASYNC_INIT) $(START_GROUP) -pthread $(GAI_LIB) $(END_GROUP)
-LDFLAGS_AS = $(LDFLAGS) -shared $(START_GROUP) -pthread $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTASYNC_INIT)
+LDFLAGS_C = $(LDFLAGS) -shared -Wl,-init,$(MQTTCLIENT_INIT) $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(END_GROUP)
+LDFLAGS_CS = $(LDFLAGS) -shared $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTCLIENT_INIT)
+LDFLAGS_A = $(LDFLAGS) -shared -Wl,-init,$(MQTTASYNC_INIT) $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(END_GROUP)
+LDFLAGS_AS = $(LDFLAGS) -shared $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTASYNC_INIT)
 
 SED_COMMAND = sed \
     -e "s/@CLIENT_VERSION@/${release.version}/g" \
@@ -181,11 +186,32 @@ END_GROUP = -Wl,--end-group
 
 GAI_LIB = -lanl
 EXTRA_LIB = -ldl
+THREAD_LIB = -pthread
 
 LDFLAGS_C += -Wl,-soname,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
 LDFLAGS_CS += -Wl,-soname,lib$(MQTTLIB_CS).so.${MAJOR_VERSION} -Wl,-no-whole-archive
 LDFLAGS_A += -Wl,-soname,lib${MQTTLIB_A}.so.${MAJOR_VERSION}
 LDFLAGS_AS += -Wl,-soname,lib${MQTTLIB_AS}.so.${MAJOR_VERSION} -Wl,-no-whole-archive
+
+else ifeq ($(OSTYPE),QNX)
+
+MQTTCLIENT_INIT = MQTTClient_init
+MQTTASYNC_INIT = MQTTAsync_init
+START_GROUP =
+END_GROUP =
+
+GAI_LIB = -lsocket
+EXTRA_LIB =
+THREAD_LIB =
+
+LDFLAGS_C += -Wl,-soname,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
+LDFLAGS_CS += -Wl,-soname,lib$(MQTTLIB_CS).so.${MAJOR_VERSION} -Wl,-no-whole-archive
+LDFLAGS_A += -Wl,-soname,lib${MQTTLIB_A}.so.${MAJOR_VERSION}
+LDFLAGS_AS += -Wl,-soname,lib${MQTTLIB_AS}.so.${MAJOR_VERSION} -Wl,-no-whole-archive
+
+CCFLAGS_SO += -D_QNX_SOURCE
+
+LDCONFIG = echo
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -196,6 +222,7 @@ END_GROUP =
 
 GAI_LIB = 
 EXTRA_LIB = -ldl
+THREAD_LIB =
 
 CCFLAGS_SO += -Wno-deprecated-declarations -DOSX -I /usr/local/opt/openssl/include
 LDFLAGS_C += -Wl,-install_name,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
@@ -271,7 +298,7 @@ ${MQTTLIB_AS_TARGET}: ${SOURCE_FILES_AS} ${HEADERS_A} $(blddir_work)/VersionInfo
 	-ln -s lib$(MQTTLIB_AS).so.${MAJOR_VERSION} ${blddir}/lib$(MQTTLIB_AS).so
 
 ${MQTTVERSION_TARGET}: $(srcdir)/MQTTVersion.c $(srcdir)/MQTTAsync.h $(MQTTLIB_A_TARGET)
-	${CC} ${FLAGS_EXE} -o $@ -l${MQTTLIB_A} $(srcdir)/MQTTVersion.c -ldl
+	${CC} ${FLAGS_EXE} -o $@ -l${MQTTLIB_A} $(srcdir)/MQTTVersion.c
 
 strip_options:
 	$(eval INSTALL_OPTS := -s)
