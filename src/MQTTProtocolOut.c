@@ -56,12 +56,10 @@ extern ClientStates* bstate;
 size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, int default_port)
 {
 	char* buf = (char*)uri;
-	char* colon_pos;
 	size_t len;
-	char* topic_pos;
 
 	FUNC_ENTRY;
-	colon_pos = strrchr(uri, ':'); /* reverse find to allow for ':' in IPv6 addresses */
+	const char *colon_pos = strrchr(uri, ':'); /* reverse find to allow for ':' in IPv6 addresses */
 
 	if (uri[0] == '[')
 	{  /* ip v6 */
@@ -81,7 +79,7 @@ size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, 
 	}
 
 	/* find any topic portion */
-	topic_pos = (char*)uri;
+	const char *topic_pos = (char*)uri;
 	if (colon_pos)
 		topic_pos = colon_pos;
 	topic_pos = strchr(topic_pos, '/');
