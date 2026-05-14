@@ -46,10 +46,6 @@
 	#undef ETIMEDOUT
 	#define ETIMEDOUT WSAETIMEDOUT
 #else
-    #ifdef __QNXNTO__
-        #include <sys/neutrino.h>
-        #include <process.h>
-    #endif
 	#include <pthread.h>
 
 	#define mutex_type pthread_mutex_t*
