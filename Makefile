@@ -45,6 +45,13 @@ ifeq ($(OSTYPE),linux)
 	OSTYPE = Linux
 endif
 
+ifndef QNX_TARGET
+CC ?= gcc
+else
+CC ?= qcc
+OSTYPE = QNX
+endif
+
 # assume this is normally run in the main Paho directory
 ifndef srcdir
   srcdir = src
@@ -123,8 +130,6 @@ MQTTLIB_CS = paho-mqtt3cs
 MQTTLIB_A = paho-mqtt3a
 MQTTLIB_AS = paho-mqtt3as
 
-CC ?= gcc
-
 ifndef INSTALL
 INSTALL = install
 endif
@@ -159,14 +164,14 @@ PAHO_CS_SUB_TARGET = ${blddir}/samples/${PAHO_CS_SUB_NAME}
 #FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread -lssl -lcrypto ${END_GROUP} -L ${blddir}
 
 CCFLAGS_SO = -g -fPIC $(CFLAGS) -D_GNU_SOURCE -Os -Wall -fvisibility=hidden -I$(blddir_work) -DPAHO_MQTT_EXPORTS=1
-FLAGS_EXE = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread ${GAI_LIB} ${END_GROUP} -L ${blddir}
-FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} -pthread ${GAI_LIB} -lssl -lcrypto ${END_GROUP} -L ${blddir}
+FLAGS_EXE = $(LDFLAGS) -I ${srcdir} ${START_GROUP} ${THREAD_LIB} ${GAI_LIB} ${END_GROUP} -L ${blddir}
+FLAGS_EXES = $(LDFLAGS) -I ${srcdir} ${START_GROUP} ${THREAD_LIB} ${GAI_LIB} -lssl -lcrypto ${END_GROUP} -L ${blddir}
 
 LDCONFIG ?= /sbin/ldconfig
-LDFLAGS_C = $(LDFLAGS) -shared -Wl,-init,$(MQTTCLIENT_INIT) $(START_GROUP) -pthread $(GAI_LIB) $(END_GROUP)
-LDFLAGS_CS = $(LDFLAGS) -shared $(START_GROUP) -pthread $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTCLIENT_INIT)
-LDFLAGS_A = $(LDFLAGS) -shared -Wl,-init,$(MQTTASYNC_INIT) $(START_GROUP) -pthread $(GAI_LIB) $(END_GROUP)
-LDFLAGS_AS = $(LDFLAGS) -shared $(START_GROUP) -pthread $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTASYNC_INIT)
+LDFLAGS_C = $(LDFLAGS) -shared -Wl,-init,$(MQTTCLIENT_INIT) $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(END_GROUP)
+LDFLAGS_CS = $(LDFLAGS) -shared $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTCLIENT_INIT)
+LDFLAGS_A = $(LDFLAGS) -shared -Wl,-init,$(MQTTASYNC_INIT) $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(END_GROUP)
+LDFLAGS_AS = $(LDFLAGS) -shared $(START_GROUP) $(THREAD_LIB) $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTASYNC_INIT)
 
 SED_COMMAND = sed \
     -e "s/@CLIENT_VERSION@/${release.version}/g" \
@@ -181,11 +186,32 @@ END_GROUP = -Wl,--end-group
 
 GAI_LIB = -lanl
 EXTRA_LIB = -ldl
+THREAD_LIB = -pthread
 
 LDFLAGS_C += -Wl,-soname,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
 LDFLAGS_CS += -Wl,-soname,lib$(MQTTLIB_CS).so.${MAJOR_VERSION} -Wl,-no-whole-archive
 LDFLAGS_A += -Wl,-soname,lib${MQTTLIB_A}.so.${MAJOR_VERSION}
 LDFLAGS_AS += -Wl,-soname,lib${MQTTLIB_AS}.so.${MAJOR_VERSION} -Wl,-no-whole-archive
+
+else ifeq ($(OSTYPE),QNX)
+
+MQTTCLIENT_INIT = MQTTClient_init
+MQTTASYNC_INIT = MQTTAsync_init
+START_GROUP =
+END_GROUP =
+
+GAI_LIB = -lsocket
+EXTRA_LIB =
+THREAD_LIB =
+
+LDFLAGS_C += -Wl,-soname,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
+LDFLAGS_CS += -Wl,-soname,lib$(MQTTLIB_CS).so.${MAJOR_VERSION} -Wl,-no-whole-archive
+LDFLAGS_A += -Wl,-soname,lib${MQTTLIB_A}.so.${MAJOR_VERSION}
+LDFLAGS_AS += -Wl,-soname,lib${MQTTLIB_AS}.so.${MAJOR_VERSION} -Wl,-no-whole-archive
+
+CCFLAGS_SO += -D_QNX_SOURCE
+
+LDCONFIG = echo
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -196,6 +222,7 @@ END_GROUP =
 
 GAI_LIB = 
 EXTRA_LIB = -ldl
+THREAD_LIB =
 
 CCFLAGS_SO += -Wno-deprecated-declarations -DOSX -I /usr/local/opt/openssl/include
 LDFLAGS_C += -Wl,-install_name,lib$(MQTTLIB_C).so.${MAJOR_VERSION}
@@ -252,26 +279,26 @@ $(blddir_work)/VersionInfo.h: $(srcdir)/VersionInfo.h.in
 
 ${MQTTLIB_C_TARGET}: ${SOURCE_FILES_C} ${HEADERS_C} $(blddir_work)/VersionInfo.h
 	${CC} ${CCFLAGS_SO} -o $@ ${SOURCE_FILES_C} ${LDFLAGS_C}
-	-ln -s lib$(MQTTLIB_C).so.${VERSION}  ${blddir}/lib$(MQTTLIB_C).so.${MAJOR_VERSION}
-	-ln -s lib$(MQTTLIB_C).so.${MAJOR_VERSION} ${blddir}/lib$(MQTTLIB_C).so
+	cd ${blddir} && ln -sf lib$(MQTTLIB_C).so.${VERSION} lib$(MQTTLIB_C).so.${MAJOR_VERSION}
+	cd ${blddir} && ln -sf lib$(MQTTLIB_C).so.${MAJOR_VERSION} lib$(MQTTLIB_C).so
 
 ${MQTTLIB_CS_TARGET}: ${SOURCE_FILES_CS} ${HEADERS_C} $(blddir_work)/VersionInfo.h
 	${CC} ${CCFLAGS_SO} -o $@ ${SOURCE_FILES_CS} -DOPENSSL ${LDFLAGS_CS}
-	-ln -s lib$(MQTTLIB_CS).so.${VERSION}  ${blddir}/lib$(MQTTLIB_CS).so.${MAJOR_VERSION}
-	-ln -s lib$(MQTTLIB_CS).so.${MAJOR_VERSION} ${blddir}/lib$(MQTTLIB_CS).so
+	cd ${blddir} && ln -sf lib$(MQTTLIB_CS).so.${VERSION} lib$(MQTTLIB_CS).so.${MAJOR_VERSION}
+	cd ${blddir} && ln -sf lib$(MQTTLIB_CS).so.${MAJOR_VERSION} lib$(MQTTLIB_CS).so
 
 ${MQTTLIB_A_TARGET}: ${SOURCE_FILES_A} ${HEADERS_A} $(blddir_work)/VersionInfo.h
 	${CC} ${CCFLAGS_SO} -o $@ ${SOURCE_FILES_A} ${LDFLAGS_A}
-	-ln -s lib$(MQTTLIB_A).so.${VERSION}  ${blddir}/lib$(MQTTLIB_A).so.${MAJOR_VERSION}
-	-ln -s lib$(MQTTLIB_A).so.${MAJOR_VERSION} ${blddir}/lib$(MQTTLIB_A).so
+	cd ${blddir} && ln -sf lib$(MQTTLIB_A).so.${VERSION} lib$(MQTTLIB_A).so.${MAJOR_VERSION}
+	cd ${blddir} && ln -sf lib$(MQTTLIB_A).so.${MAJOR_VERSION} lib$(MQTTLIB_A).so
 
 ${MQTTLIB_AS_TARGET}: ${SOURCE_FILES_AS} ${HEADERS_A} $(blddir_work)/VersionInfo.h
 	${CC} ${CCFLAGS_SO} -o $@ ${SOURCE_FILES_AS} -DOPENSSL ${LDFLAGS_AS}
-	-ln -s lib$(MQTTLIB_AS).so.${VERSION}  ${blddir}/lib$(MQTTLIB_AS).so.${MAJOR_VERSION}
-	-ln -s lib$(MQTTLIB_AS).so.${MAJOR_VERSION} ${blddir}/lib$(MQTTLIB_AS).so
+	cd ${blddir} && ln -sf lib$(MQTTLIB_AS).so.${VERSION} lib$(MQTTLIB_AS).so.${MAJOR_VERSION}
+	cd ${blddir} && ln -sf lib$(MQTTLIB_AS).so.${MAJOR_VERSION} lib$(MQTTLIB_AS).so
 
 ${MQTTVERSION_TARGET}: $(srcdir)/MQTTVersion.c $(srcdir)/MQTTAsync.h $(MQTTLIB_A_TARGET)
-	${CC} ${FLAGS_EXE} -o $@ -l${MQTTLIB_A} $(srcdir)/MQTTVersion.c -ldl
+	${CC} ${FLAGS_EXE} -o $@ -l${MQTTLIB_A} $(srcdir)/MQTTVersion.c
 
 strip_options:
 	$(eval INSTALL_OPTS := -s)
@@ -290,14 +317,14 @@ install: build
 	$(INSTALL_PROGRAM) ${INSTALL_OPTS} ${PAHO_CS_PUB_TARGET} $(DESTDIR)${bindir}
 	$(INSTALL_PROGRAM) ${INSTALL_OPTS} ${PAHO_CS_SUB_TARGET} $(DESTDIR)${bindir}
 	$(LDCONFIG) $(DESTDIR)${libdir}
-	ln -s lib$(MQTTLIB_C).so.${MAJOR_VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_C).so
-	ln -s lib$(MQTTLIB_CS).so.${MAJOR_VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_CS).so
-	ln -s lib$(MQTTLIB_A).so.${MAJOR_VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_A).so
-	ln -s lib$(MQTTLIB_AS).so.${MAJOR_VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_AS).so
-	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_C).so.${MAJOR_VERSION}; then ln -s lib$(MQTTLIB_C).so.${VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_C).so.${MAJOR_VERSION}; fi
-	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_CS).so.${MAJOR_VERSION}; then ln -s lib$(MQTTLIB_CS).so.${VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_CS).so.${MAJOR_VERSION}; fi
-	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_A).so.${MAJOR_VERSION}; then ln -s lib$(MQTTLIB_A).so.${VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_A).so.${MAJOR_VERSION}; fi
-	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_AS).so.${MAJOR_VERSION}; then ln -s lib$(MQTTLIB_AS).so.${VERSION} $(DESTDIR)${libdir}/lib$(MQTTLIB_AS).so.${MAJOR_VERSION}; fi
+	cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_C).so.${MAJOR_VERSION} lib$(MQTTLIB_C).so
+	cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_CS).so.${MAJOR_VERSION} lib$(MQTTLIB_CS).so
+	cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_A).so.${MAJOR_VERSION} lib$(MQTTLIB_A).so
+	cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_AS).so.${MAJOR_VERSION} lib$(MQTTLIB_AS).so
+	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_C).so.${MAJOR_VERSION}; then cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_C).so.${VERSION} lib$(MQTTLIB_C).so.${MAJOR_VERSION}; fi
+	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_CS).so.${MAJOR_VERSION}; then cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_CS).so.${VERSION} lib$(MQTTLIB_CS).so.${MAJOR_VERSION}; fi
+	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_A).so.${MAJOR_VERSION}; then cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_A).so.${VERSION} lib$(MQTTLIB_A).so.${MAJOR_VERSION}; fi
+	@if test ! -f $(DESTDIR)${libdir}/lib$(MQTTLIB_AS).so.${MAJOR_VERSION}; then cd $(DESTDIR)${libdir} && ln -sf lib$(MQTTLIB_AS).so.${VERSION} lib$(MQTTLIB_AS).so.${MAJOR_VERSION}; fi
 	$(INSTALL_DATA) ${srcdir}/MQTTAsync.h $(DESTDIR)${includedir}
 	$(INSTALL_DATA) ${srcdir}/MQTTClient.h $(DESTDIR)${includedir}
 	$(INSTALL_DATA) ${srcdir}/MQTTClientPersistence.h $(DESTDIR)${includedir}
@@ -305,6 +332,7 @@ install: build
 	$(INSTALL_DATA) ${srcdir}/MQTTReasonCodes.h $(DESTDIR)${includedir}
 	$(INSTALL_DATA) ${srcdir}/MQTTSubscribeOpts.h $(DESTDIR)${includedir}	
 	$(INSTALL_DATA) ${srcdir}/MQTTExportDeclarations.h $(DESTDIR)${includedir}
+	mkdir -p $(DESTDIR)${man1dir}
 	- $(INSTALL_DATA) doc/man/man1/paho_c_pub.1 $(DESTDIR)${man1dir}
 	- $(INSTALL_DATA) doc/man/man1/paho_c_sub.1 $(DESTDIR)${man1dir}
 	- $(INSTALL_DATA) doc/man/man1/paho_cs_pub.1 $(DESTDIR)${man1dir}

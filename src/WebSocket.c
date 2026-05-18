@@ -1007,6 +1007,9 @@ int WebSocket_putdatas(networkHandles* net, char** buf0, size_t* buf0len, Packet
 /**
  * receives incoming socket data and parses websocket frames
  * Copes with socket reads returning partial websocket frames by using the
+
+	if (in_frames->count == 0)
+		ListAppend( in_frames, res, sizeof(struct ws_frame) + res->len);
  * SocketBuffer mechanism.
  *
  * @param[in]      net                 network connection
@@ -1030,24 +1033,65 @@ int WebSocket_receiveFrame(networkHandles *net, size_t *actual_len)
 	if ( in_frames->first )
 		res = in_frames->first->content;
 
-	//while( !res )
-	//{
-		opcode = WebSocket_OP_BINARY;
-		do
+	opcode = WebSocket_OP_BINARY;
+	do
+	{
+		/* obtain all frames in the sequence */
+		int is_final = 0;
+		while ( is_final == 0 )
 		{
-			/* obtain all frames in the sequence */
-			int is_final = 0;
-			while ( is_final == 0 )
-			{
-				char *b;
-				size_t len = 0u;
-				int tmp_opcode;
-				int has_mask;
-				size_t cur_len = 0u;
-				uint8_t mask[4] = { 0u, 0u, 0u, 0u };
-				size_t payload_len;
-				int rcs; /* socket return code */
+			char *b;
+			size_t len = 0u;
+			int tmp_opcode;
+			int has_mask;
+			size_t cur_len = 0u;
+			uint8_t mask[4] = { 0u, 0u, 0u, 0u };
+			size_t payload_len;
+			int rcs; /* socket return code */
 
+			b = WebSocket_getRawSocketData(net, 2u, &len, &rcs);
+			if (rcs == SOCKET_ERROR)
+			{
+				rc = rcs;
+				goto exit;
+			}
+			if ( !b )
+			{
+				rc = TCPSOCKET_INTERRUPTED;
+				goto exit;
+			}
+			else if (len < 2u )
+			{
+				rc = TCPSOCKET_INTERRUPTED;
+				goto exit;
+			}
+
+			/* 1st byte */
+			is_final = (b[0] & 0xFF) >> 7;
+			tmp_opcode = (b[0] & 0x0F);
+
+			if ( tmp_opcode ) /* not a continuation frame */
+				opcode = tmp_opcode;
+
+			/* invalid websocket packet must return error */
+			if ( opcode < WebSocket_OP_CONTINUE ||
+				 opcode > WebSocket_OP_PONG ||
+				 ( opcode > WebSocket_OP_BINARY &&
+				   opcode < WebSocket_OP_CLOSE ) )
+			{
+				rc = SOCKET_ERROR;
+				goto exit;
+			}
+
+			/* 2nd byte */
+			has_mask = (b[1] & 0xFF) >> 7;
+			payload_len = (b[1] & 0x7F);
+
+			/* determine payload length */
+			if ( payload_len == 126 )
+			{
+				/* If 126, the following 2 bytes interpreted as a
+					  16-bit unsigned integer are the payload length. */
 				b = WebSocket_getRawSocketData(net, 2u, &len, &rcs);
 				if (rcs == SOCKET_ERROR)
 				{
@@ -1056,197 +1100,150 @@ int WebSocket_receiveFrame(networkHandles *net, size_t *actual_len)
 				}
 				if ( !b )
 				{
-					rc = TCPSOCKET_INTERRUPTED;
+					rc = SOCKET_ERROR;
 					goto exit;
-				} 
+				}
 				else if (len < 2u )
 				{
 					rc = TCPSOCKET_INTERRUPTED;
 					goto exit;
 				}
-
-				/* 1st byte */
-				is_final = (b[0] & 0xFF) >> 7;
-				tmp_opcode = (b[0] & 0x0F);
-
-				if ( tmp_opcode ) /* not a continuation frame */
-					opcode = tmp_opcode;
-
-				/* invalid websocket packet must return error */
-				if ( opcode < WebSocket_OP_CONTINUE ||
-					 opcode > WebSocket_OP_PONG ||
-					 ( opcode > WebSocket_OP_BINARY &&
-					   opcode < WebSocket_OP_CLOSE ) )
-				{
-					rc = SOCKET_ERROR;
-					goto exit;
-				}
-
-				/* 2nd byte */
-				has_mask = (b[1] & 0xFF) >> 7;
-				payload_len = (b[1] & 0x7F);
-
-				/* determine payload length */
-				if ( payload_len == 126 )
-				{
-					/* If 126, the following 2 bytes interpreted as a
-						  16-bit unsigned integer are the payload length. */
-					b = WebSocket_getRawSocketData(net, 2u, &len, &rcs);
-					if (rcs == SOCKET_ERROR)
-					{
-						rc = rcs;
-						goto exit;
-					}
-					if ( !b )
-					{
-						rc = SOCKET_ERROR;
-						goto exit;
-					} 
-					else if (len < 2u )
-					{
-						rc = TCPSOCKET_INTERRUPTED;
-						goto exit;
-					}
-					/* convert from big endian 16 to host */
-					payload_len = be16toh(*(uint16_t*)b);
-				}
-				else if ( payload_len == 127 )
-				{
-					 /* If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the
-						  most significant bit MUST be 0) are the payload length */
-					b = WebSocket_getRawSocketData(net, 8u, &len, &rcs);
-					if (rcs == SOCKET_ERROR)
-					{
-						rc = rcs;
-						goto exit;
-					}
-					if ( !b )
-					{
-						rc = SOCKET_ERROR;
-						goto exit;
-					} 
-					else if (len < 8u )
-					{
-						rc = TCPSOCKET_INTERRUPTED;
-						goto exit;
-					}
-					/* convert from big-endian 64 to host */
-					payload_len = (size_t)be64toh(*(uint64_t*)b);
-				}
-
-				if ( has_mask )
-				{
-					uint8_t mask[4];
-					b = WebSocket_getRawSocketData(net, 4u, &len, &rcs);
-					if (rcs == SOCKET_ERROR)
-					{
-						rc = rcs;
-						goto exit;
-					}
-					if ( !b )
-					{
-						rc = SOCKET_ERROR;
-						goto exit;
-					}
-					if (len < 4u )
-					{
-						rc = TCPSOCKET_INTERRUPTED;
-						goto exit;
-					}
-					memcpy( &mask[0], b, sizeof(uint32_t));
-				}
-
-				/* use the socket buffer to read in the whole websocket frame */
-				b = WebSocket_getRawSocketData(net, payload_len, &len, &rcs);
+				/* convert from big endian 16 to host */
+				payload_len = be16toh(*(uint16_t*)b);
+			}
+			else if ( payload_len == 127 )
+			{
+				 /* If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the
+					  most significant bit MUST be 0) are the payload length */
+				b = WebSocket_getRawSocketData(net, 8u, &len, &rcs);
 				if (rcs == SOCKET_ERROR)
 				{
 					rc = rcs;
 					goto exit;
 				}
-				if (!b)
+				if ( !b )
 				{
 					rc = SOCKET_ERROR;
 					goto exit;
-				} 
-				if (len < payload_len )
+				}
+				else if (len < 8u )
 				{
 					rc = TCPSOCKET_INTERRUPTED;
 					goto exit;
 				}
+				/* convert from big-endian 64 to host */
+				payload_len = (size_t)be64toh(*(uint64_t*)b);
+			}
 
-				/* unmask data */
-				if ( has_mask )
-				{
-					size_t i;
-					for ( i = 0u; i < payload_len; ++i )
-						b[i] ^= mask[i % 4];
-				}
-
-				if ( res )
-					cur_len = res->len;
-
-				if (res == NULL)
-				{
-					if ((res = malloc( sizeof(struct ws_frame) + cur_len + len)) == NULL)
-					{
-						rc = PAHO_MEMORY_ERROR;
-						goto exit;
-					}
-					res->pos = 0u;
-				} else
-				{
-					void* newPtr = realloc( res, sizeof(struct ws_frame) + cur_len + len );
-					if (newPtr == NULL)
-					{
-						free(res);
-						res = NULL;
-
-						rc = PAHO_MEMORY_ERROR;
-						goto exit;
-					}
-					else
-					{
-						res = newPtr;
-					}
-				}
-				if (in_frames && in_frames->first)
-					in_frames->first->content = res; /* realloc moves the data */
-				memcpy( (unsigned char *)res + sizeof(struct ws_frame) + cur_len, b, len );
-				res->len = cur_len + len;
-
-				WebSocket_getRawSocketData(net, 0u, &len, &rcs);
+			if ( has_mask )
+			{
+				uint8_t mask[4];
+				b = WebSocket_getRawSocketData(net, 4u, &len, &rcs);
 				if (rcs == SOCKET_ERROR)
 				{
 					rc = rcs;
 					goto exit;
 				}
+				if ( !b )
+				{
+					rc = SOCKET_ERROR;
+					goto exit;
+				}
+				if (len < 4u )
+				{
+					rc = TCPSOCKET_INTERRUPTED;
+					goto exit;
+				}
+				memcpy( &mask[0], b, sizeof(uint32_t));
 			}
 
-			if ( opcode == WebSocket_OP_PING || opcode == WebSocket_OP_PONG )
+			/* use the socket buffer to read in the whole websocket frame */
+			b = WebSocket_getRawSocketData(net, payload_len, &len, &rcs);
+			if (rcs == SOCKET_ERROR)
 			{
-				/* respond to a "ping" with a "pong" */
-				if ( opcode == WebSocket_OP_PING )
-					WebSocket_pong( net,
-						(char *)res + sizeof(struct ws_frame),
-						res->len );
-
-				/* discard message */
-				free( res );
-				res = NULL;
-			}
-			else if ( opcode == WebSocket_OP_CLOSE )
-			{
-				/* server end closed websocket connection */
-				free( res );
-				WebSocket_close( net, WebSocket_CLOSE_GOING_AWAY, NULL );
-				rc = SOCKET_ERROR; /* closes socket */
+				rc = rcs;
 				goto exit;
 			}
-		} while ( opcode == WebSocket_OP_PING || opcode == WebSocket_OP_PONG );
-	//}
+			if (!b)
+			{
+				rc = SOCKET_ERROR;
+				goto exit;
+			}
+			if (len < payload_len )
+			{
+				rc = TCPSOCKET_INTERRUPTED;
+				goto exit;
+			}
 
-	if (in_frames->count == 0)
-		ListAppend( in_frames, res, sizeof(struct ws_frame) + res->len);
+			/* unmask data */
+			if ( has_mask )
+			{
+				size_t i;
+				for ( i = 0u; i < payload_len; ++i )
+					b[i] ^= mask[i % 4];
+			}
+
+			if ( res )
+				cur_len = res->len;
+
+			if (res == NULL)
+			{
+				if ((res = malloc( sizeof(struct ws_frame) + cur_len + len)) == NULL)
+				{
+					rc = PAHO_MEMORY_ERROR;
+					goto exit;
+				}
+				res->pos = 0u;
+			} else
+			{
+				void* newPtr = realloc( res, sizeof(struct ws_frame) + cur_len + len );
+				if (newPtr == NULL)
+				{
+					free(res);
+					res = NULL;
+
+					rc = PAHO_MEMORY_ERROR;
+					goto exit;
+				}
+				else
+				{
+					res = newPtr;
+				}
+			}
+			if (in_frames && in_frames->first)
+				in_frames->first->content = res; /* realloc moves the data */
+			memcpy( (unsigned char *)res + sizeof(struct ws_frame) + cur_len, b, len );
+			res->len = cur_len + len;
+
+			WebSocket_getRawSocketData(net, 0u, &len, &rcs);
+			if (rcs == SOCKET_ERROR)
+			{
+				rc = rcs;
+				goto exit;
+			}
+		}
+
+		if ( opcode == WebSocket_OP_PING || opcode == WebSocket_OP_PONG )
+		{
+			/* respond to a "ping" with a "pong" */
+			if ( opcode == WebSocket_OP_PING )
+				WebSocket_pong( net,
+					(char *)res + sizeof(struct ws_frame),
+					res->len );
+
+			/* discard message */
+			free( res );
+			res = NULL;
+		}
+		else if ( opcode == WebSocket_OP_CLOSE )
+		{
+			/* server end closed websocket connection */
+			free( res );
+			WebSocket_close( net, WebSocket_CLOSE_GOING_AWAY, NULL );
+			rc = SOCKET_ERROR; /* closes socket */
+			goto exit;
+		}
+	} while ( opcode == WebSocket_OP_PING || opcode == WebSocket_OP_PONG );
 	*actual_len = res->len - res->pos;
 
 exit:
