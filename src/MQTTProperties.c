@@ -346,13 +346,14 @@ int MQTTProperties_read(MQTTProperties *properties, char **pptr, char *enddata)
     int proplen = 0;
 
     rc = MQTTPacket_decodeBuf(*pptr, enddata, (unsigned int*)&remlength);
-    if (rc > 0)
-      *pptr += rc;
-    else
+    if (rc <= 0 || !is_enough_data(pptr, enddata, remlength))
     {
       rc = MQTTPACKET_BUFFER_TOO_SHORT;
       goto exit;
     }
+    else
+      *pptr += rc;
+
     properties->length = remlength;
     while (remlength > 0)
     {
