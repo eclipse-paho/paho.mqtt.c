@@ -700,6 +700,8 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	setRetryLoopInterval(options->keepAliveInterval);
 	m->c->cleansession = options->cleansession;
 	m->c->maxInflightMessages = options->maxInflight;
+	m->c->serverReceiveMaximum = 65535; /* default, until/unless overridden by the CONNACK RECEIVE_MAXIMUM property */
+	m->c->incomingQoS1Count = 0;
 	if (options->struct_version >= 3)
 		m->c->MQTTVersion = options->MQTTVersion;
 	else

@@ -51,10 +51,30 @@ int MQTTPacket_send_connect(Clients* client, int MQTTVersion,
 	char *buf, *ptr;
 	Connect packet;
 	int rc = SOCKET_ERROR, len;
+	MQTTProperties localConnectProperties = MQTTProperties_initializer;
 
 	FUNC_ENTRY;
 	packet.header.byte = 0;
 	packet.header.bits.type = CONNECT;
+
+	if (MQTTVersion >= MQTTVERSION_5)
+	{
+		/* Advertise our own RECEIVE_MAXIMUM (limiting inbound QoS > 0 publishes from the server),
+		 * unless the caller has already set one explicitly. Work on a local copy so that repeated
+		 * calls (e.g. on reconnect) don't keep appending the property to the caller's properties. */
+		localConnectProperties = MQTTProperties_copy(connectProperties);
+		if (client->maxInflightMessages != 65535 && /* the default is 65535 if not present */
+			!MQTTProperties_hasProperty(&localConnectProperties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM))
+		{
+			MQTTProperty prop;
+
+			prop.identifier = MQTTPROPERTY_CODE_RECEIVE_MAXIMUM;
+			prop.value.integer2 = (unsigned short)client->maxInflightMessages;
+			if (MQTTProperties_add(&localConnectProperties, &prop) != 0)
+				goto exit_nofree;
+		}
+		connectProperties = &localConnectProperties;
+	}
 
 	len = ((MQTTVersion == MQTTVERSION_3_1) ? 12 : 10) + (int)strlen(client->clientID)+2;
 	if (client->will)
@@ -126,6 +146,8 @@ exit:
 	if (rc != TCPSOCKET_INTERRUPTED)
 		free(buf);
 exit_nofree:
+	if (MQTTVersion >= MQTTVERSION_5)
+		MQTTProperties_free(&localConnectProperties);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }

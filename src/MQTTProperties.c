@@ -483,7 +483,7 @@ exit:
 }
 
 
-MQTTProperties MQTTProperties_copy(const MQTTProperties* props)
+MQTTProperties MQTTProperties_copy(const MQTTProperties *props)
 {
   int i = 0;
   MQTTProperties result = MQTTProperties_initializer;
@@ -491,10 +491,10 @@ MQTTProperties MQTTProperties_copy(const MQTTProperties* props)
   FUNC_ENTRY;
   for (i = 0; props != NULL && i < props->count; ++i)
   {
-	int rc = 0;
+    int rc = 0;
 
-	if ((rc = MQTTProperties_add(&result, &props->array[i])) != 0)
-		Log(LOG_ERROR, -1, "Error from MQTTProperties add %d", rc);
+    if ((rc = MQTTProperties_add(&result, &props->array[i])) != 0)
+      Log(LOG_ERROR, -1, "Error from MQTTProperties add %d", rc);
   }
 
   FUNC_EXIT;

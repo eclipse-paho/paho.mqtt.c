@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2024 IBM Corp. and Ian Craggs
+ * Copyright (c) 2009, 2026 IBM Corp. and Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -135,7 +135,17 @@ typedef struct Clients
 	int keepAliveInterval;          /**< the MQTT keep alive interval */
 	int savedKeepAliveInterval;     /**< saved keep alive interval, in case reset by server keep alive */
 	int retryInterval;              /**< the MQTT retry interval for QoS > 0 */
-	int maxInflightMessages;        /**< the max number of inflight outbound messages we allow */
+	int maxInflightMessages;        /**< MQTT 3.1.1: the max number of inflight QoS > 0 messages in either direction.
+	                                      MQTT 5.0: sent to the server as the CONNECT RECEIVE_MAXIMUM property, limiting
+	                                      the number of inflight incoming QoS > 0 messages we accept from the server */
+	int serverReceiveMaximum;       /**< MQTT 5.0 only: the RECEIVE_MAXIMUM property received in the CONNACK
+	                                      (65535 if not sent by the server), limiting the number of inflight
+	                                      outbound QoS > 0 messages we can send to the server */
+	int incomingQoS1Count;          /**< count of QoS 1 PUBLISH messages received but not yet acknowledged
+	                                      (PUBACK not yet sent, e.g. queued because of pending socket writes).
+	                                      Added to inboundMsgs->count to check that the server isn't sending
+	                                      us more concurrent QoS > 0 publishes than maxInflightMessages allows
+	                                      (MQTT 5.0: the RECEIVE_MAXIMUM we advertised in the CONNECT packet) */
 	willMessages* will;             /**< the MQTT will message, if any */
 	List* inboundMsgs;              /**< inbound in flight messages */
 	List* outboundMsgs;				/**< outbound in flight messages */

@@ -1248,7 +1248,14 @@ typedef struct
 	  */
 	int cleansession;
 	/**
-      * This controls how many messages can be in-flight simultaneously.
+      * This controls how many QoS > 0 messages can be in-flight simultaneously.
+      *
+      * For MQTT 5.0, this becomes the ::MQTTPROPERTY_CODE_RECEIVE_MAXIMUM
+      * property and is sent with the CONNECT packet. The Server Receive
+      * Maximum is sent from the server and is independent of this value.
+      *
+      * For MQTT 3.1.1, this controls both outbound and inbound maximum
+      * number of concurrent QoS 1 and 2 messages.
 	  */
 	int maxInflight;
 	/**

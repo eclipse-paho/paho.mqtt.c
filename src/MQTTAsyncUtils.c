@@ -1310,7 +1310,8 @@ static int MQTTAsync_processCommand(void)
 			}
 			else if (((cmd->command.type == PUBLISH && cmd->command.details.pub.qos > 0) ||
 						cmd->command.type == SUBSCRIBE || cmd->command.type == UNSUBSCRIBE) &&
-				(cmd->client->c->outboundMsgs->count >= cmd->client->c->maxInflightMessages))
+				(cmd->client->c->outboundMsgs->count >= ((cmd->client->c->MQTTVersion >= MQTTVERSION_5) ?
+					cmd->client->c->serverReceiveMaximum : cmd->client->c->maxInflightMessages)))
 			{
 				Log(TRACE_MIN, -1, "Blocking on server receive maximum for client %s",
 						cmd->client->c->clientID); /* flow control */
@@ -2260,11 +2261,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 						if (m->c->MQTTVersion >= MQTTVERSION_5)
 						{
 							if (MQTTProperties_hasProperty(&connack->properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM))
-							{
-								int recv_max = (int)MQTTProperties_getNumericValue(&connack->properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM);
-								if (m->c->maxInflightMessages > recv_max)
-									m->c->maxInflightMessages = recv_max;
-							}
+								m->c->serverReceiveMaximum = (int)MQTTProperties_getNumericValue(&connack->properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM);
 						}
 					}
 					else

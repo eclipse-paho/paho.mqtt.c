@@ -351,14 +351,45 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 
 	socketHasPendingWrites = !Socket_noPendingWrites(sock);
 
+	/* if the message id already exists in the input queue, it's not a new message */
+	if (ListFindItem(client->inboundMsgs, &(publish->msgId), messageIDCompare) == NULL)
+	{
+		/* the server must not send us more concurrent QoS > 0 publishes than we can handle:
+		 * MQTT 5.0: the RECEIVE_MAXIMUM we advertised in our CONNECT packet (client->maxInflightMessages).
+		 * MQTT < 5.0: client->maxInflightMessages is used in both directions. */
+		int inflight = client->inboundMsgs->count + client->incomingQoS1Count + 1; /* +1 for this new message */
+
+		if (inflight > client->maxInflightMessages)
+		{
+			if (publish->MQTTVersion >= MQTTVERSION_5)
+			{
+				Log(TRACE_PROTOCOL, -1, "Receive maximum (%d) exceeded by server for client %s, disconnecting",
+						client->maxInflightMessages, clientid);
+				MQTTPacket_send_disconnect(client, MQTTREASONCODE_RECEIVE_MAXIMUM_EXCEEDED, NULL);
+				client->good = 0;
+				MQTTProtocol_closeSession(client, 1);
+				rc = SOCKET_ERROR;
+			}
+			else
+				Log(LOG_ERROR, -1, "Max inflight messages (%d) exceeded by server for client %s, ignoring incoming QoS %d publish msgid %d",
+						client->maxInflightMessages, clientid, publish->header.bits.qos, publish->msgId);
+			goto exit;
+		}
+	}
+
 	if (publish->header.bits.qos == 1)
 	{
 		Protocol_processPublication(publish, client, 1);
-  
+
+		++client->incomingQoS1Count;
+
 		if (socketHasPendingWrites)
 			rc = MQTTProtocol_queueAck(client, PUBACK, publish->msgId);
 		else
+		{
 			rc = MQTTPacket_send_puback(publish->MQTTVersion, publish->msgId, &client->net, client->clientID);
+			--client->incomingQoS1Count;
+		}
 	}
 	else if (publish->header.bits.qos == 2)
 	{
@@ -1061,6 +1092,8 @@ void MQTTProtocol_writeAvailable(SOCKET socket)
 		{
 			case PUBACK:
 				rc = MQTTPacket_send_puback(client->MQTTVersion, ackReq->messageId, &client->net, client->clientID);
+				if (client->incomingQoS1Count > 0)
+					--client->incomingQoS1Count;
 				break;
 			case PUBREC:
 				rc = MQTTPacket_send_pubrec(client->MQTTVersion, ackReq->messageId, &client->net, client->clientID);

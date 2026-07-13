@@ -1568,6 +1568,8 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 		if (options->maxInflightMessages > 0)
 			m->c->maxInflightMessages = options->maxInflightMessages;
 	}
+	m->c->serverReceiveMaximum = 65535; /* default, until/unless overridden by the CONNACK RECEIVE_MAXIMUM property */
+	m->c->incomingQoS1Count = 0;
 
 	if (options->struct_version >= 7)
 	{
@@ -1946,11 +1948,7 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 	if (rc.reasonCode == MQTTREASONCODE_SUCCESS)
 	{
 		if (rc.properties && MQTTProperties_hasProperty(rc.properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM))
-		{
-			int recv_max = (int)MQTTProperties_getNumericValue(rc.properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM);
-			if (m->c->maxInflightMessages > recv_max)
-				m->c->maxInflightMessages = recv_max;
-		}
+			m->c->serverReceiveMaximum = (int)MQTTProperties_getNumericValue(rc.properties, MQTTPROPERTY_CODE_RECEIVE_MAXIMUM);
 	}
 
 exit:
@@ -2417,8 +2415,10 @@ MQTTResponse MQTTClient_publish5(MQTTClient handle, const char* topicName, int p
 	if (rc != MQTTCLIENT_SUCCESS)
 		goto exit;
 
-	/* If outbound queue is full, block until it is not */
-	while (m->c->outboundMsgs->count >= m->c->maxInflightMessages ||
+	/* If outbound queue is full, block until it is not.
+	   MQTT 5.0: the server's CONNACK RECEIVE_MAXIMUM limits our outbound QoS > 0 messages.
+	   MQTT < 5.0: maxInflightMessages limits outbound (and, implicitly, inbound) QoS > 0 messages. */
+	while (m->c->outboundMsgs->count >= ((m->c->MQTTVersion >= MQTTVERSION_5) ? m->c->serverReceiveMaximum : m->c->maxInflightMessages) ||
          Socket_noPendingWrites(m->c->net.socket) == 0) /* wait until the socket is free of large packets being written */
 	{
 		if (blocked == 0)
