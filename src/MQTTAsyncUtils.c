@@ -58,7 +58,7 @@ static int MQTTAsync_processCommand(void);
 static void MQTTAsync_checkTimeouts(void);
 static int MQTTAsync_completeConnection(MQTTAsyncs* m, Connack* connack);
 static void MQTTAsync_stop(void);
-static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props);
+static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props, int sendDisconnect);
 static int clientStructCompare(void* a, void* b);
 static int MQTTAsync_cleanSession(Clients* client);
 static int MQTTAsync_deliverMessage(MQTTAsyncs* m, char* topicName, size_t topicLen, MQTTAsync_message* mm);
@@ -971,7 +971,7 @@ void MQTTAsync_checkDisconnect(MQTTAsync handle, MQTTAsync_command* command)
 	if (m->c->outboundMsgs->count == 0 || MQTTTime_elapsed(command->start_time) >= (ELAPSED_TIME_TYPE)command->details.dis.timeout)
 	{
 		int was_connected = m->c->connected;
-		MQTTAsync_closeSession(m->c, command->details.dis.reasonCode, &command->properties);
+		MQTTAsync_closeSession(m->c, command->details.dis.reasonCode, &command->properties, 0);
 		if (command->details.dis.internal)
 		{
 			if (m->cl && was_connected)
@@ -1708,19 +1708,23 @@ exit:
 }
 
 
-static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
+static void nextOrClose(MQTTAsyncs* m, int rc, char* message, int sendDisconnect)
 {
 	int was_connected = m->c->connected;
 	int more_to_try = 0;
 	int connectionLost_called = 0;
+	enum MQTTReasonCodes reasonCode = MQTTREASONCODE_SUCCESS;
 	FUNC_ENTRY;
+
+	if (rc > 0) /* MQTT 5 reason codes are always positive */
+		reasonCode = rc;
 
 	more_to_try = MQTTAsync_checkConn(&m->connect, m, was_connected);
 	if (more_to_try)
 	{
 		MQTTAsync_queuedCommand* conn;
 
-		MQTTAsync_closeOnly(m->c, MQTTREASONCODE_SUCCESS, NULL);
+		MQTTAsync_closeOnly(m->c, reasonCode, NULL, sendDisconnect);
 		if (m->cl && was_connected)
 		{
 			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
@@ -1753,7 +1757,7 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message)
 
 	if (!more_to_try)
 	{
-		MQTTAsync_closeSession(m->c, MQTTREASONCODE_SUCCESS, NULL);
+		MQTTAsync_closeSession(m->c, reasonCode, NULL, sendDisconnect);
 		if (m->connect.onFailure)
 		{
 			MQTTAsync_failureData data;
@@ -1823,7 +1827,7 @@ static void MQTTAsync_checkTimeouts(void)
 		/* check connect timeout */
 		if (m->c->connect_state != NOT_IN_PROGRESS && MQTTTime_elapsed(m->connect.start_time) > (ELAPSED_TIME_TYPE)(m->connectTimeout * 1000))
 		{
-			nextOrClose(m, MQTTASYNC_FAILURE, "TCP connect timeout");
+			nextOrClose(m, MQTTASYNC_FAILURE, "TCP connect timeout", 0);
 			continue;
 		}
 
@@ -2183,7 +2187,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 		if (rc == SOCKET_ERROR)
 		{
 			Log(TRACE_MINIMUM, -1, "Error from MQTTAsync_cycle() - removing socket %d", sock);
-			nextOrClose(m, rc, "socket error");
+			nextOrClose(m, rc, "socket error", 0);
 		}
 		else
 		{
@@ -2274,7 +2278,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 					}
 					else
 					{
-					    nextOrClose(m, rc, "CONNACK return code");
+					    nextOrClose(m, rc, "CONNACK return code", 0);
 					}
 					MQTTPacket_freeConnack(connack);
 				}
@@ -2442,7 +2446,7 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 					}
 					rc = MQTTProtocol_handleDisconnects(pack, m->c->net.socket);
 					m->c->connected = 0; /* don't send disconnect packet back */
-					nextOrClose(m, discrc, "Received disconnect");
+					nextOrClose(m, discrc, "Received disconnect", 0);
 				}
 				else
 				{
@@ -2520,7 +2524,7 @@ static void MQTTAsync_stop(void)
 }
 
 
-static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props)
+static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props, int sendDisconnect)
 {
 	FUNC_ENTRY;
 	client->good = 0;
@@ -2529,7 +2533,7 @@ static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode
 	if (client->net.socket > 0)
 	{
 		MQTTProtocol_checkPendingWrites();
-		if (client->connected && MQTTAsync_Socket_noPendingWrites(client->net.socket))
+		if (sendDisconnect && client->connected && MQTTAsync_Socket_noPendingWrites(client->net.socket))
 			MQTTPacket_send_disconnect(client, reasonCode, props);
 		MQTTAsync_lock_mutex(socket_mutex);
 		WebSocket_close(&client->net, WebSocket_CLOSE_NORMAL, NULL);
@@ -2551,10 +2555,10 @@ static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode
 }
 
 
-void MQTTAsync_closeSession(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props)
+void MQTTAsync_closeSession(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props, int sendDisconnect)
 {
 	FUNC_ENTRY;
-	MQTTAsync_closeOnly(client, reasonCode, props);
+	MQTTAsync_closeOnly(client, reasonCode, props, sendDisconnect);
 
 	if (client->cleansession ||
 			(client->MQTTVersion >= MQTTVERSION_5 && client->sessionExpiry == 0))
@@ -2838,9 +2842,9 @@ static int MQTTAsync_disconnect_internal(MQTTAsync handle, int timeout)
 }
 
 
-void MQTTProtocol_closeSession(Clients* c, int sendwill)
+void MQTTProtocol_closeSession(Clients* c, int rc, int sendDisconnect)
 {
-	nextOrClose((MQTTAsync)c->context, MQTTASYNC_DISCONNECTED, "MQTTProtocol_closeSession");
+	nextOrClose((MQTTAsync)c->context, rc, "MQTTProtocol_closeSession", sendDisconnect);
 }
 
 
@@ -3117,7 +3121,7 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 
 exit:
 	if ((rc != 0 && rc != TCPSOCKET_INTERRUPTED && (m->c->connect_state != SSL_IN_PROGRESS && m->c->connect_state != WEBSOCKET_IN_PROGRESS)) || (rc == SSL_FATAL))
-		nextOrClose(m, MQTTASYNC_FAILURE, "TCP/TLS connect failure");
+		nextOrClose(m, MQTTASYNC_FAILURE, "TCP/TLS connect failure", 0);
 
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -3168,7 +3172,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 			if (m->c->connect_state == WAIT_FOR_CONNACK && *rc == SOCKET_ERROR)
 			{
 				Log(TRACE_MINIMUM, -1, "CONNECT sent but MQTTPacket_Factory has returned SOCKET_ERROR");
-				nextOrClose(m, MQTTASYNC_FAILURE, "TCP connect completion failure");
+				nextOrClose(m, MQTTASYNC_FAILURE, "TCP connect completion failure", 0);
 			}
 		}
 		if (pack)

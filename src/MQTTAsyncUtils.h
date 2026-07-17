@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp. and others
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -171,7 +171,7 @@ void MQTTAsync_emptyMessageQueue(Clients* client);
 void MQTTAsync_freeResponses(MQTTAsyncs* m);
 void MQTTAsync_freeCommands(MQTTAsyncs* m);
 int MQTTAsync_unpersistCommandsAndMessages(Clients* c);
-void MQTTAsync_closeSession(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props);
+void MQTTAsync_closeSession(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props, int sendDisconnect);
 int MQTTAsync_disconnect1(MQTTAsync handle, const MQTTAsync_disconnectOptions* options, int internal);
 int MQTTAsync_assignMsgId(MQTTAsyncs* m);
 int MQTTAsync_getNoBufferedMessages(MQTTAsyncs* m);

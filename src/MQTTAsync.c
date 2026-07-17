@@ -520,7 +520,7 @@ void MQTTAsync_destroy(MQTTAsync* handle)
 	if (m == NULL)
 		goto exit;
 
-	MQTTAsync_closeSession(m->c, MQTTREASONCODE_SUCCESS, NULL);
+	MQTTAsync_closeSession(m->c, MQTTREASONCODE_SUCCESS, NULL, 0);
 
 	MQTTAsync_NULLPublishResponses(m);
 	MQTTAsync_freeResponses(m);

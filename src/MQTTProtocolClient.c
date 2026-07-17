@@ -331,6 +331,11 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 	FUNC_ENTRY;
 	client = (Clients*)(ListFindItem(bstate->clients, &sock, clientSocketCompare)->content);
 	clientid = client->clientID;
+	if (client->MQTTVersion != publish->MQTTVersion)
+	{
+		rc = SOCKET_ERROR;
+		goto exit;
+	}
 
 	/* Format and print publish data to trace */
 	{
@@ -361,18 +366,20 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 
 		if (inflight > client->maxInflightMessages)
 		{
+			client->good = 0;
 			if (publish->MQTTVersion >= MQTTVERSION_5)
 			{
 				Log(TRACE_PROTOCOL, -1, "Receive maximum (%d) exceeded by server for client %s, disconnecting",
 						client->maxInflightMessages, clientid);
-				MQTTPacket_send_disconnect(client, MQTTREASONCODE_RECEIVE_MAXIMUM_EXCEEDED, NULL);
-				client->good = 0;
-				MQTTProtocol_closeSession(client, 1);
-				rc = SOCKET_ERROR;
+				MQTTProtocol_closeSession(client, MQTTREASONCODE_RECEIVE_MAXIMUM_EXCEEDED, 1);
 			}
 			else
-				Log(LOG_ERROR, -1, "Max inflight messages (%d) exceeded by server for client %s, ignoring incoming QoS %d publish msgid %d",
-						client->maxInflightMessages, clientid, publish->header.bits.qos, publish->msgId);
+			{
+				Log(LOG_ERROR, -1, "Max inflight messages (%d) exceeded by server for client %s, disconnecting",
+						client->maxInflightMessages, clientid);
+				MQTTProtocol_closeSession(client,SOCKET_ERROR,0);
+			}
+			rc = SOCKET_ERROR;
 			goto exit;
 		}
 	}
@@ -761,7 +768,7 @@ void MQTTProtocol_keepalive(START_TIME_TYPE now)
 				MQTTTime_difftime(now, client->net.lastReceived) >= (DIFF_TIME_TYPE)(client->keepAliveInterval * 1500))
 			{
 				Log(TRACE_PROTOCOL, -1, "PINGRESP not received in keepalive interval for client %s on socket %d, disconnecting", client->clientID, client->net.socket);
-				MQTTProtocol_closeSession(client, 1);
+				MQTTProtocol_closeSession(client, MQTTREASONCODE_KEEP_ALIVE_TIMEOUT, 1);
 			}
 		}
 		else if (client->ping_due == 1 &&
@@ -773,7 +780,7 @@ void MQTTProtocol_keepalive(START_TIME_TYPE now)
 			{
 				/* ping still outstanding after keep alive interval, so close session */
 				Log(TRACE_PROTOCOL, -1, "PINGREQ still outstanding for client %s on socket %d, disconnecting", client->clientID, client->net.socket);
-				MQTTProtocol_closeSession(client, 1);
+				MQTTProtocol_closeSession(client, MQTTREASONCODE_KEEP_ALIVE_TIMEOUT, 1);
 			}
 		}
 		else if (MQTTTime_difftime(now, client->net.lastSent) >= (DIFF_TIME_TYPE)(client->keepAliveInterval * 1000))
@@ -784,7 +791,7 @@ void MQTTProtocol_keepalive(START_TIME_TYPE now)
 				if (MQTTPacket_send_pingreq(&client->net, client->clientID) != TCPSOCKET_COMPLETE)
 				{
 					Log(TRACE_PROTOCOL, -1, "Error sending PINGREQ for client %s on socket %d, disconnecting", client->clientID, client->net.socket);
-					MQTTProtocol_closeSession(client, 1);
+					MQTTProtocol_closeSession(client, SOCKET_ERROR,0);
 				}
 				else
 				{
@@ -810,7 +817,7 @@ void MQTTProtocol_keepalive(START_TIME_TYPE now)
 				if (MQTTPacket_send_pingreq(&client->net, client->clientID) != TCPSOCKET_COMPLETE)
 				{
 					Log(TRACE_PROTOCOL, -1, "Error sending PINGREQ for client %s on socket %d, disconnecting", client->clientID, client->net.socket);
-					MQTTProtocol_closeSession(client, 1);
+					MQTTProtocol_closeSession(client, SOCKET_ERROR, 0);
 				}
 				else
 				{
@@ -875,7 +882,7 @@ static void MQTTProtocol_retries(START_TIME_TYPE now, Clients* client, int regar
 					client->good = 0;
 					Log(TRACE_PROTOCOL, 29, NULL, client->clientID, client->net.socket,
 												Socket_getpeer(client->net.socket));
-					MQTTProtocol_closeSession(client, 1);
+					MQTTProtocol_closeSession(client, rc, 0);
 					client = NULL;
 				}
 				else
@@ -893,7 +900,7 @@ static void MQTTProtocol_retries(START_TIME_TYPE now, Clients* client, int regar
 					client->good = 0;
 					Log(TRACE_PROTOCOL, 29, NULL, client->clientID, client->net.socket,
 							Socket_getpeer(client->net.socket));
-					MQTTProtocol_closeSession(client, 1);
+					MQTTProtocol_closeSession(client, SOCKET_ERROR, 0);
 					client = NULL;
 				}
 				else
@@ -956,7 +963,7 @@ void MQTTProtocol_retry(START_TIME_TYPE now, int doRetry, int regardless)
 			continue;
 		if (client->good == 0)
 		{
-			MQTTProtocol_closeSession(client, 1);
+			MQTTProtocol_closeSession(client, SOCKET_ERROR, 0);
 			continue;
 		}
 		if (Socket_noPendingWrites(client->net.socket) == 0)

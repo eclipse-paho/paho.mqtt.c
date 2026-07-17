@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2022 IBM Corp.
+ * Copyright (c) 2009, 2026 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -45,7 +45,7 @@ int MQTTProtocol_handlePubrecs(void* pack, SOCKET sock, Publications** pubToRemo
 int MQTTProtocol_handlePubrels(void* pack, SOCKET sock);
 int MQTTProtocol_handlePubcomps(void* pack, SOCKET sock, Publications** pubToRemove);
 
-void MQTTProtocol_closeSession(Clients* c, int sendwill);
+void MQTTProtocol_closeSession(Clients* c, int rc, int sendDisconnect);
 void MQTTProtocol_keepalive(START_TIME_TYPE);
 void MQTTProtocol_retry(START_TIME_TYPE, int, int);
 void MQTTProtocol_freeClient(Clients* client);
