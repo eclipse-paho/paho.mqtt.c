@@ -2209,3 +2209,101 @@ if(PAHO_BUILD_SHARED)
     PROPERTIES TIMEOUT 540
   )
 endif()
+
+
+# White-box unit tests for internal modules (Base64, Tree, Proxy parsing, MQTTProperties, utf-8)
+# that don't need a broker connection, so link directly against the static library to reach
+# internal symbols not exposed by the public MQTTClient/MQTTAsync headers.
+if(PAHO_BUILD_STATIC)
+  add_executable(test_unit_coverage test_unit_coverage.c)
+  target_link_libraries(test_unit_coverage paho-mqtt3a-static)
+
+  add_test(
+    NAME test_unit_coverage
+    COMMAND "test_unit_coverage"
+  )
+endif()
+
+
+# Black-box tests, using only the public MQTTClient API, that exercise specific
+# MQTT 3.1.1/5.0 conformance-statement log lines in the paho.mqtt.testing broker
+# that aren't otherwise reached by the rest of the test suite.
+if(PAHO_BUILD_STATIC)
+  add_executable(test_conformance-static test_conformance.c)
+  target_link_libraries(test_conformance-static paho-mqtt3c-static)
+
+  add_test(NAME test_conformance-1-subscribe_empty-static
+    COMMAND "test_conformance-static" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-2-keepalive_ping-static
+    COMMAND "test_conformance-static" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-3-server_keepalive_override-static
+    COMMAND "test_conformance-static" "--test_no" "3" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-4-zero_length_clientid-static
+    COMMAND "test_conformance-static" "--test_no" "4" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-5-duplicate_clientid-static
+    COMMAND "test_conformance-static" "--test_no" "5" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-6-zero_byte_retained_delete-static
+    COMMAND "test_conformance-static" "--test_no" "6" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-7-unsubscribe_no_match-static
+    COMMAND "test_conformance-static" "--test_no" "7" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-8-retained_flag_live_publish-static
+    COMMAND "test_conformance-static" "--test_no" "8" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-9-password_without_username-static
+    COMMAND "test_conformance-static" "--test_no" "9" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-10-user_property_order-static
+    COMMAND "test_conformance-static" "--test_no" "10" "--connection" ${MQTT_TEST_BROKER})
+
+  set_tests_properties(
+    test_conformance-1-subscribe_empty-static
+    test_conformance-2-keepalive_ping-static
+    test_conformance-3-server_keepalive_override-static
+    test_conformance-4-zero_length_clientid-static
+    test_conformance-5-duplicate_clientid-static
+    test_conformance-6-zero_byte_retained_delete-static
+    test_conformance-7-unsubscribe_no_match-static
+    test_conformance-8-retained_flag_live_publish-static
+    test_conformance-9-password_without_username-static
+    test_conformance-10-user_property_order-static
+    PROPERTIES TIMEOUT 60
+  )
+endif()
+
+if(PAHO_BUILD_SHARED)
+  add_executable(test_conformance test_conformance.c)
+  target_link_libraries(test_conformance paho-mqtt3c)
+
+  add_test(NAME test_conformance-1-subscribe_empty
+    COMMAND "test_conformance" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-2-keepalive_ping
+    COMMAND "test_conformance" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-3-server_keepalive_override
+    COMMAND "test_conformance" "--test_no" "3" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-4-zero_length_clientid
+    COMMAND "test_conformance" "--test_no" "4" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-5-duplicate_clientid
+    COMMAND "test_conformance" "--test_no" "5" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-6-zero_byte_retained_delete
+    COMMAND "test_conformance" "--test_no" "6" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-7-unsubscribe_no_match
+    COMMAND "test_conformance" "--test_no" "7" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-8-retained_flag_live_publish
+    COMMAND "test_conformance" "--test_no" "8" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-9-password_without_username
+    COMMAND "test_conformance" "--test_no" "9" "--connection" ${MQTT_TEST_BROKER})
+  add_test(NAME test_conformance-10-user_property_order
+    COMMAND "test_conformance" "--test_no" "10" "--connection" ${MQTT_TEST_BROKER})
+
+  set_tests_properties(
+    test_conformance-1-subscribe_empty
+    test_conformance-2-keepalive_ping
+    test_conformance-3-server_keepalive_override
+    test_conformance-4-zero_length_clientid
+    test_conformance-5-duplicate_clientid
+    test_conformance-6-zero_byte_retained_delete
+    test_conformance-7-unsubscribe_no_match
+    test_conformance-8-retained_flag_live_publish
+    test_conformance-9-password_without_username
+    test_conformance-10-user_property_order
+    PROPERTIES TIMEOUT 60
+  )
+endif()
