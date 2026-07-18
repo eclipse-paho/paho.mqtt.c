@@ -584,7 +584,9 @@ int main(int argc, char** argv)
 	 * alone isn't enough: Heap_initialize() is normally only called lazily from
 	 * MQTTAsync_createWithOptions, so it's called explicitly here instead. */
 	MQTTAsync_global_init(NULL);
+#if !defined(HIGH_PERFORMANCE)
 	Heap_initialize();
+#endif
 
 	test_base64();
 	test_tree();
