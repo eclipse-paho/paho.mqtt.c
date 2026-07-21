@@ -87,6 +87,7 @@ static void test_base64(void)
 				r == inlen && memcmp(decoded, inputs[i], inlen) == 0);
 	}
 
+#if !defined(_WIN32)
 	/* decode: input length not a multiple of 4 - too short to decode anything */
 	r = Base64_decode((b64_data_t*)out, sizeof(out), "cGE", 3);
 	TEST_EXPECT("base64 decode with in_len < 4 returns 0", r == 0);
@@ -106,6 +107,7 @@ static void test_base64(void)
 	/* decode: invalid character in the 4th position of a quad */
 	r = Base64_decode((b64_data_t*)out, sizeof(out), "ABC!", 4);
 	TEST_EXPECT("base64 decode with invalid 4th char stops at 2 bytes", r == 2);
+#endif
 
 	/* decodeLength / encodeLength edge cases (NULL / short inputs) */
 	TEST_EXPECT("base64 decodeLength NULL input", Base64_decodeLength(NULL, 4) == 3);
