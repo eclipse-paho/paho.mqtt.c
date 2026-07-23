@@ -77,6 +77,7 @@ struct Options
 	char server_auth_connection[100];
 	char anon_connection[100];
 	char psk_connection[100];
+	char tls_connection[100];
 	char** haconnections;         	/**< connection to system under test. */
 	int hacount;
 	char* client_key_file;
@@ -94,6 +95,7 @@ struct Options
 	"mqtts://localhost:18885",
 	"ssl://localhost:18886",
 	"mqtts://localhost:18888",
+	"tls://localhost:18889",
 	NULL,
 	0,
 	"../../../test/ssl/client.pem",
@@ -173,6 +175,8 @@ void getopts(int argc, char** argv)
 				printf("Setting anon_connection to %s\n", options.anon_connection);
 				sprintf(options.psk_connection, "%s://%s:18888", prefix, argv[count]);
 				printf("Setting psk_connection to %s\n", options.psk_connection);
+				sprintf(options.tls_connection, "%s://%s:18889", prefix, argv[count]);
+				printf("Setting tls_connection to %s\n", options.tls_connection);
 			}
 			else
 				usage();
@@ -1656,6 +1660,109 @@ exit:
 	return failures;
 }
 
+int test7(struct Options options)
+{
+ 	char* testname = "test_tls_minmax";
+    MQTTClient c;
+    MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
+    MQTTClient_SSLOptions sslopts = MQTTClient_SSLOptions_initializer;
+    int rc = 0;
+
+    failures = 0;
+    MyLog(LOGA_INFO, "Starting test - TLS min/max version check");
+    fprintf(xml, "<testcase classname=\"%s\" name=\"%s\"", testname, testname);
+    global_start_time = start_clock();
+
+    rc = MQTTClient_create(&c, options.tls_connection, "tls_minmax_client",
+                           MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    if (!(assert("good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+        goto exit;
+
+    opts.keepAliveInterval = 20;
+    opts.cleansession = 1;
+
+    if (options.haconnections != NULL)
+    {
+        opts.serverURIs = options.haconnections;
+        opts.serverURIcount = options.hacount;
+    }
+
+    opts.ssl = &sslopts;
+    sslopts.tlsMin = 3;
+    sslopts.tlsMax = 3;
+	opts.ssl->enableServerCertAuth = 0;
+
+    MyLog(LOGA_DEBUG, "Connecting with TLS min=%d max=%d", sslopts.tlsMin, sslopts.tlsMax);
+
+    rc = MQTTClient_connect(c, &opts);
+    if (!(assert("Good rc from connect", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+        goto exit;
+
+    MyLog(LOGA_DEBUG, "Disconnecting");
+
+    rc = MQTTClient_disconnect(c, 1000);
+    if (!(assert("Disconnect successful", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+        goto exit;
+
+exit:
+    MQTTClient_destroy(&c);
+    MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+          (failures == 0) ? "passed" : "failed", testname, tests, failures);
+    write_test_result();
+    return failures;
+}
+
+int test8(struct Options options)
+{
+    char* testname = "test_tls_minmax_no_overlap";
+    MQTTClient c;
+    MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
+    MQTTClient_SSLOptions sslopts = MQTTClient_SSLOptions_initializer;
+    int rc = 0;
+
+    failures = 0;
+    MyLog(LOGA_INFO, "Starting test - TLS min/max no overlap (expect failure)");
+    fprintf(xml, "<testcase classname=\"%s\" name=\"%s\"", testname, testname);
+    global_start_time = start_clock();
+
+    rc = MQTTClient_create(&c, options.tls_connection, "tls_no_overlap_client",
+                           MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    if (!(assert("good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc)))
+        goto exit;
+
+    opts.keepAliveInterval = 20;
+    opts.cleansession = 1;
+
+    if (options.haconnections != NULL)
+    {
+        opts.serverURIs = options.haconnections;
+        opts.serverURIcount = options.hacount;
+    }
+
+    opts.ssl = &sslopts;
+	opts.ssl->enableServerCertAuth = 0;
+
+    sslopts.tlsMin = 1;
+    sslopts.tlsMax = 1;
+
+    MyLog(LOGA_DEBUG, "Connecting with TLS min=%d max=%d (expect failure)",
+          sslopts.tlsMin, sslopts.tlsMax);
+
+    rc = MQTTClient_connect(c, &opts);
+
+    if (!(assert("connect should fail due to no TLS overlap",
+                 rc != MQTTCLIENT_SUCCESS,
+                 "connect unexpectedly succeeded (rc=%d)\n", rc)))
+        goto exit;
+
+exit:
+    MQTTClient_destroy(&c);
+    MyLog(LOGA_INFO, "%s: test %s. %d tests run, %d failures.",
+          (failures == 0) ? "passed" : "failed", testname, tests, failures);
+    write_test_result();
+    return failures;
+}
+
 
 typedef struct
 {
@@ -1705,7 +1812,7 @@ int main(int argc, char** argv)
 	int* numtests = &tests;
 	int rc = 0;
  	int (*tests[])(struct Options) = {NULL, test1, test2a_s, test2a_m, test2b, test2c, test3a_s, test3a_m, test3b, test4_s, test4_m, test6,
- 	  test2e_s /*test5a, test5b,test5c */};
+ 	  test2e_s, test7, test8 /*test5a, test5b,test5c */};
 	//MQTTClient_nameValue* info;
 
 	xml = fopen("TEST-test3.xml", "w");
