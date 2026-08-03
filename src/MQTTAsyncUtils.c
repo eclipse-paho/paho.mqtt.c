@@ -2384,6 +2384,10 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 				{
 					Log(LOG_ERROR, -1, "An unexpected packet type %u has been received", pack->header.bits.type);
 				}
+				else
+				{
+					Log(LOG_ERROR, -1, "Unexpected packet type %d", pack->header.bits.type);
+				}
 			}
 		}
 	}
