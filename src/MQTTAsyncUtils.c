@@ -2437,6 +2437,8 @@ static void MQTTAsync_stop(void)
 		{
 			int count = 0;
 			MQTTAsync_tostop = 1;
+			Socket_interrupt();          /* wake receive thread from poll() */
+			Thread_signal_evt(send_evt); /* wake send thread from Thread_wait_evt */
 			while ((sendThread_state != STOPPED || receiveThread_state != STOPPED) && MQTTAsync_tostop != 0 && ++count < 100)
 			{
 				MQTTAsync_unlock_mutex(mqttasync_mutex);
