@@ -135,6 +135,14 @@ int pstopen(void **handle, const char* clientID, const char* serverURI, void* co
 	{
 		pToken = strtok_r( pTokDirName, "\\/", &save_ptr );
 		strcpy( pCrtDirName, pToken );
+#if defined(_WIN32)
+		// We can not create drive letters like 'C:', so skip them:
+		if (*(pTokDirName + 1) == ':') {
+			pToken = strtok_r( NULL, "\\/", &save_ptr );
+			strcat( pCrtDirName, "/" );
+			strcat( pCrtDirName, pToken );
+		}
+#endif
 	}
 
 	rc = pstmkdir( pCrtDirName );
