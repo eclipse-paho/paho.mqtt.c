@@ -170,6 +170,7 @@ void* MQTTPacket_connack(int MQTTVersion, unsigned char aHeader, char* data, siz
 	FUNC_ENTRY;
 	if ((pack = malloc(sizeof(Connack))) == NULL)
 		goto exit;
+	memset(pack, 0, sizeof(Connack));
 	pack->MQTTVersion = MQTTVersion;
 	pack->header.byte = aHeader;
 	if (datalen < 2) /* enough data for connect flags and reason code? */
@@ -321,6 +322,7 @@ void* MQTTPacket_suback(int MQTTVersion, unsigned char aHeader, char* data, size
 	FUNC_ENTRY;
 	if ((pack = malloc(sizeof(Suback))) == NULL)
 		goto exit;
+	memset(pack, 0, sizeof(Suback));
 	pack->MQTTVersion = MQTTVersion;
 	pack->header.byte = aHeader;
 	if (enddata - curdata < 2)  /* Is there enough data to read the msgid? */
@@ -442,6 +444,7 @@ void* MQTTPacket_unsuback(int MQTTVersion, unsigned char aHeader, char* data, si
 	FUNC_ENTRY;
 	if ((pack = malloc(sizeof(Unsuback))) == NULL)
 		goto exit;
+	memset(pack, 0, sizeof(Unsuback));
 	pack->MQTTVersion = MQTTVersion;
 	pack->header.byte = aHeader;
 	if (enddata - curdata < 2)  /* Is there enough data? */
