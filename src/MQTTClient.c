@@ -319,6 +319,9 @@ typedef struct
 #endif
 
 	int rc; /* getsockopt return code in connect */
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    int tcp_result_ready;
+#endif
 	evt_type connect_evt;
 	evt_type connack_evt;
 	evt_type suback_evt;
@@ -614,6 +617,9 @@ void MQTTClient_destroy(MQTTClient* handle)
 	if (m->c)
 	{
 		SOCKET saved_socket = m->c->net.socket;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+        SocketConnect_cancel(&m->c->net.connect);
+#endif
 		char* saved_clientid = MQTTStrdup(m->c->clientID);
 #if !defined(NO_PERSISTENCE)
 		MQTTPersistence_close(m->c);
@@ -873,7 +879,7 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 		timeout = 100L;
 
 		/* find client corresponding to socket */
-		if (ListFindItem(handles, &sock, clientSockCompare) == NULL)
+		if (sock <= 0 || ListFindItem(handles, &sock, clientSockCompare) == NULL)
 		{
 			/* assert: should not happen */
 			continue;
@@ -1120,6 +1126,9 @@ int MQTTClient_setCallbacks(MQTTClient handle, void* context, MQTTClient_connect
 static void MQTTClient_closeSession(Clients* client, enum MQTTReasonCodes reason, MQTTProperties* props, int sendDisconnect)
 {
 	FUNC_ENTRY;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    SocketConnect_cancel(&client->net.connect);
+#endif
 	client->good = 0;
 	client->ping_outstanding = 0;
 	client->ping_due = 0;
@@ -1259,6 +1268,12 @@ static MQTTResponse MQTTClient_connectURIVersion(MQTTClient handle, MQTTClient_c
 		}
 	}
 
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    m->c->net.connect_start = start;
+    m->c->net.connect_timeout = millisecsTimeout;
+    m->tcp_result_ready = 0;
+    Thread_wait_evt(m->connect_evt, 0); /* discard an old attempt's signal */
+#endif
 	Log(TRACE_MIN, -1, "Connecting to serverURI %s with MQTT version %d", serverURI, MQTTVersion);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
@@ -2618,24 +2633,58 @@ static MQTTPacket* MQTTClient_cycle(SOCKET* sock, ELAPSED_TIME_TYPE timeout, int
 	static Ack ack;
 	MQTTPacket* pack = NULL;
 	int rc1 = 0;
+    uint64_t registration_id = 0;
 	int interrupted = 0;
 	START_TIME_TYPE start;
 
 	FUNC_ENTRY;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    Paho_thread_lock_mutex(mqttclient_mutex);
+    timeout = SocketConnect_timeout((int)timeout);
+    Paho_thread_unlock_mutex(mqttclient_mutex);
+#endif
 #if defined(OPENSSL)
 	if ((*sock = SSLSocket_getPendingRead()) == -1)
 	{
 		/* 0 from getReadySocket indicates no work to do, rc -1 == error */
 #endif
 		start = MQTTTime_start_clock();
-		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, rc, &interrupted);
+		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, &rc1, &interrupted, &registration_id);
 		*rc = rc1;
-		if (*sock == 0 && timeout >= 100L && MQTTTime_elapsed(start) < (int64_t)10)
+#if !defined(PAHO_WITH_HAPPY_EYEBALLS)
+		if (*sock == 0 && !interrupted && timeout >= 100L && MQTTTime_elapsed(start) < (int64_t)10)
 			MQTTTime_sleep(100L);
+#endif
 #if defined(OPENSSL)
 	}
 #endif
 	Paho_thread_lock_mutex(mqttclient_mutex);
+    if (registration_id && !Socket_eventValid(*sock, registration_id))
+        *sock = 0;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    {
+        ListElement* current = NULL;
+        int candidate_event = *sock > 0 && ListFindItem(handles, sock, clientSockCompare) == NULL;
+        SocketConnect_process(*sock, registration_id);
+        if (candidate_event)
+            *sock = 0;
+        while (ListNextElement(handles, &current))
+        {
+            MQTTClients* pending = current->content;
+            SOCKET winner;
+            int error;
+            if (SocketConnect_takeResult(&pending->c->net.connect, &winner, &error))
+            {
+                pending->c->net.socket = error == 0 ? winner : 0;
+                pending->rc = error;
+                pending->tcp_result_ready = 1;
+                pending->c->connect_state = NOT_IN_PROGRESS;
+                if (running)
+                    Thread_signal_evt(pending->connect_evt);
+            }
+        }
+    }
+#endif
 	if (*sock > 0 && rc1 == 0)
 	{
 		MQTTClients* m = NULL;
@@ -2733,7 +2782,12 @@ static MQTTPacket* MQTTClient_waitfor(MQTTClient handle, int packet_type, int* r
 		if (packet_type == CONNECT)
 		{
 			if ((*rc = Thread_wait_evt(m->connect_evt, (int)timeout)) == 0)
+            {
 				*rc = m->rc;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+                m->tcp_result_ready = 0;
+#endif
+            }
 		}
 		else if (packet_type == CONNACK)
 			*rc = Thread_wait_evt(m->connack_evt, (int)timeout);
@@ -2752,7 +2806,15 @@ static MQTTPacket* MQTTClient_waitfor(MQTTClient handle, int packet_type, int* r
 		{
 			SOCKET sock = -1;
 			pack = MQTTClient_cycle(&sock, 100L, rc);
-			if (sock == m->c->net.socket)
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+            if (packet_type == CONNECT && m->tcp_result_ready)
+            {
+                *rc = m->rc;
+                m->tcp_result_ready = 0;
+                break;
+            }
+#endif
+			if (sock > 0 && sock == m->c->net.socket)
 			{
 				if (*rc == SOCKET_ERROR)
 					break;

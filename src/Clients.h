@@ -34,6 +34,7 @@
 #include "LinkedList.h"
 #include "MQTTClientPersistence.h"
 #include "Socket.h"
+#include "SocketConnect.h"
 
 /**
  * Stored publication data to minimize copying
@@ -79,6 +80,11 @@ typedef struct
 typedef struct
 {
 	SOCKET socket;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+	SocketConnect* connect;
+	START_TIME_TYPE connect_start;
+	ELAPSED_TIME_TYPE connect_timeout;
+#endif
 	START_TIME_TYPE lastSent;
 	START_TIME_TYPE lastReceived;
 	START_TIME_TYPE lastPing;
