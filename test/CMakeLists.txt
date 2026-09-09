@@ -1,5 +1,12 @@
 project(mqtt-tests C)
 
+# Deterministic connection scheduler tests use socket/clock substitutes.
+add_executable(test_socket_connect test_socket_connect.c ../src/SocketConnect.c)
+target_include_directories(test_socket_connect PRIVATE ../src)
+target_compile_definitions(test_socket_connect PRIVATE NO_HEAP_TRACKING PAHO_MQTT_STATIC)
+add_test(NAME socket-connect-state COMMAND test_socket_connect)
+set_tests_properties(socket-connect-state PROPERTIES TIMEOUT 10 LABELS "happy-eyeballs")
+
 set(MQTT_TEST_BROKER "tcp://localhost:1883" CACHE STRING "Hostname of a test MQTT broker to use")
 set(MQTT_WS_TEST_BROKER "ws://localhost:1883" CACHE STRING "WebSocket connection to a test MQTT broker")
 set(MQTT_TEST_PROXY "tcp://localhost:1884" CACHE STRING "Hostname of the test proxy to use")

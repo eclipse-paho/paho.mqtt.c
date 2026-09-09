@@ -63,6 +63,11 @@ option(PAHO_BUILD_DEB_PACKAGE "Build debian package" FALSE)
 option(PAHO_ENABLE_TESTING "Build tests and run" TRUE)
 option(PAHO_ENABLE_CPACK "Enable CPack" TRUE)
 option(PAHO_HIGH_PERFORMANCE "Disable tracing and heap tracking" FALSE)
+option(PAHO_WITH_HAPPY_EYEBALLS "Race IPv4/IPv6 TCP connection candidates" TRUE)
+if(PAHO_WITH_HAPPY_EYEBALLS)
+  add_definitions(-DPAHO_WITH_HAPPY_EYEBALLS)
+endif()
+
 option(PAHO_USE_SELECT "Revert to select system call instead of poll" FALSE)
 option(PAHO_NO_TCP_NODELAY "Don't disable Nagle's algorithm on TCP sockets" FALSE)
 

@@ -1374,6 +1374,10 @@ static int MQTTAsync_processCommand(void)
 			else
 				command->command.details.conn.MQTTVersion = command->client->c->MQTTVersion;
 
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+            command->client->c->net.connect_start = command->command.start_time;
+            command->client->c->net.connect_timeout = (ELAPSED_TIME_TYPE)command->client->connectTimeout * 1000;
+#endif
 			Log(TRACE_PROTOCOL, -1, "Connecting to serverURI %s with MQTT version %d", serverURI, command->command.details.conn.MQTTVersion);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)
@@ -1400,7 +1404,7 @@ static int MQTTAsync_processCommand(void)
 			which is indicated by the socket being ready *either* for reading *or* writing.  The next couple of lines
 			make sure we check for writeability as well as readability, otherwise we wait around longer than we need to
 			in Socket_getReadySocket() */
-			if (rc == EINPROGRESS)
+			if (rc == EINPROGRESS && command->client->c->net.socket > 0)
 				Socket_addPendingWrite(command->client->c->net.socket);
 		}
 	}
@@ -2457,6 +2461,9 @@ static void MQTTAsync_stop(void)
 static void MQTTAsync_closeOnly(Clients* client, enum MQTTReasonCodes reasonCode, MQTTProperties* props, int sendDisconnect)
 {
 	FUNC_ENTRY;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    SocketConnect_cancel(&client->net.connect);
+#endif
 	client->good = 0;
 	client->ping_outstanding = 0;
 	client->ping_due = 0;
@@ -3062,8 +3069,14 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 {
 	MQTTPacket* pack = NULL;
 	int rc1 = 0;
+    uint64_t registration_id = 0;
 
 	FUNC_ENTRY;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    MQTTAsync_lock_mutex(mqttasync_mutex);
+    timeout = SocketConnect_timeout((int)timeout);
+    MQTTAsync_unlock_mutex(mqttasync_mutex);
+#endif
 #if defined(OPENSSL)
 	if ((*sock = SSLSocket_getPendingRead()) == -1)
 	{
@@ -3072,7 +3085,7 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 		int interrupted = 0;
 
 		/* 0 from getReadySocket indicates no work to do, rc -1 == error */
-		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, &rc1, &interrupted);
+		*sock = Socket_getReadySocket(0, (int)timeout, socket_mutex, &rc1, &interrupted, &registration_id);
 		*rc = rc1;
 		/*MQTTAsync_lock_mutex(mqttasync_mutex);
 		should_stop = MQTTAsync_tostop;
@@ -3087,6 +3100,35 @@ static MQTTPacket* MQTTAsync_cycle(SOCKET* sock, unsigned long timeout, int* rc)
 	}
 #endif
 	MQTTAsync_lock_mutex(mqttasync_mutex);
+    if (registration_id && !Socket_eventValid(*sock, registration_id))
+        *sock = 0;
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+    {
+        ListElement* current = NULL;
+        int candidate_event = *sock > 0 &&
+            ListFindItem(MQTTAsync_handles, sock, clientSockCompare) == NULL;
+        SocketConnect_process(*sock, registration_id);
+        if (candidate_event)
+            *sock = 0;
+        while (ListNextElement(MQTTAsync_handles, &current))
+        {
+            MQTTAsyncs* pending = current->content;
+            SOCKET winner;
+            int error;
+            if (SocketConnect_takeResult(&pending->c->net.connect, &winner, &error))
+            {
+                if (error == 0)
+                {
+                    pending->c->net.socket = winner;
+                    MQTTAsync_connecting(pending);
+                }
+                else
+                    nextOrClose(pending, MQTTASYNC_FAILURE,
+                        error == ETIMEDOUT ? "TCP connect timeout" : "TCP candidates exhausted", 0);
+            }
+        }
+    }
+#endif
 	if (*sock > 0 && rc1 == 0)
 	{
 		MQTTAsyncs* m = NULL;

@@ -60,7 +60,7 @@
 #endif
 
 #if defined(USE_SELECT)
-int isReady(int socket, fd_set* read_set, fd_set* write_set);
+int isReady(SOCKET socket, fd_set* read_set, fd_set* write_set);
 int Socket_continueWrites(fd_set* pwset, SOCKET* socket, mutex_type mutex);
 #else
 int isReady(int index);
@@ -90,6 +90,65 @@ static fd_set wset;
 #endif
 
 extern mutex_type socket_mutex;
+
+/* Registrations survive only as long as their FD. Snapshot identities stop a
+ * close/reopen while poll/select is unlocked from reusing an old readiness bit.
+ * All access is under socket_mutex.
+ */
+typedef struct SocketRegistration
+{
+    SOCKET socket;
+    uint64_t registration_id, snapshot_registration_id;
+    int connecting;
+    struct SocketRegistration* next;
+} SocketRegistration;
+static SocketRegistration* registrations;
+static uint64_t next_registration_id;
+
+static SocketRegistration* Socket_registration(SOCKET socket)
+{
+    SocketRegistration* reg;
+    for (reg = registrations; reg && reg->socket != socket; reg = reg->next)
+        ;
+    return reg;
+}
+
+static void Socket_snapshot(void)
+{
+    SocketRegistration* reg;
+    for (reg = registrations; reg; reg = reg->next)
+        reg->snapshot_registration_id = reg->registration_id;
+}
+
+static int Socket_snapshotValid(SOCKET socket)
+{
+    SocketRegistration* reg = Socket_registration(socket);
+    return reg && reg->snapshot_registration_id == reg->registration_id;
+}
+
+static void Socket_unregister(SOCKET socket)
+{
+    SocketRegistration** link = &registrations;
+    while (*link && (*link)->socket != socket)
+        link = &(*link)->next;
+    if (*link)
+    {
+        SocketRegistration* old = *link;
+        *link = old->next;
+        free(old);
+    }
+}
+
+int Socket_eventValid(SOCKET socket, uint64_t registration_id)
+{
+    SocketRegistration* reg;
+    int valid;
+    Paho_thread_lock_mutex(socket_mutex);
+    reg = Socket_registration(socket);
+    valid = reg && registration_id && reg->registration_id == registration_id;
+    Paho_thread_unlock_mutex(socket_mutex);
+    return valid;
+}
 
 /**
  * Set a socket non-blocking, OS independently
@@ -285,7 +344,7 @@ error:
 
 #endif /* _WIN32 */
 
-static SOCKET sockfd[2];
+static SOCKET sockfd[2] = {INVALID_SOCKET, INVALID_SOCKET};
 
 int Socket_pair()
 {
@@ -293,7 +352,11 @@ int Socket_pair()
 
 	FUNC_ENTRY;
 	if ((rc = socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd)) == 0) /* 0 if successful */
+	{
 		rc = Socket_addSocket(sockfd[0]);
+		if (rc == 0)
+			rc = Socket_setnonblocking(sockfd[1]);
+	}
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -302,6 +365,15 @@ int Socket_interrupt()
 {
 	FUNC_ENTRY;
 	int rc = send(sockfd[1], "\0", 1, 0);
+    if (rc == SOCKET_ERROR)
+    {
+#if defined(_WIN32)
+        if (WSAGetLastError() == WSAEWOULDBLOCK)
+#else
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+#endif
+            rc = 0; /* a wakeup is already queued */
+    }
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -353,6 +425,7 @@ void Socket_outInitialize(void)
  */
 void Socket_outTerminate(void)
 {
+	int i;
 	FUNC_ENTRY;
 	ListFree(mod_s.connect_pending);
 	ListFree(mod_s.write_pending);
@@ -368,6 +441,20 @@ void Socket_outTerminate(void)
 	if (mod_s.saved.fds_read)
 		free(mod_s.saved.fds_read);
 #endif
+    while (registrations)
+        Socket_unregister(registrations->socket);
+	for (i = 0; i < 2; ++i)
+	{
+		if (sockfd[i] != INVALID_SOCKET)
+		{
+#if defined(_WIN32)
+			closesocket(sockfd[i]);
+#else
+			close(sockfd[i]);
+#endif
+			sockfd[i] = INVALID_SOCKET;
+		}
+	}
 	SocketBuffer_terminate();
 #if defined(_WIN32)
 	WSACleanup();
@@ -376,149 +463,102 @@ void Socket_outTerminate(void)
 }
 
 
+#if !defined(USE_SELECT)
+static int cmpfds(const void* p1, const void* p2)
+{
+    SOCKET a = ((const struct pollfd*)p1)->fd, b = ((const struct pollfd*)p2)->fd;
+    return a == b ? 0 : (a < b ? -1 : 1);
+}
+
+static int cmpsockfds(const void* p1, const void* p2)
+{
+    SOCKET a = *(const SOCKET*)p1, b = ((const struct pollfd*)p2)->fd;
+    return a == b ? 0 : (a < b ? -1 : 1);
+}
+#endif
+
+int Socket_addSocket(SOCKET socket)
+{
+    int rc = SOCKET_ERROR;
+    SocketRegistration* reg = NULL;
+    Paho_thread_lock_mutex(socket_mutex);
+    if (Socket_registration(socket))
+    {
+        rc = 0;
+        goto exit;
+    }
+    if (Socket_setnonblocking(socket) != 0)
+        goto exit;
+    reg = malloc(sizeof(*reg));
+    if (!reg)
+        goto exit;
 #if defined(USE_SELECT)
-/**
- * Add a socket to the list of socket to check with select
- * @param newSd the new socket to add
- */
-int Socket_addSocket(SOCKET newSd)
-{
-	int rc = 0;
-
-	FUNC_ENTRY;
-	if (ListFindItem(mod_s.clientsds, &newSd, intcompare) == NULL) /* make sure we don't add the same socket twice */
-	{
-		if (mod_s.clientsds->count >= FD_SETSIZE)
-		{
-			Log(LOG_ERROR, -1, "addSocket: exceeded FD_SETSIZE %d", FD_SETSIZE);
-			rc = SOCKET_ERROR;
-		}
-		else
-		{
-			SOCKET* pnewSd = (SOCKET*)malloc(sizeof(newSd));
-
-			if (!pnewSd)
-			{
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-			}
-			*pnewSd = newSd;
-			if (!ListAppend(mod_s.clientsds, pnewSd, sizeof(newSd)))
-			{
-				free(pnewSd);
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-			}
-			FD_SET(newSd, &(mod_s.rset_saved));
-			mod_s.maxfdp1 = max(mod_s.maxfdp1, (int)newSd + 1);
-			rc = Socket_setnonblocking(newSd);
-			if (rc == SOCKET_ERROR)
-				Log(LOG_ERROR, -1, "addSocket: setnonblocking");
-		}
-	}
-	else
-		Log(LOG_ERROR, -1, "addSocket: socket %d already in the list", newSd);
-
-exit:
-	FUNC_EXIT_RC(rc);
-	return rc;
-}
-#else
-static int cmpfds(const void *p1, const void *p2)
-{
-   SOCKET key1 = ((struct pollfd*)p1)->fd;
-   SOCKET key2 = ((struct pollfd*)p2)->fd;
-
-   return (key1 == key2) ? 0 : ((key1 < key2) ? -1 : 1);
-}
-
-
-static int cmpsockfds(const void *p1, const void *p2)
-{
-   int key1 = *(int*)p1;
-   SOCKET key2 = ((struct pollfd*)p2)->fd;
-
-   return (key1 == key2) ? 0 : ((key1 < key2) ? -1 : 1);
-}
-
-
-/**
- * Add a socket to the list of socket to check with select
- * @param newSd the new socket to add
- * @return 0 if successful
- */
-int Socket_addSocket(SOCKET newSd)
-{
-	int rc = 0;
-
-	FUNC_ENTRY;
-	Paho_thread_lock_mutex(socket_mutex);
-	mod_s.nfds++;
-	if (mod_s.fds_read)
-	{
-		void* newPtr = realloc(mod_s.fds_read, mod_s.nfds * sizeof(mod_s.fds_read[0]));
-		if (newPtr == NULL)
-		{
-			free(mod_s.fds_read);
-			mod_s.fds_read = NULL;
-		}
-		else
-		{
-			mod_s.fds_read = newPtr;
-		}
-	}
-	else
-		mod_s.fds_read = malloc(mod_s.nfds * sizeof(mod_s.fds_read[0]));
-	if (!mod_s.fds_read)
-	{
-		rc = PAHO_MEMORY_ERROR;
-		goto exit;
-	}
-	if (mod_s.fds_write)
-	{
-		void* newPtr = realloc(mod_s.fds_write, mod_s.nfds * sizeof(mod_s.fds_write[0]));
-		if (newPtr == NULL)
-		{
-			free(mod_s.fds_write);
-			mod_s.fds_write = NULL;
-		}
-		else
-		{
-			mod_s.fds_write = newPtr;
-		}
-	}
-	else
-		mod_s.fds_write = malloc(mod_s.nfds * sizeof(mod_s.fds_write[0]));
-	if (!mod_s.fds_write)
-	{
-		rc = PAHO_MEMORY_ERROR;
-		goto exit;
-	}
-
-	mod_s.fds_read[mod_s.nfds - 1].fd = newSd;
-	mod_s.fds_write[mod_s.nfds - 1].fd = newSd;
-#if defined(_WIN32)
-	mod_s.fds_read[mod_s.nfds - 1].events = POLLIN;
-	mod_s.fds_write[mod_s.nfds - 1].events = POLLOUT;
-#else
-	mod_s.fds_read[mod_s.nfds - 1].events = POLLIN | POLLNVAL;
-	mod_s.fds_write[mod_s.nfds - 1].events = POLLOUT;
+    if (mod_s.clientsds->count >= FD_SETSIZE
+#if !defined(_WIN32)
+        || socket >= FD_SETSIZE
 #endif
-
-	/* sort the poll fds array by socket number */
-	qsort(mod_s.fds_read, (size_t)mod_s.nfds, sizeof(mod_s.fds_read[0]), cmpfds);
-	qsort(mod_s.fds_write, (size_t)mod_s.nfds, sizeof(mod_s.fds_write[0]), cmpfds);
-
-	rc = Socket_setnonblocking(newSd);
-	if (rc == SOCKET_ERROR)
-		Log(LOG_ERROR, -1, "addSocket: setnonblocking");
-
-exit:
-	Paho_thread_unlock_mutex(socket_mutex);
-	FUNC_EXIT_RC(rc);
-	return rc;
-}
+        )
+        goto exit;
+    {
+        SOCKET* fd = malloc(sizeof(*fd));
+        if (!fd)
+            goto exit;
+        *fd = socket;
+        if (!ListAppend(mod_s.clientsds, fd, sizeof(*fd)))
+        {
+            free(fd);
+            goto exit;
+        }
+    }
+    FD_SET(socket, &mod_s.rset_saved);
+    mod_s.maxfdp1 = max(mod_s.maxfdp1, (int)socket + 1);
+#else
+    {
+        struct pollfd* reads = malloc((mod_s.nfds + 1) * sizeof(*reads));
+        struct pollfd* writes = malloc((mod_s.nfds + 1) * sizeof(*writes));
+        if (!reads || !writes)
+        {
+            if (reads)
+                free(reads);
+            if (writes)
+                free(writes);
+            goto exit;
+        }
+        if (mod_s.nfds)
+        {
+            memcpy(reads, mod_s.fds_read, mod_s.nfds * sizeof(*reads));
+            memcpy(writes, mod_s.fds_write, mod_s.nfds * sizeof(*writes));
+        }
+        memset(&reads[mod_s.nfds], 0, sizeof(*reads));
+        memset(&writes[mod_s.nfds], 0, sizeof(*writes));
+        reads[mod_s.nfds].fd = writes[mod_s.nfds].fd = socket;
+        reads[mod_s.nfds].events = POLLIN;
+        writes[mod_s.nfds].events = POLLOUT;
+        if (mod_s.fds_read)
+            free(mod_s.fds_read);
+        if (mod_s.fds_write)
+            free(mod_s.fds_write);
+        mod_s.fds_read = reads;
+        mod_s.fds_write = writes;
+        ++mod_s.nfds;
+        qsort(reads, mod_s.nfds, sizeof(*reads), cmpfds);
+        qsort(writes, mod_s.nfds, sizeof(*writes), cmpfds);
+    }
 #endif
+    reg->socket = socket;
+    reg->registration_id = ++next_registration_id;
+    reg->snapshot_registration_id = 0;
+    reg->connecting = 0;
+    reg->next = registrations;
+    registrations = reg;
+    reg = NULL;
+    rc = 0;
+exit:
+    if (reg)
+        free(reg);
+    Paho_thread_unlock_mutex(socket_mutex);
+    return rc;
+}
 
 
 #if defined(USE_SELECT)
@@ -530,12 +570,16 @@ exit:
  * @param write_set the socket write set (see select doc)
  * @return boolean - is the socket ready to go?
  */
-int isReady(int socket, fd_set* read_set, fd_set* write_set)
+int isReady(SOCKET socket, fd_set* read_set, fd_set* write_set)
 {
 	int rc = 1;
 
 	FUNC_ENTRY;
-	if  (ListFindItem(mod_s.connect_pending, &socket, intcompare) && FD_ISSET(socket, write_set))
+	if (socket == sockfd[0] || !Socket_snapshotValid(socket))
+        rc = 0;
+    else if (Socket_registration(socket)->connecting)
+        rc = FD_ISSET(socket, write_set) || FD_ISSET(socket, read_set);
+    else if (ListFindItem(mod_s.connect_pending, &socket, intcompare) && FD_ISSET(socket, write_set))
 		ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
 	else
 		rc = FD_ISSET(socket, read_set) && FD_ISSET(socket, write_set) && Socket_noPendingWrites(socket);
@@ -556,9 +600,11 @@ int isReady(int index)
 
 	FUNC_ENTRY;
 
-	if (*socket == sockfd[0]) /* don't return the interrupting socket */
+	if (*socket == sockfd[0] || !Socket_snapshotValid(*socket)) /* don't return the interrupting socket */
 		rc = 0;
-	else if ((mod_s.saved.fds_read[index].revents & POLLHUP) || (mod_s.saved.fds_read[index].revents & POLLNVAL))
+	else if (Socket_registration(*socket)->connecting)
+        rc = (mod_s.saved.fds_read[index].revents & (POLLIN | POLLOUT | POLLERR | POLLHUP | POLLNVAL)) != 0;
+    else if ((mod_s.saved.fds_read[index].revents & POLLHUP) || (mod_s.saved.fds_read[index].revents & POLLNVAL))
 		; /* signal work to be done if there is an error on the socket */
 	else if  (ListFindItem(mod_s.connect_pending, socket, intcompare) &&
 			(mod_s.saved.fds_write[index].revents & POLLOUT))
@@ -579,6 +625,7 @@ int isReady(int index)
  * @param index
  * @return 1 if the socket has a TCP connect pending, otherwise 0
  */
+#if !defined(USE_SELECT)
 int isConnectPending(int index)
 {
 	int rc = 0;
@@ -594,6 +641,7 @@ int isConnectPending(int index)
 	return rc;
 }
 
+#endif
 
 #if defined(USE_SELECT)
 /**
@@ -604,11 +652,13 @@ int isConnectPending(int index)
  *  @param rc a value other than 0 indicates an error of the returned socket
  *  @return the socket next ready, or 0 if none is ready
  */
-SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc)
+SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted, uint64_t* registration_id)
 {
 	SOCKET sock = 0;
 	*rc = 0;
 	int timeout_ms = 1000;
+    *interrupted = 0;
+    *registration_id = 0;
 
 	FUNC_ENTRY;
 	Paho_thread_lock_mutex(mutex);
@@ -622,7 +672,7 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 
 	while (mod_s.cur_clientsds != NULL)
 	{
-		if (isReady(*((int*)(mod_s.cur_clientsds->content)), &(mod_s.rset), &wset))
+		if (isReady(*((SOCKET*)(mod_s.cur_clientsds->content)), &(mod_s.rset), &wset))
 			break;
 		ListNextElement(mod_s.clientsds, &mod_s.cur_clientsds);
 	}
@@ -631,7 +681,7 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 	{
 		static struct timeval zero = {0L, 0L}; /* 0 seconds */
 		int rc1, maxfdp1_saved;
-		fd_set pwset;
+		fd_set pwset, errors;
 		struct timeval timeout_tv = {0L, 0L};
 
 		if (timeout_ms > 0L)
@@ -642,7 +692,9 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 
 		memcpy((void*)&(mod_s.rset), (void*)&(mod_s.rset_saved), sizeof(mod_s.rset));
 		memcpy((void*)&(pwset), (void*)&(mod_s.pending_wset), sizeof(pwset));
+		errors = pwset;
 		maxfdp1_saved = mod_s.maxfdp1;
+        Socket_snapshot();
 		
 		if (maxfdp1_saved == 0)
 		{
@@ -651,13 +703,19 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		}
 		/* Prevent performance issue by unlocking the socket_mutex while waiting for a ready socket. */
 		Paho_thread_unlock_mutex(mutex);
-		*rc = select(maxfdp1_saved, &(mod_s.rset), &pwset, NULL, &timeout_tv);
+		*rc = select(maxfdp1_saved, &(mod_s.rset), &pwset, &errors, &timeout_tv);
 		Paho_thread_lock_mutex(mutex);
 		if (*rc == SOCKET_ERROR)
 		{
 			Socket_error("read select", 0);
 			goto exit;
 		}
+        if (sockfd[0] != INVALID_SOCKET && FD_ISSET(sockfd[0], &mod_s.rset))
+        {
+            char wake[128];
+            while (recv(sockfd[0], wake, sizeof(wake), 0) > 0)
+                *interrupted = 1;
+        }
 		Log(TRACE_MAX, -1, "Return code %d from read select", *rc);
 
 		if (Socket_continueWrites(&pwset, &sock, mutex) == SOCKET_ERROR)
@@ -673,6 +731,12 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			*rc = rc1;
 			goto exit;
 		}
+        {
+            SocketRegistration* reg;
+            for (reg = registrations; reg; reg = reg->next)
+                if (reg->connecting && reg->snapshot_registration_id == reg->registration_id && FD_ISSET(reg->socket, &errors))
+                    FD_SET(reg->socket, &wset);
+        }
 		Log(TRACE_MAX, -1, "Return code %d from write select", rc1);
 
 		if (*rc == 0 && rc1 == 0)
@@ -684,7 +748,7 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		mod_s.cur_clientsds = mod_s.clientsds->first;
 		while (mod_s.cur_clientsds != NULL)
 		{
-			int cursock = *((int*)(mod_s.cur_clientsds->content));
+			SOCKET cursock = *((SOCKET*)(mod_s.cur_clientsds->content));
 			if (isReady(cursock, &(mod_s.rset), &wset))
 				break;
 			ListNextElement(mod_s.clientsds, &mod_s.cur_clientsds);
@@ -696,10 +760,14 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		sock = 0;
 	else
 	{
-		sock = *((int*)(mod_s.cur_clientsds->content));
+		sock = *((SOCKET*)(mod_s.cur_clientsds->content));
 		ListNextElement(mod_s.clientsds, &mod_s.cur_clientsds);
 	}
 exit:
+    if (sock > 0 && Socket_snapshotValid(sock))
+        *registration_id = Socket_registration(sock)->snapshot_registration_id;
+    else
+        sock = 0;
 	Paho_thread_unlock_mutex(mutex);
 	FUNC_EXIT_RC(sock);
 	return sock;
@@ -713,11 +781,13 @@ exit:
  *  @param rc a value other than 0 indicates an error of the returned socket
  *  @return the socket next ready, or 0 if none is ready
  */
-SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted)
+SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted, uint64_t* registration_id)
 {
 	SOCKET sock = 0;
 	*rc = 0;
 	int timeout_ms = 1000;
+    *interrupted = 0;
+    *registration_id = 0;
 
 	FUNC_ENTRY;
 	Paho_thread_lock_mutex(mutex);
@@ -740,65 +810,33 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 	{
 		int rc1 = 0;
 
-		if (mod_s.nfds != mod_s.saved.nfds)
-		{
-			mod_s.saved.nfds = mod_s.nfds;
-			if (mod_s.nfds == 0)
-			{
-				if (mod_s.saved.fds_read)
-				{
-					free(mod_s.saved.fds_read);
-					mod_s.saved.fds_read = NULL;
-				}
-			}
-			else if (mod_s.saved.fds_read)
-			{
-				void* newPtr = realloc(mod_s.saved.fds_read, mod_s.nfds * sizeof(struct pollfd));
-				if (newPtr == NULL)
-				{
-					free(mod_s.saved.fds_read);
-					mod_s.saved.fds_read = NULL;
-				}
-				else
-				{
-					mod_s.saved.fds_read = newPtr;
-				}
-			}
-			else
-				mod_s.saved.fds_read = malloc(mod_s.nfds * sizeof(struct pollfd));
-
-			if (mod_s.nfds == 0)
-			{
-				if (mod_s.saved.fds_write)
-				{
-					free(mod_s.saved.fds_write);
-					mod_s.saved.fds_write = NULL;
-				}
-			}
-			else if (mod_s.saved.fds_write)
-			{
-				void* newPtr = realloc(mod_s.saved.fds_write, mod_s.nfds * sizeof(struct pollfd));
-				if (newPtr == NULL)
-				{
-					free(mod_s.saved.fds_write);
-					mod_s.saved.fds_write = NULL;
-				}
-				else
-				{
-					mod_s.saved.fds_write = newPtr;
-				}
-			}
-			else
-				mod_s.saved.fds_write = malloc(mod_s.nfds * sizeof(struct pollfd));
-		}
-		if (mod_s.fds_read == NULL)
-			mod_s.saved.fds_read = NULL;
-		else
-			memcpy(mod_s.saved.fds_read, mod_s.fds_read, mod_s.nfds * sizeof(struct pollfd));
-		if (mod_s.fds_write == NULL)
-			mod_s.saved.fds_write = NULL;
-		else
-			memcpy(mod_s.saved.fds_write, mod_s.fds_write, mod_s.nfds * sizeof(struct pollfd));
+        if (mod_s.nfds != mod_s.saved.nfds)
+        {
+            struct pollfd* reads = malloc(mod_s.nfds * sizeof(*reads));
+            struct pollfd* writes = malloc(mod_s.nfds * sizeof(*writes));
+            if (mod_s.nfds && (!reads || !writes))
+            {
+                if (reads)
+                    free(reads);
+                if (writes)
+                    free(writes);
+                *rc = SOCKET_ERROR;
+                goto exit;
+            }
+            if (mod_s.saved.fds_read)
+                free(mod_s.saved.fds_read);
+            if (mod_s.saved.fds_write)
+                free(mod_s.saved.fds_write);
+            mod_s.saved.fds_read = reads;
+            mod_s.saved.fds_write = writes;
+            mod_s.saved.nfds = mod_s.nfds;
+        }
+        if (mod_s.nfds)
+        {
+            memcpy(mod_s.saved.fds_read, mod_s.fds_read, mod_s.nfds * sizeof(struct pollfd));
+            memcpy(mod_s.saved.fds_write, mod_s.fds_write, mod_s.nfds * sizeof(struct pollfd));
+        }
+        Socket_snapshot();
 
 		if (mod_s.saved.nfds == 0)
 		{
@@ -818,7 +856,8 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		mod_s.saved.cur_fd = 0;
 		while (mod_s.saved.cur_fd != -1)
 		{
-			if (isConnectPending(mod_s.saved.cur_fd))
+			if (isConnectPending(mod_s.saved.cur_fd) &&
+                !Socket_registration(mod_s.saved.fds_read[mod_s.saved.cur_fd].fd)->connecting)
 			{
 				Log(TRACE_MINIMUM, -1, "Socket %d is connecting, reducing timeout from %d, no of sockets %d\n",
 					mod_s.saved.cur_fd, timeout_ms, mod_s.saved.nfds);
@@ -831,11 +870,6 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			mod_s.saved.cur_fd = (mod_s.saved.cur_fd == mod_s.saved.nfds - 1) ? -1 : mod_s.saved.cur_fd + 1;
 		}
 
-		/* clear interrupt socket - make sure it is unset */
-		{
-			static char dbuf[1];
-			/*int irc = */recv(sockfd[0], dbuf, 1, 0);
-		}
 		/* Prevent performance issue by unlocking the socket_mutex while waiting for a ready socket. */
 		Paho_thread_unlock_mutex(mutex);
 		*rc = poll(mod_s.saved.fds_read, mod_s.saved.nfds, timeout_ms);
@@ -882,6 +916,10 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		mod_s.saved.cur_fd = (mod_s.saved.cur_fd == mod_s.saved.nfds - 1) ? -1 : mod_s.saved.cur_fd + 1;
 	}
 exit:
+    if (sock > 0 && Socket_snapshotValid(sock))
+        *registration_id = Socket_registration(sock)->snapshot_registration_id;
+    else
+        sock = 0;
 	Paho_thread_unlock_mutex(mutex);
 	FUNC_EXIT_RC(sock);
 	return sock;
@@ -1202,11 +1240,13 @@ int Socket_close(SOCKET socket)
 	int rc = 0;
 
 	FUNC_ENTRY;
+    Paho_thread_lock_mutex(socket_mutex);
+    Socket_unregister(socket);
 	Socket_close_only(socket);
 	FD_CLR(socket, &(mod_s.rset_saved));
 	if (FD_ISSET(socket, &(mod_s.pending_wset)))
 		FD_CLR(socket, &(mod_s.pending_wset));
-	if (mod_s.cur_clientsds != NULL && *(int*)(mod_s.cur_clientsds->content) == socket)
+	if (mod_s.cur_clientsds != NULL && *(SOCKET*)(mod_s.cur_clientsds->content) == socket)
 		mod_s.cur_clientsds = mod_s.cur_clientsds->next;
 	Socket_abortWrite(socket);
 	SocketBuffer_cleanup(socket);
@@ -1228,11 +1268,12 @@ int Socket_close(SOCKET socket)
 
 		mod_s.maxfdp1 = 0;
 		while (ListNextElement(mod_s.clientsds, &cur_clientsds))
-			mod_s.maxfdp1 = max(*((int*)(cur_clientsds->content)), mod_s.maxfdp1);
+			mod_s.maxfdp1 = max(*((SOCKET*)(cur_clientsds->content)), mod_s.maxfdp1);
 		++(mod_s.maxfdp1);
 		Log(TRACE_MAX, -1, "Reset max fdp1 to %d", mod_s.maxfdp1);
 	}
 exit:
+    Paho_thread_unlock_mutex(socket_mutex);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -1244,98 +1285,174 @@ exit:
  */
 int Socket_close(SOCKET socket)
 {
-	struct pollfd* fd;
-	int rc = 0;
-
-	FUNC_ENTRY;
-	Paho_thread_lock_mutex(socket_mutex);
-	Socket_close_only(socket);
-	Socket_abortWrite(socket);
-	SocketBuffer_cleanup(socket);
-	ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
-	ListRemoveItem(mod_s.write_pending, &socket, intcompare);
-
-	if (mod_s.nfds == 0)
-		goto exit;
-
-	fd = bsearch(&socket, mod_s.fds_read, (size_t)mod_s.nfds, sizeof(mod_s.fds_read[0]), cmpsockfds);
-	if (fd)
-	{
-		struct pollfd* last_fd = &mod_s.fds_read[mod_s.nfds - 1];
-
-		if (--mod_s.nfds == 0)
-		{
-			free(mod_s.fds_read);
-			mod_s.fds_read = NULL;
-		}
-		else
-		{
-			if (fd != last_fd)
-			{
-				/* shift array to remove the socket in question */
-				memmove(fd, fd + 1, (mod_s.nfds - (fd - mod_s.fds_read)) * sizeof(mod_s.fds_read[0]));
-			}
-	    void* newPtr = realloc(mod_s.fds_read, sizeof(mod_s.fds_read[0]) * mod_s.nfds);
-		  if (newPtr == NULL)
-		  {
-		    free(mod_s.fds_read);
-		  	mod_s.fds_read = NULL;
-
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-		  }
-		  else
-		  {
-		    mod_s.fds_read = newPtr;
-		  }
-		}
-		Log(TRACE_MIN, -1, "Removed socket %d", socket);
-	}
-	else
-		Log(LOG_ERROR, -1, "Failed to remove socket %d", socket);
-
-	fd = bsearch(&socket, mod_s.fds_write, (size_t)(mod_s.nfds+1), sizeof(mod_s.fds_write[0]), cmpsockfds);
-	if (fd)
-	{
-		struct pollfd* last_fd = &mod_s.fds_write[mod_s.nfds];
-
-		if (mod_s.nfds == 0)
-		{
-			free(mod_s.fds_write);
-			mod_s.fds_write = NULL;
-		}
-		else
-		{
-			if (fd != last_fd)
-			{
-				/* shift array to remove the socket in question */
-				memmove(fd, fd + 1, (mod_s.nfds - (fd - mod_s.fds_write)) * sizeof(mod_s.fds_write[0]));
-			}
-			void* newPtr = realloc(mod_s.fds_write, sizeof(mod_s.fds_write[0]) * mod_s.nfds);
-			if (newPtr == NULL)
-			{
-				free(mod_s.fds_write);
-				mod_s.fds_write = NULL;
-
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-			}
-			else
-			{
-				mod_s.fds_write = newPtr;
-			}
-		}
-		Log(TRACE_MIN, -1, "Removed socket %d", socket);
-	}
-	else
-		Log(LOG_ERROR, -1, "Failed to remove socket %d", socket);
+    struct pollfd *read_fd, *write_fd;
+    unsigned int count;
+    int rc = 0;
+    FUNC_ENTRY;
+    Paho_thread_lock_mutex(socket_mutex);
+    Socket_unregister(socket);
+    Socket_close_only(socket);
+    Socket_abortWrite(socket);
+    SocketBuffer_cleanup(socket);
+    ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
+    ListRemoveItem(mod_s.write_pending, &socket, intcompare);
+    count = mod_s.nfds;
+    if (!count)
+        goto exit;
+    read_fd = bsearch(&socket, mod_s.fds_read, count, sizeof(*read_fd), cmpsockfds);
+    write_fd = bsearch(&socket, mod_s.fds_write, count, sizeof(*write_fd), cmpsockfds);
+    if (!read_fd || !write_fd)
+    {
+        rc = SOCKET_ERROR;
+        goto exit;
+    }
+    --mod_s.nfds;
+    if (mod_s.nfds == 0)
+    {
+        free(mod_s.fds_read);
+        free(mod_s.fds_write);
+        mod_s.fds_read = mod_s.fds_write = NULL;
+    }
+    else
+    {
+        memmove(read_fd, read_fd + 1, (count - (read_fd - mod_s.fds_read) - 1) * sizeof(*read_fd));
+        memmove(write_fd, write_fd + 1, (count - (write_fd - mod_s.fds_write) - 1) * sizeof(*write_fd));
+        /* Shrinking is unnecessary and must not lose other clients on OOM. */
+    }
 exit:
-	Paho_thread_unlock_mutex(socket_mutex);
-	FUNC_EXIT_RC(rc);
-	return rc;
+    Paho_thread_unlock_mutex(socket_mutex);
+    FUNC_EXIT_RC(rc);
+    return rc;
 }
 #endif
 
+
+/* Resolve only the transport target. TLS continues to use the broker URI. */
+int Socket_resolve(const char* host, size_t length, int port, struct addrinfo** addresses)
+{
+    struct addrinfo hints;
+    char service[6];
+    char* name;
+    int rc;
+    *addresses = NULL;
+    if (!length || port < 1 || port > 65535)
+        return SOCKET_ERROR;
+    if (host[0] == '[')
+    {
+        ++host;
+        --length;
+    }
+    if (length && host[length - 1] == ']')
+        --length;
+    name = malloc(length + 1);
+    if (!name)
+        return SOCKET_ERROR;
+    memcpy(name, host, length);
+    name[length] = '\0';
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_ADDRCONFIG;
+    snprintf(service, sizeof(service), "%d", port);
+    rc = getaddrinfo(name, service, &hints, addresses);
+    free(name);
+    return rc;
+}
+
+void Socket_freeAddresses(struct addrinfo* addresses)
+{
+    freeaddrinfo(addresses);
+}
+
+int Socket_connectAddress(const struct addrinfo* address, SOCKET* output, uint64_t* registration_id)
+{
+    SOCKET socket_fd;
+    SocketRegistration* reg;
+    int rc, opt = 1;
+    *output = INVALID_SOCKET;
+    *registration_id = 0;
+    if (!address->ai_addr ||
+        (address->ai_family == AF_INET && address->ai_addrlen < sizeof(struct sockaddr_in)) ||
+        (address->ai_family == AF_INET6 && address->ai_addrlen < sizeof(struct sockaddr_in6)))
+        return SOCKET_ERROR;
+    socket_fd = socket(address->ai_family, SOCK_STREAM, IPPROTO_TCP);
+    if (socket_fd == INVALID_SOCKET)
+        return Socket_error("socket", socket_fd);
+#if defined(NOSIGPIPE)
+    setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, (const char*)&opt, sizeof(opt));
+#endif
+#if !defined(NO_TCP_NODELAY)
+    setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(opt));
+#endif
+    if (Socket_addSocket(socket_fd) != 0)
+    {
+#if defined(_WIN32)
+        closesocket(socket_fd);
+#else
+        close(socket_fd);
+#endif
+        return SOCKET_ERROR;
+    }
+    *output = socket_fd;
+    Paho_thread_lock_mutex(socket_mutex);
+    reg = Socket_registration(socket_fd);
+    *registration_id = reg->registration_id;
+    reg->connecting = 1;
+#if defined(USE_SELECT)
+    FD_SET(socket_fd, &mod_s.pending_wset);
+#else
+    {
+        struct pollfd* fd = bsearch(&socket_fd, mod_s.fds_read, mod_s.nfds,
+            sizeof(mod_s.fds_read[0]), cmpsockfds);
+        fd->events |= POLLOUT;
+    }
+#endif
+    Paho_thread_unlock_mutex(socket_mutex);
+    rc = connect(socket_fd, address->ai_addr, (socklen_t)address->ai_addrlen);
+    if (rc == SOCKET_ERROR)
+        rc = Socket_error("connect", socket_fd);
+    Socket_interrupt();
+    return rc;
+}
+
+int Socket_connectResult(SOCKET socket)
+{
+    int error = 0;
+    socklen_t length = sizeof(error);
+    if (getsockopt(socket, SOL_SOCKET, SO_ERROR, (char*)&error, &length) != 0)
+        return Socket_error("getsockopt", socket);
+    if (error == 0)
+    {
+        struct sockaddr_storage peer;
+        length = sizeof(peer);
+        /* SO_ERROR == 0 alone does not prove a still-pending socket connected. */
+        if (getpeername(socket, (struct sockaddr*)&peer, &length) != 0)
+            return EINPROGRESS;
+    }
+    return error;
+}
+
+void Socket_connectComplete(SOCKET socket)
+{
+    SocketRegistration* reg;
+    Paho_thread_lock_mutex(socket_mutex);
+    reg = Socket_registration(socket);
+    if (reg)
+        reg->connecting = 0;
+#if defined(USE_SELECT)
+    FD_CLR(socket, &mod_s.pending_wset);
+#else
+    {
+        struct pollfd* fd = bsearch(&socket, mod_s.fds_read, mod_s.nfds,
+            sizeof(mod_s.fds_read[0]), cmpsockfds);
+        if (fd)
+            fd->events &= ~POLLOUT;
+    }
+#endif
+    ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
+    Paho_thread_unlock_mutex(socket_mutex);
+}
 
 /**
  *  Create a new socket and TCP connect to an address/port

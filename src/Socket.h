@@ -141,7 +141,7 @@ typedef struct
 
 void Socket_outInitialize(void);
 void Socket_outTerminate(void);
-SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted);
+SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted, uint64_t* registration_id);
 int Socket_getch(SOCKET socket, char* c);
 char *Socket_getdata(SOCKET socket, size_t bytes, size_t* actual_len, int* rc);
 int Socket_putdatas(SOCKET socket, char* buf0, size_t buf0len, PacketBuffers bufs);
@@ -169,6 +169,13 @@ void Socket_setWriteCompleteCallback(Socket_writeComplete*);
 typedef void Socket_writeAvailable(SOCKET socket);
 void Socket_setWriteAvailableCallback(Socket_writeAvailable*);
 
+/* Internal TCP candidate and event-lifetime helpers. */
+int Socket_resolve(const char* host, size_t length, int port, struct addrinfo** addresses);
+void Socket_freeAddresses(struct addrinfo* addresses);
+int Socket_connectAddress(const struct addrinfo* address, SOCKET* socket, uint64_t* registration_id);
+int Socket_connectResult(SOCKET socket);
+void Socket_connectComplete(SOCKET socket);
+int Socket_eventValid(SOCKET socket, uint64_t registration_id);
 int Socket_interrupt();
 
 #endif /* SOCKET_H */

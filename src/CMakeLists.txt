@@ -33,6 +33,7 @@ set(common_src
   Messages.c
   Tree.c
   Socket.c
+  SocketConnect.c
   Log.c
   MQTTPersistence.c
   Thread.c

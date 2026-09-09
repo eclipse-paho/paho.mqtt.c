@@ -238,6 +238,10 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 	if (aClient->net.http_proxy) {
 #endif
 		addr_len = MQTTProtocol_addressPort(aClient->net.http_proxy, &port, NULL, PROXY_DEFAULT_PORT);
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+        rc = SocketConnect_start(&aClient->net.connect, aClient->net.http_proxy, addr_len, port,
+            aClient->net.connect_start, aClient->net.connect_timeout);
+#else
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
 			rc = -1;
@@ -246,10 +250,15 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 #else
 		rc = Socket_new(aClient->net.http_proxy, addr_len, port, &(aClient->net.socket));
 #endif
+#endif
 	}
 #if defined(OPENSSL)
 	else if (ssl && aClient->net.https_proxy) {
 		addr_len = MQTTProtocol_addressPort(aClient->net.https_proxy, &port, NULL, PROXY_DEFAULT_PORT);
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+        rc = SocketConnect_start(&aClient->net.connect, aClient->net.https_proxy, addr_len, port,
+            aClient->net.connect_start, aClient->net.connect_timeout);
+#else
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
 			rc = -1;
@@ -257,6 +266,7 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 			rc = Socket_new(aClient->net.https_proxy, addr_len, port, &(aClient->net.socket), timeout);
 #else
 		rc = Socket_new(aClient->net.https_proxy, addr_len, port, &(aClient->net.socket));
+#endif
 #endif
 	}
 #endif
@@ -274,6 +284,10 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 #else
 		addr_len = MQTTProtocol_addressPort(address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
 #endif
+#if defined(PAHO_WITH_HAPPY_EYEBALLS)
+        rc = SocketConnect_start(&aClient->net.connect, address, addr_len, port,
+            aClient->net.connect_start, aClient->net.connect_timeout);
+#else
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
 			rc = -1;
@@ -281,6 +295,7 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 			rc = Socket_new(address, addr_len, port, &(aClient->net.socket), timeout);
 #else
 		rc = Socket_new(address, addr_len, port, &(aClient->net.socket));
+#endif
 #endif
 	}
 	if (rc == EINPROGRESS || rc == EWOULDBLOCK)
