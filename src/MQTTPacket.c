@@ -802,6 +802,7 @@ void* MQTTPacket_ack(int MQTTVersion, unsigned char aHeader, char* data, size_t 
 	FUNC_ENTRY;
 	if ((pack = malloc(sizeof(Ack))) == NULL)
 		goto exit;
+	memset(pack, 0, sizeof(Ack));
 	pack->MQTTVersion = MQTTVersion;
 	pack->header.byte = aHeader;
 	if (pack->header.bits.type != DISCONNECT)
