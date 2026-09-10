@@ -401,7 +401,7 @@ int MQTTProtocol_handlePublishes(void* pack, SOCKET sock)
 	else if (publish->header.bits.qos == 2)
 	{
 		/* store publication in inbound list */
-		int len;
+		int len = 0;
 		int already_received = 0;
 		ListElement* listElem = NULL;
 		Messages* m = malloc(sizeof(Messages));
