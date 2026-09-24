@@ -158,7 +158,7 @@ Remember, though, that not all of these targets may be available. It depends on 
 A sample *CMakeLists.txt* for an application that uses the asynchronous library with encryption support *(paho-mqtt3as)* might look like this:
 
 ```
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 project(MyMQTTApp VERSION 1.0.0 LANGUAGES C)
 
 find_package(eclipse-paho-mqtt-c REQUIRED)
