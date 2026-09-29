@@ -592,6 +592,41 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 				SSLSocket_error("SSL_CTX_new", NULL, net->socket, rc, NULL, NULL);
 			goto exit;
 		}
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+		/* TLS_client_method() would allow 1.0–1.3; pin from mqtt sslVersion. */
+		if (opts->struct_version >= 1)
+		{
+			switch (opts->sslVersion)
+			{
+			case MQTT_SSL_VERSION_TLS_1_0:
+				SSL_CTX_set_min_proto_version(net->ctx, TLS1_VERSION);
+				SSL_CTX_set_max_proto_version(net->ctx, TLS1_VERSION);
+				break;
+			case MQTT_SSL_VERSION_TLS_1_1:
+				SSL_CTX_set_min_proto_version(net->ctx, TLS1_1_VERSION);
+				SSL_CTX_set_max_proto_version(net->ctx, TLS1_1_VERSION);
+				break;
+			case MQTT_SSL_VERSION_TLS_1_2:
+				SSL_CTX_set_min_proto_version(net->ctx, TLS1_2_VERSION);
+				SSL_CTX_set_max_proto_version(net->ctx, TLS1_2_VERSION);
+				break;
+#ifdef TLS1_3_VERSION
+			case MQTT_SSL_VERSION_TLS_1_3:
+				SSL_CTX_set_min_proto_version(net->ctx, TLS1_3_VERSION);
+				SSL_CTX_set_max_proto_version(net->ctx, TLS1_3_VERSION);
+				break;
+#endif
+			case MQTT_SSL_VERSION_DEFAULT:
+			default:
+				/* Negotiate 1.2 or 1.3; OpenSSL prefers 1.3 when the broker offers it. */
+				SSL_CTX_set_min_proto_version(net->ctx, TLS1_2_VERSION);
+#ifdef TLS1_3_VERSION
+				SSL_CTX_set_max_proto_version(net->ctx, TLS1_3_VERSION);
+#endif
+				break;
+			}
+		}
+#endif
 	}
 
 /*
@@ -659,14 +694,24 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 
 	if (opts->enabledCipherSuites)
 	{
-		if ((rc = SSL_CTX_set_cipher_list(net->ctx, opts->enabledCipherSuites)) != 1)
+		/* TLS 1.2 names: cipher_list. TLS 1.3 names: ciphersuites. Mixed strings
+		 * often fail one API; keep going if the other succeeds. */
+		int rc12 = SSL_CTX_set_cipher_list(net->ctx, opts->enabledCipherSuites);
+#if (OPENSSL_VERSION_NUMBER >= 0x10101000L)
+		int rc13 = SSL_CTX_set_ciphersuites(net->ctx, opts->enabledCipherSuites);
+#else
+		int rc13 = 0;
+#endif
+		if (rc12 != 1 && rc13 != 1)
 		{
+			rc = 0;
 			if (opts->struct_version >= 3)
 				SSLSocket_error("SSL_CTX_set_cipher_list", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
 			else
 				SSLSocket_error("SSL_CTX_set_cipher_list", NULL, net->socket, rc, NULL, NULL);
 			goto free_ctx;
 		}
+		rc = 1;
 	}
 
 #ifndef OPENSSL_NO_PSK
