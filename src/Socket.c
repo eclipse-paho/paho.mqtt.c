@@ -561,8 +561,8 @@ int isReady(int index)
 	else if ((mod_s.saved.fds_read[index].revents & POLLHUP) || (mod_s.saved.fds_read[index].revents & POLLNVAL))
 		; /* signal work to be done if there is an error on the socket */
 	else if  (ListFindItem(mod_s.connect_pending, socket, intcompare) &&
-			(mod_s.saved.fds_write[index].revents & POLLOUT))
-		ListRemoveItem(mod_s.connect_pending, socket, intcompare);
+			((mod_s.saved.fds_write[index].revents | mod_s.saved.fds_read[index].revents) & POLLOUT))
+		ListRemoveItem(mod_s.connect_pending, socket, intcompare); /* POLLOUT from either poll: see Socket_getReadySocket */
 	else
 		rc = (mod_s.saved.fds_read[index].revents & POLLIN) &&
 			 (mod_s.saved.fds_write[index].revents & POLLOUT) &&
@@ -813,20 +813,22 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			*rc = SOCKET_ERROR;
 			goto exit;
 		}
-		/* if there is a writeable socket in the connecting state then set the timeout for the
-		 * next poll to 0 or a low value, so we can handle the connect immediately */
+		/* A non-blocking TCP connect completes when its socket becomes writeable, so also wait
+		 * for POLLOUT on sockets in the connecting state. The poll below then returns as soon as
+		 * the connect completes or fails, and otherwise blocks for the normal timeout, rather than
+		 * this thread spinning for as long as the connect is pending (up to connectTimeout when
+		 * the network drops the SYN).
+		 * fds_read and fds_write are sorted the same way, so an index names the same socket in
+		 * both. Only this cycle's copy is changed: once isReady() sees the connect complete, the
+		 * socket leaves connect_pending and POLLOUT is no longer requested. */
 		mod_s.saved.cur_fd = 0;
 		while (mod_s.saved.cur_fd != -1)
 		{
 			if (isConnectPending(mod_s.saved.cur_fd))
 			{
-				Log(TRACE_MINIMUM, -1, "Socket %d is connecting, reducing timeout from %d, no of sockets %d\n",
-					mod_s.saved.cur_fd, timeout_ms, mod_s.saved.nfds);
-
-				/* Will this result in excessive CPU use if the TCP connect is taking a long time,
-				 * such as on a satellite link? We could use a backoff algorithm if it turns out to be true */
-				timeout_ms = 0;
-				break;
+				Log(TRACE_MINIMUM, -1, "Socket %d is connecting, waiting for it to become writeable, no of sockets %d\n",
+					mod_s.saved.cur_fd, mod_s.saved.nfds);
+				mod_s.saved.fds_read[mod_s.saved.cur_fd].events |= POLLOUT;
 			}
 			mod_s.saved.cur_fd = (mod_s.saved.cur_fd == mod_s.saved.nfds - 1) ? -1 : mod_s.saved.cur_fd + 1;
 		}
