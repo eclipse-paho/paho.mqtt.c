@@ -667,7 +667,9 @@ int MQTTAsync_restoreCommands(MQTTAsyncs* client)
 					cmd->client = client;
 					cmd->seqno = atoi(strchr(msgkeys[i], '-')+1); /* key format is tag'-'seqno */
 					/* we can just append the commands to the list as they've already been sorted */
+					MQTTAsync_lock_mutex(mqttcommand_mutex);
 					ListAppend(MQTTAsync_commands, cmd, sizeof(MQTTAsync_queuedCommand));
+					MQTTAsync_unlock_mutex(mqttcommand_mutex);
 					client->command_seqno = max(client->command_seqno, cmd->seqno);
 					commands_restored++;
 					if (cmd->command.type == PUBLISH)
@@ -1955,55 +1957,63 @@ void MQTTAsync_freeResponses(MQTTAsyncs* m)
 }
 
 
+static int cmdClientCompare(void* a, void* b)
+{
+	MQTTAsync_queuedCommand* cmd = (MQTTAsync_queuedCommand*)a;
+	return cmd->client == (MQTTAsyncs*)b;
+}
+
+
 void MQTTAsync_freeCommands(MQTTAsyncs* m)
 {
 	int count = 0;
 	ListElement* current = NULL;
-	ListElement *next = NULL;
 
 	FUNC_ENTRY;
-	/* remove commands in the command queue relating to this client */
-	current = ListNextElement(MQTTAsync_commands, &next);
-	ListNextElement(MQTTAsync_commands, &next);
-	while (current)
+	/* remove commands in the command queue relating to this client.  The queue is shared by
+	 * all clients, and MQTTAsync_addCommand changes it holding mqttcommand_mutex only, so it
+	 * is searched and changed here under that mutex too.  The mutex is released while the
+	 * failure callback runs, so that application code never runs holding it (the callback
+	 * still runs holding mqttasync_mutex, which MQTTAsync_destroy holds throughout), and the
+	 * search restarts afterwards because the queue may have changed in the meantime. */
+	MQTTAsync_lock_mutex(mqttcommand_mutex);
+	while ((current = ListFindItem(MQTTAsync_commands, m, cmdClientCompare)) != NULL)
 	{
 		MQTTAsync_queuedCommand* command = (MQTTAsync_queuedCommand*)(current->content);
 
-		if (command->client == m)
+		ListDetach(MQTTAsync_commands, command);
+		MQTTAsync_unlock_mutex(mqttcommand_mutex);
+
+		if (command->command.onFailure)
 		{
-			ListDetach(MQTTAsync_commands, command);
+			MQTTAsync_failureData data;
 
-			if (command->command.onFailure)
-			{
-				MQTTAsync_failureData data;
+			data.token = command->command.token;
+			data.code = MQTTASYNC_OPERATION_INCOMPLETE; /* interrupted return code */
+			data.message = NULL;
 
-				data.token = command->command.token;
-				data.code = MQTTASYNC_OPERATION_INCOMPLETE; /* interrupted return code */
-				data.message = NULL;
-
-				Log(TRACE_MIN, -1, "Calling %s failure for client %s",
-							MQTTPacket_name(command->command.type), m->c->clientID);
-					(*(command->command.onFailure))(command->command.context, &data);
-			}
-			else if (command->command.onFailure5)
-			{
-				MQTTAsync_failureData5 data = MQTTAsync_failureData5_initializer;
-
-				data.token = command->command.token;
-				data.code = MQTTASYNC_OPERATION_INCOMPLETE; /* interrupted return code */
-				data.message = NULL;
-
-				Log(TRACE_MIN, -1, "Calling %s failure for client %s",
-							MQTTPacket_name(command->command.type), m->c->clientID);
-					(*(command->command.onFailure5))(command->command.context, &data);
-			}
-
-			MQTTAsync_freeCommand(command);
-			count++;
+			Log(TRACE_MIN, -1, "Calling %s failure for client %s",
+						MQTTPacket_name(command->command.type), m->c->clientID);
+				(*(command->command.onFailure))(command->command.context, &data);
 		}
-		current = next;
-		ListNextElement(MQTTAsync_commands, &next);
+		else if (command->command.onFailure5)
+		{
+			MQTTAsync_failureData5 data = MQTTAsync_failureData5_initializer;
+
+			data.token = command->command.token;
+			data.code = MQTTASYNC_OPERATION_INCOMPLETE; /* interrupted return code */
+			data.message = NULL;
+
+			Log(TRACE_MIN, -1, "Calling %s failure for client %s",
+						MQTTPacket_name(command->command.type), m->c->clientID);
+				(*(command->command.onFailure5))(command->command.context, &data);
+		}
+
+		MQTTAsync_freeCommand(command);
+		count++;
+		MQTTAsync_lock_mutex(mqttcommand_mutex);
 	}
+	MQTTAsync_unlock_mutex(mqttcommand_mutex);
 	Log(TRACE_MINIMUM, -1, "%d commands removed for client %s", count, m->c->clientID);
 	FUNC_EXIT;
 }
