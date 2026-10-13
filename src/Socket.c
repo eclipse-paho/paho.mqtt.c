@@ -562,7 +562,10 @@ int isReady(int index)
 		; /* signal work to be done if there is an error on the socket */
 	else if  (ListFindItem(mod_s.connect_pending, socket, intcompare) &&
 			((mod_s.saved.fds_write[index].revents | mod_s.saved.fds_read[index].revents) & POLLOUT))
+	{
 		ListRemoveItem(mod_s.connect_pending, socket, intcompare); /* POLLOUT from either poll: see Socket_getReadySocket */
+		Log(TRACE_PROTOCOL, -1, "TCP connect completed for socket %d", *socket);
+	}
 	else
 		rc = (mod_s.saved.fds_read[index].revents & POLLIN) &&
 			 (mod_s.saved.fds_write[index].revents & POLLOUT) &&
@@ -585,10 +588,7 @@ int isConnectPending(int index)
 	SOCKET* socket = &mod_s.saved.fds_write[index].fd;
 
 	FUNC_ENTRY;
-	if (ListFindItem(mod_s.connect_pending, socket, intcompare))
-		Log(TRACE_PROTOCOL, -1, "TCP connect is pending for socket %d, POLLOUT %d",
-			*socket, (mod_s.saved.fds_write[index].revents & POLLOUT));
-	if (ListFindItem(mod_s.connect_pending, socket, intcompare))
+	if (ListFindItem(mod_s.connect_pending, socket, intcompare) != NULL)
 		rc = 1;
 	FUNC_EXIT_RC(rc);
 	return rc;
@@ -826,8 +826,8 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		{
 			if (isConnectPending(mod_s.saved.cur_fd))
 			{
-				Log(TRACE_MINIMUM, -1, "Socket %d is connecting, waiting for it to become writeable, no of sockets %d\n",
-					mod_s.saved.cur_fd, mod_s.saved.nfds);
+				Log(TRACE_MAXIMUM, -1, "Socket %d is connecting, waiting for it to become writeable, no of sockets %d",
+					mod_s.saved.fds_read[mod_s.saved.cur_fd].fd, mod_s.saved.nfds);
 				mod_s.saved.fds_read[mod_s.saved.cur_fd].events |= POLLOUT;
 			}
 			mod_s.saved.cur_fd = (mod_s.saved.cur_fd == mod_s.saved.nfds - 1) ? -1 : mod_s.saved.cur_fd + 1;
@@ -1528,7 +1528,7 @@ int Socket_new(const char* addr, size_t addr_len, int port, SOCKET* sock)
 						rc = PAHO_MEMORY_ERROR;
 						goto exit;
 					}
-					Log(TRACE_MIN, 15, "Connect pending");
+					Log(TRACE_PROTOCOL, -1, "TCP connect is pending for socket %d", *sock);
 					Socket_interrupt();
 				}
 			}
