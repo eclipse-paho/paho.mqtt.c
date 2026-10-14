@@ -38,6 +38,7 @@ libpaho-mqtt3_local_src_c_files_common := \
 	$(libpaho-mqtt3_lib_path)/MQTTPacketOut.c \
 	$(libpaho-mqtt3_lib_path)/SocketBuffer.c \
 	$(libpaho-mqtt3_lib_path)/MQTTPersistenceDefault.c \
+	$(libpaho-mqtt3_lib_path)/MQTTClientOptions.c \
 
 libpaho-mqtt3_local_src_c_files_c := \
 	$(libpaho-mqtt3_lib_path)/MQTTClient.c \

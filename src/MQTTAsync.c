@@ -56,6 +56,7 @@
 #include "MQTTAsyncUtils.h"
 #include "utf-8.h"
 #include "MQTTProtocol.h"
+#include "MQTTClientOptions.h"
 #include "MQTTProtocolOut.h"
 #include "Thread.h"
 #include "SocketBuffer.h"
@@ -771,77 +772,20 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	}
 
 #if defined(OPENSSL)
-	if (m->c->sslopts)
-	{
-		if (m->c->sslopts->trustStore)
-			free((void*)m->c->sslopts->trustStore);
-		if (m->c->sslopts->keyStore)
-			free((void*)m->c->sslopts->keyStore);
-		if (m->c->sslopts->privateKey)
-			free((void*)m->c->sslopts->privateKey);
-		if (m->c->sslopts->privateKeyPassword)
-			free((void*)m->c->sslopts->privateKeyPassword);
-		if (m->c->sslopts->enabledCipherSuites)
-			free((void*)m->c->sslopts->enabledCipherSuites);
-		if (m->c->sslopts->struct_version >= 2)
-		{
-			if (m->c->sslopts->CApath)
-				free((void*)m->c->sslopts->CApath);
-		}
-		if (m->c->sslopts->struct_version >= 5)
-		{
-			if (m->c->sslopts->protos)
-				free((void*)m->c->sslopts->protos);
-		}
-		free((void*)m->c->sslopts);
-		m->c->sslopts = NULL;
-	}
-
 	if (options->struct_version != 0 && options->ssl)
 	{
-		if ((m->c->sslopts = malloc(sizeof(MQTTClient_SSLOptions))) == NULL)
-		{
-			rc = PAHO_MEMORY_ERROR;
+		MQTTClient_SSLOptions* sslopts = NULL;
+
+		/* MQTTAsync_SSLOptions has the same layout as MQTTClient_SSLOptions */
+		if ((rc = MQTTClientOptions_copySSL((const MQTTClient_SSLOptions*)options->ssl, &sslopts)) != MQTTASYNC_SUCCESS)
 			goto exit;
-		}
-		memset(m->c->sslopts, '\0', sizeof(MQTTClient_SSLOptions));
-		m->c->sslopts->struct_version = options->ssl->struct_version;
-		if (options->ssl->trustStore)
-			m->c->sslopts->trustStore = MQTTStrdup(options->ssl->trustStore);
-		if (options->ssl->keyStore)
-			m->c->sslopts->keyStore = MQTTStrdup(options->ssl->keyStore);
-		if (options->ssl->privateKey)
-			m->c->sslopts->privateKey = MQTTStrdup(options->ssl->privateKey);
-		if (options->ssl->privateKeyPassword)
-			m->c->sslopts->privateKeyPassword = MQTTStrdup(options->ssl->privateKeyPassword);
-		if (options->ssl->enabledCipherSuites)
-			m->c->sslopts->enabledCipherSuites = MQTTStrdup(options->ssl->enabledCipherSuites);
-		m->c->sslopts->enableServerCertAuth = options->ssl->enableServerCertAuth;
-		if (m->c->sslopts->struct_version >= 1)
-			m->c->sslopts->sslVersion = options->ssl->sslVersion;
-		if (m->c->sslopts->struct_version >= 2)
-		{
-			m->c->sslopts->verify = options->ssl->verify;
-			if (options->ssl->CApath)
-				m->c->sslopts->CApath = MQTTStrdup(options->ssl->CApath);
-		}
-		if (m->c->sslopts->struct_version >= 3)
-		{
-			m->c->sslopts->ssl_error_cb = options->ssl->ssl_error_cb;
-			m->c->sslopts->ssl_error_context = options->ssl->ssl_error_context;
-		}
-		if (m->c->sslopts->struct_version >= 4)
-		{
-			m->c->sslopts->ssl_psk_cb = options->ssl->ssl_psk_cb;
-			m->c->sslopts->ssl_psk_context = options->ssl->ssl_psk_context;
-			m->c->sslopts->disableDefaultTrustStore = options->ssl->disableDefaultTrustStore;
-		}
-		if (m->c->sslopts->struct_version >= 5)
-		{
-			if (options->ssl->protos)
-				m->c->sslopts->protos = (const unsigned char*)MQTTStrdup((const char*)options->ssl->protos);
-			m->c->sslopts->protos_len = options->ssl->protos_len;
-		}
+		MQTTClientOptions_freeSSL(m->c->sslopts);
+		m->c->sslopts = sslopts;
+	}
+	else
+	{
+		MQTTClientOptions_freeSSL(m->c->sslopts);
+		m->c->sslopts = NULL;
 	}
 #else
 	if (options->struct_version != 0 && options->ssl)

@@ -35,6 +35,7 @@
 #include <stdlib.h>
 
 #include "MQTTAsync.h"
+#include "MQTTClientOptions.h"
 #include "Base64.h"
 #include "Tree.h"
 #include "Proxy.h"
@@ -54,6 +55,125 @@ static unsigned int fails = 0u;
 
 #define TEST_EXPECT(name, x) \
 	if (!(x)) { fprintf(stderr, "failed test: %s (%s:%d)\n", name, __FILE__, __LINE__); ++fails; }
+
+
+/* ---------------------------------------------------------------------- */
+/* Client options: ALPN validation (RFC 7301) and SSL options copy */
+/* ---------------------------------------------------------------------- */
+
+static void test_alpn_copy(void)
+{
+	/* ALPN vectors are length-delimited binary data, not C strings. */
+	unsigned char source[] = { 0x02, 'h', 0x00, 0x04, 'm', 'q', 't', 't' };
+	const unsigned char expected[] = { 0x02, 'h', 0x00, 0x04, 'm', 'q', 't', 't' };
+	unsigned char* copy = NULL;
+	unsigned char* big = NULL;
+	int rc;
+
+	rc = MQTTClientOptions_copyALPN(source, sizeof(source), &copy);
+	TEST_EXPECT("ALPN copy of a valid list succeeds", rc == MQTTCLIENT_SUCCESS);
+	TEST_EXPECT("ALPN copy allocates independent storage", copy != NULL && copy != source);
+	TEST_EXPECT("ALPN copy preserves all bytes including embedded NUL",
+			copy != NULL && memcmp(copy, expected, sizeof(expected)) == 0);
+	if (copy != NULL)
+	{
+		/* The caller may release or reuse its input immediately after connect. */
+		memset(source, 0, sizeof(source));
+		TEST_EXPECT("ALPN copy is independent of the caller buffer",
+				memcmp(copy, expected, sizeof(expected)) == 0);
+		free(copy);
+	}
+
+	copy = (unsigned char*)1;
+	TEST_EXPECT("ALPN not set (NULL) is accepted",
+			MQTTClientOptions_copyALPN(NULL, 5, &copy) == MQTTCLIENT_SUCCESS && copy == NULL);
+	copy = (unsigned char*)1;
+	TEST_EXPECT("ALPN not set (zero length) is accepted",
+			MQTTClientOptions_copyALPN(expected, 0, &copy) == MQTTCLIENT_SUCCESS && copy == NULL);
+
+	{
+		const unsigned char empty_name[] = { 0x00 };
+		const unsigned char empty_second[] = { 0x02, 'h', '2', 0x00 };
+		const unsigned char truncated[] = { 0x03, 'h', '2' };
+		const unsigned char truncated_second[] = { 0x02, 'h', '2', 0x08, 'h', 't', 't', 'p' };
+
+		TEST_EXPECT("ALPN rejects an empty protocol name",
+				MQTTClientOptions_copyALPN(empty_name, sizeof(empty_name), &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+		TEST_EXPECT("ALPN rejects a trailing empty protocol name",
+				MQTTClientOptions_copyALPN(empty_second, sizeof(empty_second), &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+		TEST_EXPECT("ALPN rejects a truncated protocol name",
+				MQTTClientOptions_copyALPN(truncated, sizeof(truncated), &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+		TEST_EXPECT("ALPN rejects a truncated second protocol name",
+				MQTTClientOptions_copyALPN(truncated_second, sizeof(truncated_second), &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+	}
+
+	/* The ProtocolNameList length is a 16-bit field: 257 names of 255 bytes = 65792 bytes */
+	if ((big = malloc(257 * 256)) != NULL)
+	{
+		int i;
+
+		for (i = 0; i < 257; ++i)
+		{
+			big[i * 256] = 255;
+			memset(&big[i * 256 + 1], 'a', 255);
+		}
+		big[255 * 256] = 254; /* 255 full names + one name of 254 bytes = 65535 bytes */
+		rc = MQTTClientOptions_copyALPN(big, 255 * 256 + 255, &copy);
+		TEST_EXPECT("ALPN accepts a list of exactly 65535 bytes", rc == MQTTCLIENT_SUCCESS && copy != NULL);
+		free(copy);
+		big[255 * 256] = 255;
+		TEST_EXPECT("ALPN rejects a list longer than 65535 bytes",
+				MQTTClientOptions_copyALPN(big, 257 * 256, &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+		free(big);
+	}
+}
+
+
+static void test_ssl_options_copy(void)
+{
+	MQTTClient_SSLOptions src = MQTTClient_SSLOptions_initializer;
+	MQTTClient_SSLOptions* copy = NULL;
+	unsigned char protos[] = { 0x04, 'm', 'q', 't', 't' };
+	char trustStore[] = "ca.pem";
+	const unsigned char bad_protos[] = { 0x05, 'm', 'q', 't', 't' };
+
+	src.trustStore = trustStore;
+	src.CApath = "/etc/ssl/certs";
+	src.verify = 1;
+	src.protos = protos;
+	src.protos_len = sizeof(protos);
+
+	TEST_EXPECT("SSL options copy succeeds",
+			MQTTClientOptions_copySSL(&src, &copy) == MQTTCLIENT_SUCCESS && copy != NULL);
+	if (copy != NULL)
+	{
+		TEST_EXPECT("SSL options copy duplicates strings",
+				copy->trustStore != src.trustStore && strcmp(copy->trustStore, "ca.pem") == 0 &&
+				copy->CApath != src.CApath && strcmp(copy->CApath, "/etc/ssl/certs") == 0);
+		TEST_EXPECT("SSL options copy duplicates ALPN",
+				copy->protos != src.protos && copy->protos_len == sizeof(protos) &&
+				memcmp(copy->protos, protos, sizeof(protos)) == 0);
+		TEST_EXPECT("SSL options copy keeps scalar fields",
+				copy->struct_version == src.struct_version && copy->verify == 1 &&
+				copy->enableServerCertAuth == src.enableServerCertAuth);
+		MQTTClientOptions_freeSSL(copy);
+	}
+
+	/* fields not present in older struct versions must not be read */
+	src.struct_version = 4;
+	src.protos = bad_protos;
+	TEST_EXPECT("SSL options copy ignores ALPN before struct_version 5",
+			MQTTClientOptions_copySSL(&src, &copy) == MQTTCLIENT_SUCCESS && copy != NULL &&
+			copy->protos == NULL && copy->protos_len == 0);
+	MQTTClientOptions_freeSSL(copy);
+
+	src.struct_version = 5;
+	copy = (MQTTClient_SSLOptions*)1;
+	TEST_EXPECT("SSL options copy rejects an invalid ALPN list",
+			MQTTClientOptions_copySSL(&src, &copy) == MQTTCLIENT_BAD_STRUCTURE && copy == NULL);
+
+	MQTTClientOptions_freeSSL(NULL);
+}
 
 
 /* ---------------------------------------------------------------------- */
@@ -590,6 +710,8 @@ int main(int argc, char** argv)
 	Heap_initialize();
 #endif
 
+	test_alpn_copy();
+	test_ssl_options_copy();
 	test_base64();
 	test_tree();
 	test_proxy();
