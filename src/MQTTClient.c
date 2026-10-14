@@ -1647,6 +1647,11 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 			if (m->c->sslopts->CApath)
 				free((void*)m->c->sslopts->CApath);
 		}
+		if (m->c->sslopts->struct_version >= 5)
+		{
+			if (m->c->sslopts->protos)
+				free((void*)m->c->sslopts->protos);
+		}
 		free(m->c->sslopts);
 		m->c->sslopts = NULL;
 	}
@@ -1692,8 +1697,19 @@ static MQTTResponse MQTTClient_connectURI(MQTTClient handle, MQTTClient_connectO
 		}
 		if (m->c->sslopts->struct_version >= 5)
 		{
-		    m->c->sslopts->protos = options->ssl->protos;
-		    m->c->sslopts->protos_len = options->ssl->protos_len;
+			if (options->ssl->protos && options->ssl->protos_len > 0)
+			{
+				unsigned char* protos = NULL;
+
+				if ((protos = malloc(options->ssl->protos_len)) == NULL)
+				{
+					rc.reasonCode = PAHO_MEMORY_ERROR;
+					goto exit;
+				}
+				memcpy(protos, options->ssl->protos, options->ssl->protos_len);
+				m->c->sslopts->protos = protos;
+				m->c->sslopts->protos_len = options->ssl->protos_len;
+			}
 		}
 	}
 #endif
