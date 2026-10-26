@@ -101,7 +101,7 @@ static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*c
     if (ssl)
         error = SSL_get_error(ssl, rc);
     else
-        error = ERR_get_error();
+        error = ERR_peek_error(); /* leave the entry in the queue: ERR_print_errors_cb() below reports it */
     if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
     {
 		Log(TRACE_MIN, -1, "SSLSocket error WANT_READ/WANT_WRITE");
@@ -114,6 +114,9 @@ static int SSLSocket_error(char* aString, SSL* ssl, SOCKET sock, int rc, int (*c
         	Log(TRACE_MIN, -1, "SSLSocket error %s(%d) in %s for socket %d rc %d errno %d %s\n", buf, error, aString, sock, rc, errno, strerror(errno));
         if (cb)
             ERR_print_errors_cb(cb, u);
+        /* ERR_print_errors_cb() stops at a callback result <= 0 and without a callback nothing reads the
+           queue: a leftover entry makes a later SSL_get_error() on this thread report SSL_ERROR_SSL */
+        ERR_clear_error();
 		if (error == SSL_ERROR_SSL || error == SSL_ERROR_SYSCALL)
 			error = SSL_FATAL;
     }
@@ -588,6 +591,7 @@ int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 				SSLSocket_error("SSL_CTX_new", NULL, net->socket, rc, opts->ssl_error_cb, opts->ssl_error_context);
 			else
 				SSLSocket_error("SSL_CTX_new", NULL, net->socket, rc, NULL, NULL);
+			rc = 0; /* report failure: the caller must not use the NULL context */
 			goto exit;
 		}
 	}
