@@ -138,7 +138,7 @@ extern mutex_type log_mutex;
 
 int MQTTAsync_init(void)
 {
-	DWORD rc = 0;
+	int rc = 0;
 
 	if (mqttasync_mutex == NULL)
 	{
