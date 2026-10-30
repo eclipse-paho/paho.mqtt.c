@@ -19,7 +19,7 @@
 ## compilation/linkage settings
 
 configure_file(VersionInfo.h.in
-  ${CMAKE_BINARY_DIR}/VersionInfo.h
+  ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h
   @ONLY
 )
 
@@ -148,7 +148,7 @@ if(PAHO_BUILD_SHARED)
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
       PRIVATE
-        ${CMAKE_BINARY_DIR})
+        ${CMAKE_CURRENT_BINARY_DIR})
   endforeach()
 
   install(TARGETS paho-mqtt3c paho-mqtt3a
@@ -197,7 +197,7 @@ if(PAHO_BUILD_STATIC)
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
       PRIVATE
-        ${CMAKE_BINARY_DIR})
+        ${CMAKE_CURRENT_BINARY_DIR})
   endforeach()
 
   if(NOT PAHO_BUILD_SHARED)
@@ -294,7 +294,7 @@ if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         PRIVATE
-          ${CMAKE_BINARY_DIR}
+          ${CMAKE_CURRENT_BINARY_DIR}
       )
       target_link_libraries(${TARGET}
         PUBLIC
@@ -382,7 +382,7 @@ if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         PRIVATE
-          ${CMAKE_BINARY_DIR}
+          ${CMAKE_CURRENT_BINARY_DIR}
       )
       target_link_libraries(${TARGET}
         PUBLIC
