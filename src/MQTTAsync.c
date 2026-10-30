@@ -289,11 +289,42 @@ int MQTTAsync_init(void)
 #endif
 
 
+/**
+ * Free a client that MQTTAsync_createWithOptions failed to complete, before it was
+ * added to MQTTAsync_handles and returned to the caller.
+ */
+static void MQTTAsync_freeUnpublished(MQTTAsyncs* m)
+{
+	if (m->c)
+	{
+		if (m->c->outboundMsgs)
+			ListFree(m->c->outboundMsgs);
+		if (m->c->inboundMsgs)
+			ListFree(m->c->inboundMsgs);
+		if (m->c->messageQueue)
+			ListFree(m->c->messageQueue);
+		if (m->c->outboundQueue)
+			ListFree(m->c->outboundQueue);
+		if (m->c->clientID)
+			free(m->c->clientID);
+		free(m->c);
+	}
+	if (m->responses)
+		ListFree(m->responses);
+	if (m->serverURI)
+		free(m->serverURI);
+	if (m->createOptions)
+		free(m->createOptions);
+	free(m);
+}
+
+
 int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const char* clientId,
 		int persistence_type, void* persistence_context,  MQTTAsync_createOptions* options)
 {
 	int rc = 0;
 	MQTTAsyncs *m = NULL;
+	int published = 0;
 
 #if (defined(_WIN32)) && defined(PAHO_MQTT_STATIC)
 	 /* intializes mutexes once.  Must come before FUNC_ENTRY */
@@ -377,7 +408,6 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		rc = PAHO_MEMORY_ERROR;
 		goto exit;
 	}
-	*handle = m;
 	memset(m, '\0', sizeof(MQTTAsyncs));
 	if (strncmp(URI_TCP, serverURI, strlen(URI_TCP)) == 0)
 		serverURI += strlen(URI_TCP);
@@ -423,8 +453,11 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		rc = PAHO_MEMORY_ERROR;
 		goto exit;
 	}
-	m->responses = ListInitialize();
-	ListAppend(MQTTAsync_handles, m, sizeof(MQTTAsyncs));
+	if ((m->responses = ListInitialize()) == NULL)
+	{
+		rc = PAHO_MEMORY_ERROR;
+		goto exit;
+	}
 
 	if ((m->c = malloc(sizeof(Clients))) == NULL)
 	{
@@ -459,6 +492,24 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 			m->c->MQTTVersion = options->MQTTVersion;
 	}
 
+	/* Only now is the client complete enough for other threads to see it: MQTTAsync_checkTimeouts
+	 * and the other walks of MQTTAsync_handles dereference m->c without checking it.  It goes
+	 * into both lists here, or into neither: a client missing from bstate->clients is one its
+	 * own socket cannot be traced back to. */
+	if (ListAppend(MQTTAsync_handles, m, sizeof(MQTTAsyncs)) == NULL)
+	{
+		rc = PAHO_MEMORY_ERROR;
+		goto exit;
+	}
+	if (ListAppend(bstate->clients, m->c, sizeof(Clients) + 3*sizeof(List)) == NULL)
+	{
+		ListDetach(MQTTAsync_handles, m);
+		rc = PAHO_MEMORY_ERROR;
+		goto exit;
+	}
+	*handle = m;
+	published = 1;
+
 #if !defined(NO_PERSISTENCE)
 	rc = MQTTPersistence_create(&(m->c->persistence), persistence_type, persistence_context);
 	if (rc == 0)
@@ -476,9 +527,10 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 		}
 	}
 #endif
-	ListAppend(bstate->clients, m->c, sizeof(Clients) + 3*sizeof(List));
 
 exit:
+	if (m && !published)
+		MQTTAsync_freeUnpublished(m);
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
 	FUNC_EXIT_RC(rc);
 	return rc;
