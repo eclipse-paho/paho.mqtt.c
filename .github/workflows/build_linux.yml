@@ -3,7 +3,16 @@ on: [push, pull_request]
 
 jobs:
   build:
+    name: build (${{ matrix.socket }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - socket: poll
+            use_select: FALSE
+          - socket: select
+            use_select: TRUE
     steps:
       - name: Check out code
         uses: actions/checkout@v7
@@ -17,7 +26,7 @@ jobs:
           mkdir build.paho
           cd build.paho
           echo "pwd $PWD"
-          cmake -DPAHO_BUILD_STATIC=TRUE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_SSL=TRUE -DOPENSSL_ROOT_DIR= -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE ..
+          cmake -DPAHO_BUILD_STATIC=TRUE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_SSL=TRUE -DOPENSSL_ROOT_DIR= -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE -DPAHO_USE_SELECT=${{ matrix.use_select }} ..
           cmake --build .
       - name: Start test broker
         run: |
@@ -36,6 +45,7 @@ jobs:
           killall python3 || true
           sleep 3 # allow broker time to terminate and report
       - name: package
+        if: matrix.socket == 'poll'
         run: |
           cd build.paho
           cpack --verbose
