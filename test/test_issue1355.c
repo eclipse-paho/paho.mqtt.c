@@ -50,6 +50,7 @@
 #include <unistd.h>
 #else
 #include <windows.h>
+#define snprintf _snprintf
 #endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
