@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 **Log files**
 Please try to attach log files rather than pasting the log contents. It makes the issues easier to read.
 
-** Environment (please complete the following information):**
+**Environment (please complete the following information):**
  - OS: [e.g. Linux]
  - Version [e.g. 22]
 
