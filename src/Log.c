@@ -281,8 +281,9 @@ static traceEntry* Log_pretrace(void)
 		trace_queue = new_trace_queue;
 		trace_queue_size = trace_settings.max_trace_entries;
 
-		if (start_index > trace_settings.max_trace_entries + 1 ||
-				next_index > trace_settings.max_trace_entries + 1)
+		/* valid indexes are 0 to max_trace_entries - 1 */
+		if (start_index >= trace_settings.max_trace_entries ||
+				next_index >= trace_settings.max_trace_entries)
 		{
 			start_index = -1;
 			next_index = 0;

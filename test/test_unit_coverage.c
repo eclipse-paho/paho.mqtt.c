@@ -24,7 +24,7 @@
 /**
  * @file
  * White-box unit tests for internal modules that don't need a live broker
- * connection: Base64, Tree, Proxy (parsing only), MQTTProperties and utf-8.
+ * connection: Base64, Tree, Proxy (parsing only), MQTTProperties, utf-8 and Log.
  * These call internal functions directly (not the public MQTTClient/MQTTAsync
  * API), targeting error/edge paths that the broker-driven integration tests
  * don't reach.
@@ -41,6 +41,7 @@
 #include "MQTTProperties.h"
 #include "MQTTPacket.h"
 #include "utf-8.h"
+#include "Log.h"
 #include "Heap.h" /* redefines malloc/free as mymalloc/myfree, matching how Proxy.c allocates */
 
 /* internal functions with external linkage that aren't declared in the public headers */
@@ -576,6 +577,59 @@ static void test_mqtt_properties(void)
 }
 
 
+/* ---------------------------------------------------------------------- */
+/* Log trace queue */
+/* ---------------------------------------------------------------------- */
+
+static unsigned int trace_entries_seen = 0u;
+
+static void count_trace_entry(enum LOG_LEVELS level, const char* message)
+{
+	(void)level;
+	(void)message;
+	++trace_entries_seen;
+}
+
+
+/* The trace queue is a ring buffer of trace_settings.max_trace_entries entries,
+ * so the valid indexes are 0 to max_trace_entries - 1. An application can change
+ * that setting at any time. Log_pretrace() then reallocates the queue, and it
+ * must bring the stored ring indexes back into range when the queue shrinks.
+ * This test shrinks the queue to exactly the current write index, which is the
+ * smallest index the bounds check has to reject. */
+static void test_log_trace_queue_shrink(void)
+{
+	const int saved_max = trace_settings.max_trace_entries;
+	const enum LOG_LEVELS saved_level = trace_settings.trace_level;
+	int i;
+
+	Log_terminate();
+	trace_settings.max_trace_entries = 10;
+	Log_initialize(NULL);
+	trace_settings.trace_level = TRACE_MAXIMUM;
+	Log_setTraceCallback(count_trace_entry);
+
+	/* Use 5 of the 10 slots. The write index is now 5 and has not wrapped. */
+	for (i = 0; i < 5; ++i)
+		Log(TRACE_MAXIMUM, -1, "entry %d before the resize", i);
+
+	/* Shrink the queue to 5 entries. Slot 5 no longer exists. */
+	trace_settings.max_trace_entries = 5;
+
+	/* The write index must return to a valid slot, and stay in range. */
+	for (i = 0; i < 20; ++i)
+		Log(TRACE_MAXIMUM, -1, "entry %d after the resize", i);
+
+	TEST_EXPECT("every trace entry reaches the trace callback across a queue resize",
+			trace_entries_seen == 25u);
+
+	Log_setTraceCallback(NULL);
+	Log_terminate();
+	trace_settings.max_trace_entries = saved_max;
+	trace_settings.trace_level = saved_level;
+}
+
+
 int main(int argc, char** argv)
 {
 	(void)argc;
@@ -595,6 +649,7 @@ int main(int argc, char** argv)
 	test_proxy();
 	test_utf8();
 	test_mqtt_properties();
+	test_log_trace_queue_shrink();
 
 	if (fails)
 		printf("%u tests failed\n", fails);
