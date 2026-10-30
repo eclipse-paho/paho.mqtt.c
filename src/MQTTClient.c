@@ -1903,7 +1903,7 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 			if (strncmp(URI_TCP, serverURI, strlen(URI_TCP)) == 0)
 				serverURI += strlen(URI_TCP);
 			else if (strncmp(URI_MQTT, serverURI, strlen(URI_MQTT)) == 0)
-				serverURI += strlen(URI_TCP);
+				serverURI += strlen(URI_MQTT);
 			else if (strncmp(URI_WS, serverURI, strlen(URI_WS)) == 0)
 			{
 				serverURI += strlen(URI_WS);
