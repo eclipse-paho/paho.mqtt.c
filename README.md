@@ -1,5 +1,7 @@
-[![Build Status](https://travis-ci.org/eclipse/paho.mqtt.c.svg?branch=master)](https://travis-ci.org/eclipse/paho.mqtt.c)
-[![Total Alerts](https://img.shields.io/lgtm/alerts/g/eclipse/paho.mqtt.c.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/eclipse/paho.mqtt.c/alerts/)
+[![Builds for Linux](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/build_linux.yml/badge.svg?branch=develop)](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/build_linux.yml?query=branch%3Adevelop)
+[![Builds for MacOS](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/build_macos.yml/badge.svg?branch=develop)](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/build_macos.yml?query=branch%3Adevelop)
+[![Test LibreSSL](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/test_libressl.yml/badge.svg?branch=develop)](https://github.com/eclipse-paho/paho.mqtt.c/actions/workflows/test_libressl.yml?query=branch%3Adevelop)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/eclipse-paho/paho.mqtt.c?branch=develop&svg=true)](https://ci.appveyor.com/project/eclipsewebmaster/paho-mqtt-c/branch/develop)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/2339/badge.svg)](https://scan.coverity.com/projects/paho-c)
 
 # Eclipse Paho C Client Library for the MQTT Protocol
