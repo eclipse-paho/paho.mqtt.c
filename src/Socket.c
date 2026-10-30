@@ -450,50 +450,34 @@ static int cmpsockfds(const void *p1, const void *p2)
 int Socket_addSocket(SOCKET newSd)
 {
 	int rc = 0;
+	void* newPtr = NULL;
 
 	FUNC_ENTRY;
 	Paho_thread_lock_mutex(socket_mutex);
-	mod_s.nfds++;
+	/* On failure, leave the existing arrays (which hold the live sockets) and nfds untouched,
+	 * so that they stay consistent with each other. */
 	if (mod_s.fds_read)
-	{
-		void* newPtr = realloc(mod_s.fds_read, mod_s.nfds * sizeof(mod_s.fds_read[0]));
-		if (newPtr == NULL)
-		{
-			free(mod_s.fds_read);
-			mod_s.fds_read = NULL;
-		}
-		else
-		{
-			mod_s.fds_read = newPtr;
-		}
-	}
+		newPtr = realloc(mod_s.fds_read, (mod_s.nfds + 1) * sizeof(mod_s.fds_read[0]));
 	else
-		mod_s.fds_read = malloc(mod_s.nfds * sizeof(mod_s.fds_read[0]));
-	if (!mod_s.fds_read)
+		newPtr = malloc((mod_s.nfds + 1) * sizeof(mod_s.fds_read[0]));
+	if (newPtr == NULL)
 	{
 		rc = PAHO_MEMORY_ERROR;
 		goto exit;
 	}
+	mod_s.fds_read = newPtr;
 	if (mod_s.fds_write)
-	{
-		void* newPtr = realloc(mod_s.fds_write, mod_s.nfds * sizeof(mod_s.fds_write[0]));
-		if (newPtr == NULL)
-		{
-			free(mod_s.fds_write);
-			mod_s.fds_write = NULL;
-		}
-		else
-		{
-			mod_s.fds_write = newPtr;
-		}
-	}
+		newPtr = realloc(mod_s.fds_write, (mod_s.nfds + 1) * sizeof(mod_s.fds_write[0]));
 	else
-		mod_s.fds_write = malloc(mod_s.nfds * sizeof(mod_s.fds_write[0]));
-	if (!mod_s.fds_write)
+		newPtr = malloc((mod_s.nfds + 1) * sizeof(mod_s.fds_write[0]));
+	if (newPtr == NULL)
 	{
+		/* fds_read now has room for one more entry, which is harmless */
 		rc = PAHO_MEMORY_ERROR;
 		goto exit;
 	}
+	mod_s.fds_write = newPtr;
+	mod_s.nfds++;
 
 	mod_s.fds_read[mod_s.nfds - 1].fd = newSd;
 	mod_s.fds_write[mod_s.nfds - 1].fd = newSd;
@@ -742,7 +726,6 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 
 		if (mod_s.nfds != mod_s.saved.nfds)
 		{
-			mod_s.saved.nfds = mod_s.nfds;
 			if (mod_s.nfds == 0)
 			{
 				if (mod_s.saved.fds_read)
@@ -750,46 +733,34 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 					free(mod_s.saved.fds_read);
 					mod_s.saved.fds_read = NULL;
 				}
-			}
-			else if (mod_s.saved.fds_read)
-			{
-				void* newPtr = realloc(mod_s.saved.fds_read, mod_s.nfds * sizeof(struct pollfd));
-				if (newPtr == NULL)
-				{
-					free(mod_s.saved.fds_read);
-					mod_s.saved.fds_read = NULL;
-				}
-				else
-				{
-					mod_s.saved.fds_read = newPtr;
-				}
-			}
-			else
-				mod_s.saved.fds_read = malloc(mod_s.nfds * sizeof(struct pollfd));
-
-			if (mod_s.nfds == 0)
-			{
 				if (mod_s.saved.fds_write)
 				{
 					free(mod_s.saved.fds_write);
 					mod_s.saved.fds_write = NULL;
 				}
 			}
-			else if (mod_s.saved.fds_write)
+			else
 			{
-				void* newPtr = realloc(mod_s.saved.fds_write, mod_s.nfds * sizeof(struct pollfd));
+				/* Only update saved.nfds once both saved arrays are big enough. On failure keep the
+				 * existing arrays and report no ready socket; the resize is retried on the next call. */
+				void* newPtr = mod_s.saved.fds_read ? realloc(mod_s.saved.fds_read, mod_s.nfds * sizeof(struct pollfd))
+				                                    : malloc(mod_s.nfds * sizeof(struct pollfd));
 				if (newPtr == NULL)
 				{
-					free(mod_s.saved.fds_write);
-					mod_s.saved.fds_write = NULL;
+					Log(LOG_ERROR, -1, "Failed to allocate saved poll array");
+					goto exit;
 				}
-				else
+				mod_s.saved.fds_read = newPtr;
+				newPtr = mod_s.saved.fds_write ? realloc(mod_s.saved.fds_write, mod_s.nfds * sizeof(struct pollfd))
+				                               : malloc(mod_s.nfds * sizeof(struct pollfd));
+				if (newPtr == NULL)
 				{
-					mod_s.saved.fds_write = newPtr;
+					Log(LOG_ERROR, -1, "Failed to allocate saved poll array");
+					goto exit;
 				}
+				mod_s.saved.fds_write = newPtr;
 			}
-			else
-				mod_s.saved.fds_write = malloc(mod_s.nfds * sizeof(struct pollfd));
+			mod_s.saved.nfds = mod_s.nfds;
 		}
 		if (mod_s.fds_read == NULL)
 			mod_s.saved.fds_read = NULL;
@@ -1275,19 +1246,10 @@ int Socket_close(SOCKET socket)
 				/* shift array to remove the socket in question */
 				memmove(fd, fd + 1, (mod_s.nfds - (fd - mod_s.fds_read)) * sizeof(mod_s.fds_read[0]));
 			}
-	    void* newPtr = realloc(mod_s.fds_read, sizeof(mod_s.fds_read[0]) * mod_s.nfds);
-		  if (newPtr == NULL)
-		  {
-		    free(mod_s.fds_read);
-		  	mod_s.fds_read = NULL;
-
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-		  }
-		  else
-		  {
-		    mod_s.fds_read = newPtr;
-		  }
+			/* shrinking the array: if that fails, the existing (larger) array is still valid */
+			void* newPtr = realloc(mod_s.fds_read, sizeof(mod_s.fds_read[0]) * mod_s.nfds);
+			if (newPtr != NULL)
+				mod_s.fds_read = newPtr;
 		}
 		Log(TRACE_MIN, -1, "Removed socket %d", socket);
 	}
@@ -1311,19 +1273,10 @@ int Socket_close(SOCKET socket)
 				/* shift array to remove the socket in question */
 				memmove(fd, fd + 1, (mod_s.nfds - (fd - mod_s.fds_write)) * sizeof(mod_s.fds_write[0]));
 			}
+			/* shrinking the array: if that fails, the existing (larger) array is still valid */
 			void* newPtr = realloc(mod_s.fds_write, sizeof(mod_s.fds_write[0]) * mod_s.nfds);
-			if (newPtr == NULL)
-			{
-				free(mod_s.fds_write);
-				mod_s.fds_write = NULL;
-
-				rc = PAHO_MEMORY_ERROR;
-				goto exit;
-			}
-			else
-			{
+			if (newPtr != NULL)
 				mod_s.fds_write = newPtr;
-			}
 		}
 		Log(TRACE_MIN, -1, "Removed socket %d", socket);
 	}
