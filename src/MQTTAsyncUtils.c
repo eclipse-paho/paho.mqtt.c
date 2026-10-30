@@ -1626,6 +1626,15 @@ static int MQTTAsync_processCommand(void)
 				command->client->connect = command->command;
 				MQTTAsync_startConnectRetry(command->client);
 			}
+			if (command->command.type == PUBLISH && command->command.details.pub.qos > 0)
+			{
+				/* For QoS 1 and 2, MQTTProtocol_startPublish has already stored the publication,
+				 * which took ownership of the topic and payload. They will be freed when the
+				 * publication is removed, so don't free them here as well.
+				 */
+				command->command.details.pub.destinationName = NULL;
+				command->command.details.pub.payload = NULL;
+			}
 			MQTTAsync_freeCommand(command);  /* free up the command if necessary */
 		}
 	}
