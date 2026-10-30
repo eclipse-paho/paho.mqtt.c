@@ -297,6 +297,7 @@ int pstget(void* handle, char* key, char** buffer, int* buflen)
 		if ((buf = (char *)malloc(fileLen)) == NULL)
 		{
 			rc = PAHO_MEMORY_ERROR;
+			fclose(fp);
 			goto exit;
 		}
 		bytesRead = (int)fread(buf, sizeof(char), fileLen, fp);
