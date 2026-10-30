@@ -1834,6 +1834,21 @@ exit:
 }
 
 
+/**
+ * Read MQTTAsync_tostop, which MQTTAsync_connect and MQTTAsync_stop write holding
+ * mqttasync_mutex, from a thread that does not hold it.
+ */
+static int MQTTAsync_stopRequested(void)
+{
+	int rc;
+
+	MQTTAsync_lock_mutex(mqttasync_mutex);
+	rc = MQTTAsync_tostop;
+	MQTTAsync_unlock_mutex(mqttasync_mutex);
+	return rc;
+}
+
+
 thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 {
 	int timeout = 10; /* first time in we have a small timeout.  Gets things started more quickly */
@@ -1844,7 +1859,7 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 	sendThread_state = RUNNING;
 	sendThread_id = Paho_thread_getid();
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
-	while (!MQTTAsync_tostop)
+	while (!MQTTAsync_stopRequested())
 	{
 		int rc;
 		int command_count = 0;
@@ -1865,7 +1880,6 @@ thread_return_type WINAPI MQTTAsync_sendThread(void* n)
 		timeout = 1000; /* 1 second for follow on waits */
 		MQTTAsync_checkTimeouts();
 	}
-	sendThread_state = STOPPING;
 	MQTTAsync_lock_mutex(mqttasync_mutex);
 	sendThread_state = STOPPED;
 	sendThread_id = 0;
@@ -2077,6 +2091,7 @@ static int MQTTAsync_completeConnection(MQTTAsyncs* m, Connack* connack)
 thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 {
 	long timeout = 10L; /* first time in we have a small timeout.  Gets things started more quickly */
+	int signal_send = 0;
 
 	FUNC_ENTRY;
 	Thread_set_name("MQTTAsync_rcv");
@@ -2389,8 +2404,9 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 	}
 	receiveThread_state = STOPPED;
 	receiveThread_id = 0;
+	signal_send = (sendThread_state != STOPPED);
 	MQTTAsync_unlock_mutex(mqttasync_mutex);
-	if (sendThread_state != STOPPED)
+	if (signal_send)
 		Thread_signal_evt(send_evt);
 
 #if defined(OPENSSL)
