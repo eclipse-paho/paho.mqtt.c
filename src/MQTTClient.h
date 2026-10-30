@@ -661,6 +661,7 @@ typedef struct
 #define MQTT_SSL_VERSION_TLS_1_0 1
 #define MQTT_SSL_VERSION_TLS_1_1 2
 #define MQTT_SSL_VERSION_TLS_1_2 3
+#define MQTT_SSL_VERSION_TLS_1_3 4
 
 /**
 * MQTTClient_sslProperties defines the settings to establish an SSL/TLS connection using the
@@ -718,10 +719,24 @@ typedef struct
     int enableServerCertAuth;
 
     /** The SSL/TLS version to use. Specify one of MQTT_SSL_VERSION_DEFAULT (0),
-    * MQTT_SSL_VERSION_TLS_1_0 (1), MQTT_SSL_VERSION_TLS_1_1 (2) or MQTT_SSL_VERSION_TLS_1_2 (3).
+    * MQTT_SSL_VERSION_TLS_1_0 (1), MQTT_SSL_VERSION_TLS_1_1 (2), MQTT_SSL_VERSION_TLS_1_2 (3) or MQTT_SSL_VERSION_TLS_1_3 (4).
     * Only used if struct_version is >= 1.
     */
     int sslVersion;
+
+    /** The TLS maximum version allowed. Specify one of MQTT_SSL_VERSION_TLS_1_0 (1),
+    * MQTT_SSL_VERSION_TLS_1_1 (2) or MQTT_SSL_VERSION_TLS_1_2 (3) or MQTT_SSL_VERSION_TLS_1_3 (4).
+    * Ignored if OpenSSL version < 1.1.0 and sslVersion not MQTT_SSL_VERSION_DEFAULT
+    * Only used if struct_version is >= 1.
+    */
+    int tlsMax;
+
+    /** The TLS minimum version allowed. Specify one of MQTT_SSL_VERSION_TLS_1_0 (1),
+    * MQTT_SSL_VERSION_TLS_1_1 (2), MQTT_SSL_VERSION_TLS_1_2 (3) or MQTT_SSL_VERSION_TLS_1_3 (4).
+    * Ignored if OpenSSL version < 1.1.0 and sslVersion not MQTT_SSL_VERSION_DEFAULT
+    * Only used if struct_version is >= 1.
+    */
+    int tlsMin;
 
     /**
      * Whether to carry out post-connect checks, including that a certificate
@@ -785,7 +800,7 @@ typedef struct
 	unsigned int protos_len;
 } MQTTClient_SSLOptions;
 
-#define MQTTClient_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
+#define MQTTClient_SSLOptions_initializer { {'M', 'Q', 'T', 'S'}, 5, NULL, NULL, NULL, NULL, NULL, 1, MQTT_SSL_VERSION_DEFAULT, MQTT_SSL_VERSION_DEFAULT, MQTT_SSL_VERSION_DEFAULT, 0, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0 }
 
 /**
   * MQTTClient_libraryInfo is used to store details relating to the currently used
