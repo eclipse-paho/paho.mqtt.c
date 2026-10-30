@@ -2053,6 +2053,26 @@ if(NOT PAHO_HIGH_PERFORMANCE)
   endif()
 endif()
 
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1355-static test_issue1355.c)
+	target_link_libraries(test_issue1355-static paho-mqtt3a-static)
+
+	add_test(
+		NAME test_issue1355-1-qos2_maxinflight1_back_to_back-static
+		COMMAND "test_issue1355-static" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1355 test_issue1355.c)
+	target_link_libraries(test_issue1355 paho-mqtt3a)
+
+	add_test(
+		NAME test_issue1355-1-qos2_maxinflight1_back_to_back
+		COMMAND "test_issue1355" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
 
 if(PAHO_BUILD_STATIC)
 	add_executable(test_sync_session_present-static test_sync_session_present.c)
