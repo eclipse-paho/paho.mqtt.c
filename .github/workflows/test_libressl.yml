@@ -4,17 +4,27 @@ on: [push, pull_request]
 jobs:
   nix:
     runs-on: ${{ matrix.os }}
+    env:
+      LIBRESSL_VERSION: 4.4.0
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+      # Homebrew's Python on the macOS image uses OpenSSL 4.1, whose TLS 1.3
+      # CertificateRequest LibreSSL rejects with a decode error, so run the
+      # test broker on a python.org build instead
+      - name: Set up Python for the test broker
+        if: runner.os == 'macOS'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
       - name: Build LibreSSL
         run: |
-          curl -O https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.8.2.tar.gz
-          tar -xf libressl-3.8.2.tar.gz
-          cd libressl-3.8.2
+          curl -O https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-$LIBRESSL_VERSION.tar.gz
+          tar -xf libressl-$LIBRESSL_VERSION.tar.gz
+          cd libressl-$LIBRESSL_VERSION
           rm -rf build
           mkdir build
           cd build
@@ -27,7 +37,7 @@ jobs:
           mkdir build.paho
           cd build.paho
           echo "pwd $PWD"
-          cmake -DPAHO_BUILD_STATIC=FALSE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_LIBRESSL=TRUE -DLIBRESSL_ROOT_DIR=$(pwd)/../libressl-3.8.2/artifacts -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE ..
+          cmake -DPAHO_BUILD_STATIC=FALSE -DPAHO_BUILD_SHARED=TRUE -DCMAKE_BUILD_TYPE=Debug -DPAHO_WITH_LIBRESSL=TRUE -DLIBRESSL_ROOT_DIR=$(pwd)/../libressl-$LIBRESSL_VERSION/artifacts -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_BUILD_SAMPLES=TRUE -DPAHO_HIGH_PERFORMANCE=TRUE ..
           cmake --build . --config Debug  -j$(nproc)
       - name: Start test broker
         run: |
