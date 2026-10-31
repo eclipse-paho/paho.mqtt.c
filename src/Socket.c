@@ -293,7 +293,11 @@ int Socket_pair()
 
 	FUNC_ENTRY;
 	if ((rc = socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd)) == 0) /* 0 if successful */
-		rc = Socket_addSocket(sockfd[0]);
+	{
+		/* so that Socket_interrupt can't block if the interrupt bytes aren't being read */
+		if ((rc = Socket_setnonblocking(sockfd[1])) == 0)
+			rc = Socket_addSocket(sockfd[0]);
+	}
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -386,6 +390,7 @@ int Socket_addSocket(SOCKET newSd)
 	int rc = 0;
 
 	FUNC_ENTRY;
+	Paho_thread_lock_mutex(socket_mutex);
 	if (ListFindItem(mod_s.clientsds, &newSd, intcompare) == NULL) /* make sure we don't add the same socket twice */
 	{
 		if (mod_s.clientsds->count >= FD_SETSIZE)
@@ -420,6 +425,7 @@ int Socket_addSocket(SOCKET newSd)
 		Log(LOG_ERROR, -1, "addSocket: socket %d already in the list", newSd);
 
 exit:
+	Paho_thread_unlock_mutex(socket_mutex);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -535,7 +541,9 @@ int isReady(int socket, fd_set* read_set, fd_set* write_set)
 	int rc = 1;
 
 	FUNC_ENTRY;
-	if  (ListFindItem(mod_s.connect_pending, &socket, intcompare) && FD_ISSET(socket, write_set))
+	if (socket == sockfd[0]) /* don't return the interrupting socket */
+		rc = 0;
+	else if  (ListFindItem(mod_s.connect_pending, &socket, intcompare) && FD_ISSET(socket, write_set))
 		ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
 	else
 		rc = FD_ISSET(socket, read_set) && FD_ISSET(socket, write_set) && Socket_noPendingWrites(socket);
@@ -576,6 +584,7 @@ int isReady(int index)
 }
 #endif
 
+#if !defined(USE_SELECT)
 /**
  * Check whether the socket indicated by the index is in the
  * TCP connect pending state.
@@ -593,6 +602,7 @@ int isConnectPending(int index)
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
+#endif
 
 
 #if defined(USE_SELECT)
@@ -604,7 +614,7 @@ int isConnectPending(int index)
  *  @param rc a value other than 0 indicates an error of the returned socket
  *  @return the socket next ready, or 0 if none is ready
  */
-SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc)
+SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* rc, int* interrupted)
 {
 	SOCKET sock = 0;
 	*rc = 0;
@@ -649,6 +659,12 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			sock = 0;
 			goto exit; /* no work to do */
 		}
+
+		/* clear interrupt socket - make sure it is unset */
+		{
+			static char dbuf[1];
+			/*int irc = */recv(sockfd[0], dbuf, 1, 0);
+		}
 		/* Prevent performance issue by unlocking the socket_mutex while waiting for a ready socket. */
 		Paho_thread_unlock_mutex(mutex);
 		*rc = select(maxfdp1_saved, &(mod_s.rset), &pwset, NULL, &timeout_tv);
@@ -659,6 +675,17 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			goto exit;
 		}
 		Log(TRACE_MAX, -1, "Return code %d from read select", *rc);
+
+		/* check interrupt socket to see if we were interrupted */
+		{
+			static char dbuf[1];
+			int irc = recv(sockfd[0], dbuf, 1, 0);
+			if (irc > 0)
+			{
+				*interrupted = 1;
+				Log(TRACE_MINIMUM, -1, "Select was interrupted, rc %d", irc);
+			}
+		}
 
 		if (Socket_continueWrites(&pwset, &sock, mutex) == SOCKET_ERROR)
 		{
@@ -1204,6 +1231,7 @@ int Socket_close(SOCKET socket)
 	int rc = 0;
 
 	FUNC_ENTRY;
+	Paho_thread_lock_mutex(socket_mutex);
 	Socket_close_only(socket);
 	FD_CLR(socket, &(mod_s.rset_saved));
 	if (FD_ISSET(socket, &(mod_s.pending_wset)))
@@ -1235,6 +1263,7 @@ int Socket_close(SOCKET socket)
 		Log(TRACE_MAX, -1, "Reset max fdp1 to %d", mod_s.maxfdp1);
 	}
 exit:
+	Paho_thread_unlock_mutex(socket_mutex);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
