@@ -270,6 +270,17 @@ authorityKeyIdentifier=keyid,issuer
 # This is required for TSA certificates.
 # extendedKeyUsage = critical,timeStamping
 
+[ server_cert ]
+
+# Extensions for the test broker's certificate. Hostname verification matches
+# against the subjectAltName: from OpenSSL 4.1 the subject CN is not checked.
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+subjectAltName = DNS:localhost, IP:127.0.0.1, IP:::1
+
 [ v3_req ]
 
 # Extensions to add to a certificate request

@@ -43,11 +43,11 @@ openssl ca -config openssl.cnf -name CA_root -extensions v3_ca -out test-alt-ca.
 # Valid server key and certificate.
 openssl genrsa -out server.key ${BITS}
 openssl req -new -key server.key -out server.csr -config openssl.cnf -subj "${SBASESUBJ}/CN=localhost/"
-openssl ca -config openssl.cnf -name CA_signing -out server.crt -infiles server.csr 
+openssl ca -config openssl.cnf -name CA_signing -extensions server_cert -out server.crt -infiles server.csr
 
 # Expired server certificate, based on the above server key.
 openssl req -new -days 1 -key server.key -out server-expired.csr -config openssl.cnf -subj "${SBASESUBJ}/CN=localhost/"
-openssl ca -config openssl.cnf -name CA_signing -days 1 -startdate 120820000000Z -enddate 120821000000Z -out server-expired.crt -infiles server-expired.csr 
+openssl ca -config openssl.cnf -name CA_signing -extensions server_cert -days 1 -startdate 120820000000Z -enddate 120821000000Z -out server-expired.crt -infiles server-expired.csr
 
 # Valid client key and certificate.
 openssl genrsa -out client.key ${BITS}
