@@ -164,6 +164,9 @@ static size_t frame_buffer_len = 0;
 static size_t frame_buffer_index = 0;
 static size_t frame_buffer_data_len = 0;
 
+/** Largest HTTP upgrade response header block accepted from the server */
+#define WS_HTTP_RESPONSE_MAX 8192u
+
 /* static function declarations */
 static const char *WebSocket_strcasefind(
 	const char *buf, const char *str, size_t len);
@@ -1412,18 +1415,26 @@ int WebSocket_upgrade( networkHandles *net )
 		if (strncmp( read_buf, "HTTP/1.1 101", 12u ) == 0)
 		{
 			const char *p;
+			const char *hdr_end;
 
-			read_buf = WebSocket_getRawSocketData(net, 1024u, &rcv, &rc);
+			/* The rest of the response can be split over several reads and
+			 * has no fixed length, so read whatever has arrived and look for
+			 * the blank line that terminates the headers. */
+			read_buf = WebSocket_getRawSocketData(net, WS_HTTP_RESPONSE_MAX, &rcv, &rc);
 			if (rc == SOCKET_ERROR)
 				goto exit;
 
 			/* Did we read the whole response? */
-			if (read_buf && rcv > 4 && memcmp(&read_buf[rcv-4], "\r\n\r\n", 4) != 0)
+			hdr_end = read_buf ? WebSocket_strcasefind(read_buf, "\r\n\r\n", rcv) : NULL;
+			if (hdr_end == NULL)
 			{
 				Log(TRACE_PROTOCOL, -1, "WebSocket HTTP upgrade response read not complete %lu", rcv);
-				rc = SOCKET_ERROR;
+				/* an oversized response is a failure, anything else is just
+				 * data that has not arrived yet */
+				rc = (rcv >= WS_HTTP_RESPONSE_MAX) ? SOCKET_ERROR : TCPSOCKET_INTERRUPTED;
 				goto exit;
 			}
+			rcv = (size_t)(hdr_end - read_buf) + 4u;
 
 			/* check for upgrade */
 			p = WebSocket_strcasefind(
@@ -1431,7 +1442,7 @@ int WebSocket_upgrade( networkHandles *net )
 			if ( p )
 			{
 				const char *eol;
-				eol = memchr( p, '\n', rcv-(read_buf-p) );
+				eol = memchr( p, '\n', rcv-(size_t)(p-read_buf) );
 				if ( eol )
 					p = WebSocket_strcasefind(
 						p, "Upgrade", eol - p);
@@ -1446,7 +1457,7 @@ int WebSocket_upgrade( networkHandles *net )
 			if ( p )
 			{
 				const char *eol;
-				eol = memchr( p, '\n', rcv-(read_buf-p) );
+				eol = memchr( p, '\n', rcv-(size_t)(p-read_buf) );
 				if ( eol )
 				{
 					p = memchr( p, ':', eol-p );
@@ -1491,6 +1502,10 @@ int WebSocket_upgrade( networkHandles *net )
 	}
 
 exit:
+	/* a partially received response stays in the frame buffer; rewind so that
+	 * the next call re-reads it from the beginning */
+	if (rc == TCPSOCKET_INTERRUPTED)
+		WebSocket_rewindData();
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
