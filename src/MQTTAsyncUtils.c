@@ -2098,9 +2098,9 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 		if (MQTTAsync_tostop)
 			break;
 
+		timeout = 1000L;
 		if (sock == 0)
 			continue;
-		timeout = 1000L;
 
 		/* find client corresponding to socket */
 		if (ListFindItem(MQTTAsync_handles, &sock, clientSockCompare) == NULL)
