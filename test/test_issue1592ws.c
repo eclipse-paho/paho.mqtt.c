@@ -52,6 +52,10 @@
  * it receives are correct. No broker is needed.
  */
 
+#if !defined(_WINDOWS) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE /* for nftw on glibc */
+#endif
+
 #include "MQTTAsync.h"
 #include <string.h>
 #include <stdlib.h>
@@ -191,6 +195,15 @@ void myassert(char* filename, int lineno, char* description, int value,
 }
 
 
+/* what the test server does on each connection, see server_thread below */
+enum server_modes
+{
+	NORMAL,             /* acknowledge PUBLISH */
+	STALL_NO_PUBACK,    /* stop reading after CONNECT until told to resume, then close after PUBLISH without PUBACK */
+	STALL_RESET,        /* stop reading after CONNECT until told to resume, then reset the connection */
+	NO_PUBACK,          /* close after PUBLISH without PUBACK */
+};
+
 #if !defined(_WINDOWS)
 
 #define TOPIC "issue1592/websocket/masked/publish"
@@ -298,14 +311,6 @@ void base64(const unsigned char* in, size_t len, char* out)
  * records the PUBLISH packets it receives. What it does on each connection
  * is set by the test.
  */
-
-enum server_modes
-{
-	NORMAL,             /* acknowledge PUBLISH */
-	STALL_NO_PUBACK,    /* stop reading after CONNECT until told to resume, then close after PUBLISH without PUBACK */
-	STALL_RESET,        /* stop reading after CONNECT until told to resume, then reset the connection */
-	NO_PUBACK,          /* close after PUBLISH without PUBACK */
-};
 
 #define MAX_CONNECTIONS 8
 
