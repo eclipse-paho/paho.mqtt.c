@@ -61,7 +61,7 @@ int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
 	char *buf = NULL;
 	size_t hostname_len, actual_len = 0;
 	time_t current, timeout;
-	PacketBuffers nulbufs = {0, NULL, NULL, NULL, {0, 0, 0, 0}};
+	PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
 	FUNC_ENTRY;
 	hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, PROXY_DEFAULT_PORT);

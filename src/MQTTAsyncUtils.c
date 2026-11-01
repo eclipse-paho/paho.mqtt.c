@@ -1458,9 +1458,6 @@ static int MQTTAsync_processCommand(void)
 			goto exit;
 		}
 
-		/* Initialize the mask */
-		memset(p->mask, 0, sizeof(p->mask));
-
 		p->payload = command->command.details.pub.payload;
 		p->payloadlen = command->command.details.pub.payloadlen;
 		p->topic = command->command.details.pub.destinationName;

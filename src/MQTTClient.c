@@ -2447,7 +2447,6 @@ MQTTResponse MQTTClient_publish5(MQTTClient handle, const char* topicName, int p
 		rc = PAHO_MEMORY_ERROR;
 		goto exit_and_free;
 	}
-	memset(p->mask, '\0', sizeof(p->mask));
 	p->payload = NULL;
 	p->payloadlen = payloadlen;
 	if (payloadlen > 0)

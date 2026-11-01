@@ -215,20 +215,19 @@ size_t WebSocket_calculateFrameHeaderSize(networkHandles *net, int mask_data, si
 /**
  * @brief builds a websocket frame for data transmission
  *
- * write a websocket header and will mask the payload in all the passed in
- * buffers
+ * writes a websocket header followed by a copy of the data in the passed in
+ * buffers, masked if required, into a newly allocated buffer.  The passed in
+ * buffers are not changed, so they can be sent again, or persisted, after an
+ * incomplete write (#1592).
  *
- * @param[in,out]  net                 network connection
+ * @param[in]      net                 network connection
  * @param[in]      opcode              websocket opcode for the packet
  * @param[in]      mask_data           whether to mask the data
- * @param[in,out]  buf0                first buffer, will write before this
+ * @param[in]      buf0                first buffer, may be NULL
  * @param[in]      buf0len             size of first buffer
- * @param[in]      count               number of payload buffers
- * @param[in,out]  buffers             array of payload buffers
- * @param[in]      buflens             array of payload buffer sizes
- * @param[in]      freeData            array indicating to free payload buffers
+ * @param[in]      bufs                the rest of the buffers
  *
- * @return amount of data to write to socket
+ * @return the frame, which the caller must free, or NULL wsbuf0 if out of memory
  */
 struct frameData {
 	char* wsbuf0;
@@ -236,11 +235,10 @@ struct frameData {
 };
 
 static struct frameData WebSocket_buildFrame(networkHandles* net, int opcode, int mask_data,
-	char** pbuf0, size_t* pbuf0len, PacketBuffers* bufs)
+	char* buf0, size_t buf0len, PacketBuffers* bufs)
 {
 	int buf_len = 0u;
 	struct frameData rc;
-	int new_mask = 0;
 
 	FUNC_ENTRY;
 	memset(&rc, '\0', sizeof(rc));
@@ -248,43 +246,23 @@ static struct frameData WebSocket_buildFrame(networkHandles* net, int opcode, in
 	{
 		size_t ws_header_size = 0u;
 		size_t data_len = 0L;
+		size_t pos = 0u;
+		uint8_t mask[4] = {0u, 0u, 0u, 0u};
 		int i;
 
 		/* Calculate total length of MQTT buffers */
-		data_len = *pbuf0len;
+		data_len = buf0len;
 		for (i = 0; i < bufs->count; ++i)
 			data_len += bufs->buflens[i];
 
 		/* add space for websocket frame header */
 		ws_header_size = WebSocket_calculateFrameHeaderSize(net, mask_data, data_len);
-		if (*pbuf0)
+		rc.wsbuf0len = ws_header_size + data_len;
+		rc.wsbuf0 = malloc(rc.wsbuf0len);
+		if (rc.wsbuf0 == NULL)
 		{
-			rc.wsbuf0len = *pbuf0len + ws_header_size;
-			rc.wsbuf0 = malloc(rc.wsbuf0len);
-			if (rc.wsbuf0 == NULL)
-				goto exit;
-			memcpy(&rc.wsbuf0[ws_header_size], *pbuf0, *pbuf0len);
-		}
-		else
-		{
-			rc.wsbuf0 = malloc(ws_header_size);
-			if (rc.wsbuf0 == NULL)
-				goto exit;
-			rc.wsbuf0len = ws_header_size;
-		}
-
-		if (mask_data && (bufs->mask[0] == 0))
-		{
-			/* generate mask, since we are a client */
-#if defined(OPENSSL)
-			RAND_bytes(&bufs->mask[0], sizeof(bufs->mask));
-#else /* if defined(OPENSSL) */
-			bufs->mask[0] = (rand() % UINT8_MAX);
-			bufs->mask[1] = (rand() % UINT8_MAX);
-			bufs->mask[2] = (rand() % UINT8_MAX);
-			bufs->mask[3] = (rand() % UINT8_MAX);
-#endif /* else if defined(OPENSSL) */
-			new_mask = 1;
+			rc.wsbuf0len = 0;
+			goto exit;
 		}
 
 		/* 1st byte */
@@ -308,66 +286,57 @@ static struct frameData WebSocket_buildFrame(networkHandles* net, int opcode, in
 			memcpy( &rc.wsbuf0[buf_len], &len, 2u );
 			buf_len += 2;
 		}
-		else if ( data_len < 0xFFFFFFFFFFFFFFFF )
+		else
 		{
 			uint64_t len = htobe64((uint64_t)data_len);
 			rc.wsbuf0[buf_len++] |= (127u & 0x7F);
 			memcpy( &rc.wsbuf0[buf_len], &len, 8 );
 			buf_len += 8;
 		}
-		else
-		{
-			Log(TRACE_PROTOCOL, 1, "Data too large for websocket frame" );
-			buf_len = -1;
-		}
 
 		if (mask_data)
 		{
-			size_t idx = 0u;
+			/* generate mask, since we are a client */
+#if defined(OPENSSL)
+			RAND_bytes(&mask[0], sizeof(mask));
+#else /* if defined(OPENSSL) */
+			mask[0] = (rand() % UINT8_MAX);
+			mask[1] = (rand() % UINT8_MAX);
+			mask[2] = (rand() % UINT8_MAX);
+			mask[3] = (rand() % UINT8_MAX);
+#endif /* else if defined(OPENSSL) */
 
 			/* copy masking key into ws header */
-			memcpy( &rc.wsbuf0[buf_len], &bufs->mask, sizeof(uint32_t));
+			memcpy( &rc.wsbuf0[buf_len], &mask, sizeof(uint32_t));
 			buf_len += sizeof(uint32_t);
+		}
 
-			/* mask packet fixed header */
-			for (i = (int)ws_header_size; i < (int)rc.wsbuf0len; ++i, ++idx)
-				rc.wsbuf0[i] ^= bufs->mask[idx % 4];
-
-			/* variable data buffers */
-			for (i = 0; i < bufs->count; ++i)
+		/* copy the data after the header */
+		pos = ws_header_size;
+		if (buf0 && buf0len > 0)
+		{
+			memcpy(&rc.wsbuf0[pos], buf0, buf0len);
+			pos += buf0len;
+		}
+		for (i = 0; i < bufs->count; ++i)
+		{
+			if (bufs->buffers[i] && bufs->buflens[i] > 0)
 			{
-				size_t j;
-
-				if (new_mask == 0 && (i == 2 || i == bufs->count-1))
-					/* topic (2) and payload (last) buffers are already masked */
-					break;
-				for ( j = 0u; j < bufs->buflens[i]; ++j, ++idx )
-				{
-					bufs->buffers[i][j] ^= bufs->mask[idx % 4];
-				}
+				memcpy(&rc.wsbuf0[pos], bufs->buffers[i], bufs->buflens[i]);
+				pos += bufs->buflens[i];
 			}
+		}
+
+		/* mask the copied data */
+		if (mask_data)
+		{
+			for (pos = 0u; pos < data_len; ++pos)
+				rc.wsbuf0[ws_header_size + pos] ^= mask[pos % 4];
 		}
 	}
 exit:
 	FUNC_EXIT_RC(buf_len);
 	return rc;
-}
-
-
-static void WebSocket_unmaskData(size_t idx, PacketBuffers* bufs)
-{
-	int i;
-
-	FUNC_ENTRY;
-	for (i = 0; i < bufs->count; ++i)
-	{
-		size_t j;
-		for (j = 0u; j < bufs->buflens[i]; ++j, ++idx)
-			bufs->buffers[i][j] ^= bufs->mask[idx % 4];
-	}
-	/* show that the mask has been removed */
-	bufs->mask[0] = bufs->mask[1] = bufs->mask[2] = bufs->mask[3] = 0;
-	FUNC_EXIT;
 }
 
 
@@ -504,7 +473,7 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 
 	if ( buf )
 	{
-		PacketBuffers nulbufs = {0, NULL, NULL, NULL, {0, 0, 0, 0}};
+		PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
 #if defined(OPENSSL)
 		if (net->ssl)
@@ -536,7 +505,7 @@ exit:
 void WebSocket_close(networkHandles *net, int status_code, const char *reason)
 {
 	struct frameData fd;
-	PacketBuffers nulbufs = {0, NULL, NULL, NULL, {0, 0, 0, 0}};
+	PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
 	FUNC_ENTRY;
 	if ( net->websocket )
@@ -565,16 +534,22 @@ void WebSocket_close(networkHandles *net, int status_code, const char *reason)
 		if ( reason )
 			strcpy( &buf0[sizeof(uint16_t)], reason );
 
-		fd = WebSocket_buildFrame( net, WebSocket_OP_CLOSE, mask_data, &buf0, &buf0len, &nulbufs);
+		fd = WebSocket_buildFrame( net, WebSocket_OP_CLOSE, mask_data, buf0, buf0len, &nulbufs);
+
+		if (fd.wsbuf0)
+		{
+			int rc;
 
 #if defined(OPENSSL)
-		if (net->ssl)
-			SSLSocket_putdatas(net->ssl, net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
-		else
+			if (net->ssl)
+				rc = SSLSocket_putdatas(net->ssl, net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
+			else
 #endif
-			Socket_putdatas(net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
+				rc = Socket_putdatas(net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
 
-		free(fd.wsbuf0); /* free temporary ws header */
+			if (rc != TCPSOCKET_INTERRUPTED)
+				free(fd.wsbuf0); /* otherwise freed when the write is complete */
+		}
 
 		/* websocket connection is now closed */
 		net->websocket = 0;
@@ -925,21 +900,27 @@ void WebSocket_pong(networkHandles *net, char *app_data, size_t app_data_len)
 		int freeData = 0;
 		struct frameData fd;
 		const int mask_data = 1; /* all frames from client must be masked */
-		PacketBuffers appbuf = {1, &app_data, &app_data_len, &freeData, {0, 0, 0, 0}};
+		PacketBuffers appbuf = {1, &app_data, &app_data_len, &freeData};
+		PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
-		fd = WebSocket_buildFrame( net, WebSocket_OP_PONG, mask_data, &buf0, &buf0len, &appbuf);
+		fd = WebSocket_buildFrame( net, WebSocket_OP_PONG, mask_data, buf0, buf0len, &appbuf);
 
 		Log(TRACE_PROTOCOL, 1, "Sending WebSocket PONG" );
 
-#if defined(OPENSSL)
-		if (net->ssl)
-			SSLSocket_putdatas(net->ssl, net->socket, fd.wsbuf0, fd.wsbuf0len /*header_len + app_data_len*/, appbuf);
-		else
-#endif
-			Socket_putdatas(net->socket, fd.wsbuf0, fd.wsbuf0len /*header_len + app_data_len*/, appbuf);
+		if (fd.wsbuf0)
+		{
+			int rc;
 
-		free(fd.wsbuf0);
-		free(buf0);
+#if defined(OPENSSL)
+			if (net->ssl)
+				rc = SSLSocket_putdatas(net->ssl, net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
+			else
+#endif
+				rc = Socket_putdatas(net->socket, fd.wsbuf0, fd.wsbuf0len, nulbufs);
+
+			if (rc != TCPSOCKET_INTERRUPTED)
+				free(fd.wsbuf0); /* otherwise freed when the write is complete */
+		}
 	}
 	FUNC_EXIT;
 }
@@ -947,17 +928,15 @@ void WebSocket_pong(networkHandles *net, char *app_data, size_t app_data_len)
 /**
  * writes data to a socket (websocket header will be prepended if required)
  *
- * @warning buf0 will be expanded (backwords before @p buf0 buffer, to add a
- * websocket frame header to the data if required).  So use
- * @p WebSocket_calculateFrameHeader, to determine if extra space is needed
- * before the @p buf0 pointer.
+ * With websockets, the data is copied into a websocket frame and masked there,
+ * so the buffers are not changed.  If the write is incomplete, the frame is
+ * kept until it is finished, and @p buf0 and the buffers marked to be freed
+ * are freed here, as they would be without websockets.
  *
- * @param[in,out]  net                 network connection
+ * @param[in]      net                 network connection
  * @param[in,out]  buf0                first buffer
  * @param[in]      buf0len             size of first buffer
- * @param[in]      count               number of payload buffers
- * @param[in,out]  buffers             array of paylaod buffers
- * @param[in]      buflens             array of payload buffer sizes
+ * @param[in,out]  bufs                the rest of the buffers
  * @param[in]      freeData            array indicating to free payload buffers
  *
  * @return amount of data wrote to socket
@@ -973,21 +952,40 @@ int WebSocket_putdatas(networkHandles* net, char** buf0, size_t* buf0len, Packet
 	if (net->websocket)
 	{
 		struct frameData wsdata;
+		PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
-		wsdata = WebSocket_buildFrame(net, WebSocket_OP_BINARY, mask_data, buf0, buf0len, bufs);
+		wsdata = WebSocket_buildFrame(net, WebSocket_OP_BINARY, mask_data, *buf0, *buf0len, bufs);
+		if (wsdata.wsbuf0 == NULL)
+		{
+			rc = PAHO_MEMORY_ERROR;
+			goto exit;
+		}
 
 #if defined(OPENSSL)
 		if (net->ssl)
-			rc = SSLSocket_putdatas(net->ssl, net->socket, wsdata.wsbuf0, wsdata.wsbuf0len, *bufs);
+			rc = SSLSocket_putdatas(net->ssl, net->socket, wsdata.wsbuf0, wsdata.wsbuf0len, nulbufs);
 		else
 #endif
-			rc = Socket_putdatas(net->socket, wsdata.wsbuf0, wsdata.wsbuf0len, *bufs);
+			rc = Socket_putdatas(net->socket, wsdata.wsbuf0, wsdata.wsbuf0len, nulbufs);
 
 		if (rc != TCPSOCKET_INTERRUPTED)
+			free(wsdata.wsbuf0);
+		else
 		{
-			if (mask_data)
-				WebSocket_unmaskData(*buf0len, bufs);
-			free(wsdata.wsbuf0); /* free temporary ws header */
+			int i;
+
+			/* The frame holds a copy of the data and is freed when the write is complete.
+			 * Free the buffers that the caller expects to be freed then, as without websockets */
+			free(*buf0);
+			*buf0 = NULL;
+			for (i = 0; i < bufs->count; ++i)
+			{
+				if (bufs->frees[i])
+				{
+					free(bufs->buffers[i]);
+					bufs->buffers[i] = NULL;
+				}
+			}
 		}
 	}
 	else
@@ -1000,6 +998,7 @@ int WebSocket_putdatas(networkHandles* net, char** buf0, size_t* buf0len, Packet
 			rc = Socket_putdatas(net->socket, *buf0, *buf0len, *bufs);
 	}
 
+exit:
 	FUNC_EXIT_RC(rc);
 	return rc;
 }

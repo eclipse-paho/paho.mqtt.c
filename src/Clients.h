@@ -45,7 +45,6 @@ typedef struct
 	char* payload;
 	int payloadlen;
 	int refcount;
-	uint8_t mask[4];
 } Publications;
 
 /**

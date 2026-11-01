@@ -204,7 +204,6 @@ typedef struct
 	int payloadlen;	/**< payload length */
 	int MQTTVersion;  /**< the version of MQTT */
 	MQTTProperties properties; /**< MQTT 5.0 properties.  Not used for MQTT < 5.0 */
-	uint8_t mask[4]; /**< the websockets mask the payload is masked with, if any */
 } Publish;
 
 

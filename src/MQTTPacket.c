@@ -225,7 +225,6 @@ int MQTTPacket_send(networkHandles* net, Header header, char* buffer, size_t buf
 	packetbufs.buffers = &buffer;
 	packetbufs.buflens = &buflen;
 	packetbufs.frees = &freeData;
-	memset(packetbufs.mask, '\0', sizeof(packetbufs.mask));
 	rc = WebSocket_putdatas(net, &buf, &buf0len, &packetbufs);
 
 	if (rc == TCPSOCKET_COMPLETE)
@@ -917,7 +916,7 @@ int MQTTPacket_send_publish(Publish* pack, int dup, int qos, int retained, netwo
 		char* bufs[4] = {topiclen, pack->topic, NULL, pack->payload};
 		size_t lens[4] = {2, strlen(pack->topic), buflen, pack->payloadlen};
 		int frees[4] = {1, 0, 1, 0};
-		PacketBuffers packetbufs = {4, bufs, lens, frees, {pack->mask[0], pack->mask[1], pack->mask[2], pack->mask[3]}};
+		PacketBuffers packetbufs = {4, bufs, lens, frees};
 
 		bufs[2] = ptr = malloc(buflen);
 		if (ptr == NULL)
@@ -932,7 +931,6 @@ int MQTTPacket_send_publish(Publish* pack, int dup, int qos, int retained, netwo
 		rc = MQTTPacket_sends(net, header, &packetbufs, pack->MQTTVersion);
 		if (rc != TCPSOCKET_INTERRUPTED)
 			free(bufs[2]);
-		memcpy(pack->mask, packetbufs.mask, sizeof(pack->mask));
 	}
 	else
 	{
@@ -940,11 +938,10 @@ int MQTTPacket_send_publish(Publish* pack, int dup, int qos, int retained, netwo
 		char* bufs[3] = {topiclen, pack->topic, pack->payload};
 		size_t lens[3] = {2, strlen(pack->topic), pack->payloadlen};
 		int frees[3] = {1, 0, 0};
-		PacketBuffers packetbufs = {3, bufs, lens, frees, {pack->mask[0], pack->mask[1], pack->mask[2], pack->mask[3]}};
+		PacketBuffers packetbufs = {3, bufs, lens, frees};
 
 		writeInt(&ptr, (int)lens[1]);
 		rc = MQTTPacket_sends(net, header, &packetbufs, pack->MQTTVersion);
-		memcpy(pack->mask, packetbufs.mask, sizeof(pack->mask));
 	}
 	{
 		#define buflen 30

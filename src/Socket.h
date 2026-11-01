@@ -105,7 +105,6 @@ typedef struct
 	char** buffers;    /**> array of byte buffers */
 	size_t* buflens;   /**> array of lengths of buffers */
 	int* frees;        /**> array of flags indicating whether each buffer needs to be freed */
-	uint8_t mask[4];   /**> websocket mask used to mask the buffer data, if any */
 } PacketBuffers;
 
 
