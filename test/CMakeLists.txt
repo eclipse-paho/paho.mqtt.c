@@ -2335,3 +2335,40 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1592" "--test_no" "2"
 	)
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1592ws-static test_issue1592ws.c)
+	target_link_libraries(test_issue1592ws-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1592ws-1-publish-not-masked-after-interrupted-write-static
+		COMMAND "test_issue1592ws-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1592ws-2-publish-not-masked-after-abandoned-write-static
+		COMMAND "test_issue1592ws-static" "--test_no" "2"
+	)
+	add_test(
+		NAME test_issue1592ws-3-publish-not-persisted-masked-static
+		COMMAND "test_issue1592ws-static" "--test_no" "3"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1592ws test_issue1592ws.c)
+	target_link_libraries(test_issue1592ws paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1592ws-1-publish-not-masked-after-interrupted-write
+		COMMAND "test_issue1592ws" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1592ws-2-publish-not-masked-after-abandoned-write
+		COMMAND "test_issue1592ws" "--test_no" "2"
+	)
+	add_test(
+		NAME test_issue1592ws-3-publish-not-persisted-masked
+		COMMAND "test_issue1592ws" "--test_no" "3"
+	)
+endif()
