@@ -1514,6 +1514,14 @@ static int MQTTAsync_processCommand(void)
 				command->client->pending_write = &command->command;
 			}
 		}
+		else if (rc == SOCKET_ERROR)
+		{
+			/* The message has been stored for retry, which owns the topic and payload now. The
+			 * command is freed below on a socket error, so it mustn't free them too: the stored
+			 * message would be corrupted when resent, and they would be freed twice (#1310, #1592) */
+			command->command.details.pub.payload = NULL;
+			command->command.details.pub.destinationName = NULL;
+		}
 		free(p); /* should this be done if the write isn't complete? */
 	}
 	else if (command->command.type == DISCONNECT)

@@ -2306,3 +2306,32 @@ if(PAHO_BUILD_SHARED)
     PROPERTIES TIMEOUT 60
   )
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1592-static test_issue1592.c)
+	target_link_libraries(test_issue1592-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1592-1-publish-not-corrupted-after-write-error-static
+		COMMAND "test_issue1592-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1592-2-no-double-free-after-write-error-cleansession-static
+		COMMAND "test_issue1592-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1592 test_issue1592.c)
+	target_link_libraries(test_issue1592 paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1592-1-publish-not-corrupted-after-write-error
+		COMMAND "test_issue1592" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1592-2-no-double-free-after-write-error-cleansession
+		COMMAND "test_issue1592" "--test_no" "2"
+	)
+endif()
