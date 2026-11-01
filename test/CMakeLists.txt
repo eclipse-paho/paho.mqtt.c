@@ -2372,3 +2372,30 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1592ws" "--test_no" "3"
 	)
 endif()
+if(PAHO_BUILD_STATIC)
+	add_executable(test_pending_write-static test_pending_write.c)
+	target_link_libraries(test_pending_write-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_pending_write-1-qos0-write-continued-promptly-static
+		COMMAND "test_pending_write-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_pending_write-2-qos1-write-continued-promptly-static
+		COMMAND "test_pending_write-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_pending_write test_pending_write.c)
+	target_link_libraries(test_pending_write paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_pending_write-1-qos0-write-continued-promptly
+		COMMAND "test_pending_write" "--test_no" "1"
+	)
+	add_test(
+		NAME test_pending_write-2-qos1-write-continued-promptly
+		COMMAND "test_pending_write" "--test_no" "2"
+	)
+endif()

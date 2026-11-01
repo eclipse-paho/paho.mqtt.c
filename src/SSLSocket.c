@@ -1049,6 +1049,8 @@ int SSLSocket_putdatas(SSL* ssl, SOCKET socket, char* buf0, size_t buf0len, Pack
 #if defined(USE_SELECT)
 			FD_SET(socket, &(mod_s.pending_wset));
 #endif
+			/* wake up any poll or select in progress, so it waits for this socket to be writeable */
+			Socket_interrupt();
 			rc = TCPSOCKET_INTERRUPTED;
 		}
 		else

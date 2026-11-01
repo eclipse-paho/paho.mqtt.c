@@ -796,6 +796,7 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 	if (mod_s.saved.cur_fd == -1)
 	{
 		int rc1 = 0;
+		int pending_writes = 0;
 
 		if (mod_s.nfds != mod_s.saved.nfds)
 		{
@@ -875,9 +876,13 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 		 * the connect completes or fails, and otherwise blocks for the normal timeout, rather than
 		 * this thread spinning for as long as the connect is pending (up to connectTimeout when
 		 * the network drops the SYN).
+		 * Likewise wait for POLLOUT on sockets with an incomplete write, so that the write is
+		 * continued as soon as there is room, rather than once each timeout, as the select
+		 * version does with pending_wset.
 		 * fds_read and fds_write are sorted the same way, so an index names the same socket in
 		 * both. Only this cycle's copy is changed: once isReady() sees the connect complete, the
-		 * socket leaves connect_pending and POLLOUT is no longer requested. */
+		 * socket leaves connect_pending and POLLOUT is no longer requested, and the same when
+		 * the write is complete and the socket leaves write_pending. */
 		mod_s.saved.cur_fd = 0;
 		while (mod_s.saved.cur_fd != -1)
 		{
@@ -886,6 +891,13 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 				Log(TRACE_MAXIMUM, -1, "Socket %d is connecting, waiting for it to become writeable, no of sockets %d",
 					mod_s.saved.fds_read[mod_s.saved.cur_fd].fd, mod_s.saved.nfds);
 				mod_s.saved.fds_read[mod_s.saved.cur_fd].events |= POLLOUT;
+			}
+			else if (!Socket_noPendingWrites(mod_s.saved.fds_read[mod_s.saved.cur_fd].fd))
+			{
+				Log(TRACE_MAXIMUM, -1, "Socket %d has an incomplete write, waiting for it to become writeable",
+					mod_s.saved.fds_read[mod_s.saved.cur_fd].fd);
+				mod_s.saved.fds_read[mod_s.saved.cur_fd].events |= POLLOUT;
+				pending_writes = 1;
 			}
 			mod_s.saved.cur_fd = (mod_s.saved.cur_fd == mod_s.saved.nfds - 1) ? -1 : mod_s.saved.cur_fd + 1;
 		}
@@ -914,6 +926,18 @@ SOCKET Socket_getReadySocket(int more_work, int timeout, mutex_type mutex, int* 
 			{
 				*interrupted = 1;
 				Log(TRACE_MINIMUM, -1, "Poll was interrupted, rc %d", irc);
+			}
+		}
+
+		/* continue any incomplete writes which the poll found can now continue */
+		if (pending_writes && *rc > 0)
+		{
+			int rc2 = poll(mod_s.saved.fds_write, mod_s.saved.nfds, 0);
+
+			if (rc2 > 0 && Socket_continueWrites(&sock, mutex) == SOCKET_ERROR)
+			{
+				*rc = SOCKET_ERROR;
+				goto exit;
 			}
 		}
 
@@ -1186,6 +1210,8 @@ int Socket_putdatas(SOCKET socket, char* buf0, size_t buf0len, PacketBuffers buf
 #if defined(USE_SELECT)
 			FD_SET(socket, &(mod_s.pending_wset));
 #endif
+			/* wake up any poll or select in progress, so it waits for this socket to be writeable */
+			Socket_interrupt();
 			rc = TCPSOCKET_INTERRUPTED;
 		}
 	}
