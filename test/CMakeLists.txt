@@ -2096,6 +2096,59 @@ endif()
 
 
 if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1705-static test_issue1705.c)
+	target_link_libraries(test_issue1705-static paho-mqtt3c-static)
+
+	add_executable(test_issue1705a-static test_issue1705.c)
+	target_compile_definitions(test_issue1705a-static PRIVATE ASYNC)
+	target_link_libraries(test_issue1705a-static paho-mqtt3a-static)
+
+	add_test(
+		NAME test_issue1705-1-sync-create-connect-destroy-fd-leak-static
+		COMMAND "test_issue1705-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1705-2-sync-create-destroy-fd-leak-static
+		COMMAND "test_issue1705-static" "--test_no" "2"
+	)
+	add_test(
+		NAME test_issue1705a-1-async-create-connect-destroy-fd-leak-static
+		COMMAND "test_issue1705a-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1705a-2-async-create-destroy-fd-leak-static
+		COMMAND "test_issue1705a-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1705 test_issue1705.c)
+	target_link_libraries(test_issue1705 paho-mqtt3c)
+
+	add_executable(test_issue1705a test_issue1705.c)
+	target_compile_definitions(test_issue1705a PRIVATE ASYNC)
+	target_link_libraries(test_issue1705a paho-mqtt3a)
+
+	add_test(
+		NAME test_issue1705-1-sync-create-connect-destroy-fd-leak
+		COMMAND "test_issue1705" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1705-2-sync-create-destroy-fd-leak
+		COMMAND "test_issue1705" "--test_no" "2"
+	)
+	add_test(
+		NAME test_issue1705a-1-async-create-connect-destroy-fd-leak
+		COMMAND "test_issue1705a" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1705a-2-async-create-destroy-fd-leak
+		COMMAND "test_issue1705a" "--test_no" "2"
+	)
+endif()
+
+
+if(PAHO_BUILD_STATIC)
 	add_executable(test_sync_session_present-static test_sync_session_present.c)
 	target_link_libraries(test_sync_session_present-static paho-mqtt3c-static)
 	

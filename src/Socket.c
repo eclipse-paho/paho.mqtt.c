@@ -285,7 +285,7 @@ error:
 
 #endif /* _WIN32 */
 
-static SOCKET sockfd[2];
+static SOCKET sockfd[2] = {INVALID_SOCKET, INVALID_SOCKET};
 
 int Socket_pair()
 {
@@ -298,14 +298,43 @@ int Socket_pair()
 		if ((rc = Socket_setnonblocking(sockfd[1])) == 0)
 			rc = Socket_addSocket(sockfd[0]);
 	}
+	else
+		sockfd[0] = sockfd[1] = INVALID_SOCKET;
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
 
+/**
+ * Close both ends of the interrupt socket pair, so that they aren't leaked when
+ * Socket_outInitialize creates a new pair (issue #1705).
+ */
+static void Socket_closePair(void)
+{
+	int i;
+
+	FUNC_ENTRY;
+	for (i = 0; i < 2; ++i)
+	{
+		if (sockfd[i] != INVALID_SOCKET)
+		{
+#if defined(_WIN32)
+			closesocket(sockfd[i]);
+#else
+			close(sockfd[i]);
+#endif
+			sockfd[i] = INVALID_SOCKET;
+		}
+	}
+	FUNC_EXIT;
+}
+
 int Socket_interrupt()
 {
+	int rc = SOCKET_ERROR;
+
 	FUNC_ENTRY;
-	int rc = send(sockfd[1], "\0", 1, 0);
+	if (sockfd[1] != INVALID_SOCKET) /* the pair is closed by Socket_outTerminate */
+		rc = send(sockfd[1], "\0", 1, 0);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
@@ -358,6 +387,7 @@ void Socket_outInitialize(void)
 void Socket_outTerminate(void)
 {
 	FUNC_ENTRY;
+	Socket_closePair();
 	ListFree(mod_s.connect_pending);
 	ListFree(mod_s.write_pending);
 #if defined(USE_SELECT)
