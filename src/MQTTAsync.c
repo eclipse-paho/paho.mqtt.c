@@ -1457,13 +1457,17 @@ int MQTTAsync_isComplete(MQTTAsync handle, MQTTAsync_token dt)
 
 	/* First check unprocessed commands */
 	current = NULL;
+	MQTTAsync_lock_mutex(mqttcommand_mutex);
 	while (ListNextElement(MQTTAsync_commands, &current))
 	{
 		MQTTAsync_queuedCommand* cmd = (MQTTAsync_queuedCommand*)(current->content);
 
 		if (cmd->client == m && cmd->command.token == dt)
-			goto exit;
+			break;
 	}
+	MQTTAsync_unlock_mutex(mqttcommand_mutex);
+	if (current)
+		goto exit;
 
 	/* Now check the inflight messages */
 	if (m->c && m->c->outboundMsgs->count > 0)
