@@ -42,7 +42,13 @@ endif()
 
 include(GNUInstallDirs)
 
-string(TIMESTAMP BUILD_TIMESTAMP UTC)
+## The timestamp is that of the release, not the build, so that builds are reproducible.
+## Update version.date with the version files when making a release.
+file(STRINGS version.date BUILD_TIMESTAMP LIMIT_COUNT 1)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS version.date)
+if(NOT BUILD_TIMESTAMP MATCHES "^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$")
+  message(FATAL_ERROR "version.date must contain a UTC timestamp like 2026-02-20T17:23:15Z, not \"${BUILD_TIMESTAMP}\"")
+endif()
 message(STATUS "Timestamp is ${BUILD_TIMESTAMP}")
 
 if(WIN32)

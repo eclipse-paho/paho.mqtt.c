@@ -26,6 +26,8 @@ SHELL = /bin/sh
 MAJOR_VERSION := $(shell cat version.major)
 MINOR_VERSION := $(shell cat version.minor)
 PATCH_VERSION := $(shell cat version.patch)
+# the release timestamp, not the build time, so that builds are reproducible
+build.level := $(shell cat version.date)
 
 ifndef release.version
   release.version = $(MAJOR_VERSION).$(MINOR_VERSION).$(PATCH_VERSION)
@@ -39,7 +41,6 @@ ifeq ($(OS),Windows_NT)
 else
 	OSTYPE ?= $(shell uname -s)
 	MACHINETYPE ?= $(shell uname -m)
-	build.level = $(shell date)
 endif # OS
 ifeq ($(OSTYPE),linux)
 	OSTYPE = Linux
@@ -169,7 +170,10 @@ LDFLAGS_A = $(LDFLAGS) -shared -Wl,-init,$(MQTTASYNC_INIT) $(START_GROUP) -pthre
 LDFLAGS_AS = $(LDFLAGS) -shared $(START_GROUP) -pthread $(GAI_LIB) $(EXTRA_LIB) -lssl -lcrypto $(END_GROUP) -Wl,-init,$(MQTTASYNC_INIT)
 
 SED_COMMAND = sed \
-    -e "s/@CLIENT_VERSION@/${release.version}/g" \
+    -e "s/@PROJECT_VERSION@/${release.version}/g" \
+    -e "s/@PROJECT_VERSION_MAJOR@/${MAJOR_VERSION}/g" \
+    -e "s/@PROJECT_VERSION_MINOR@/${MINOR_VERSION}/g" \
+    -e "s/@PROJECT_VERSION_PATCH@/${PATCH_VERSION}/g" \
     -e "s/@BUILD_TIMESTAMP@/${build.level}/g"
 
 ifeq ($(OSTYPE),Linux)
