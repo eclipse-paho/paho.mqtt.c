@@ -600,6 +600,7 @@ int test_retained_flag_live_publish(struct Options options)
 	MQTTClient c;
 	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer5;
 	MQTTClient_message pubmsg = MQTTClient_message_initializer;
+	MQTTClient_deliveryToken dt;
 	const char* topic = "conformance/retained_flag_live";
 	int count;
 
@@ -636,6 +637,16 @@ int test_retained_flag_live_publish(struct Options options)
 
 	assert("The live retained publish was delivered", retained_flag_messages_arrived == 1,
 			"messages arrived %d\n", retained_flag_messages_arrived);
+
+	/* delete the retained message, so it isn't delivered to later tests that subscribe with wildcards */
+	rc = MQTTClient_unsubscribe(c, topic);
+	assert("Good rc from unsubscribe", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
+	pubmsg.payload = NULL;
+	pubmsg.payloadlen = 0;
+	rc = MQTTClient_publishMessage(c, topic, &pubmsg, &dt);
+	assert("Good rc from publish of zero-byte retained message", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
+	rc = MQTTClient_waitForCompletion(c, dt, 5000L);
+	assert("Good rc from waitForCompletion", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
 
 	MQTTClient_disconnect(c, 1000);
 	MQTTClient_destroy(&c);
