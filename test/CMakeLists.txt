@@ -2399,3 +2399,25 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_pending_write" "--test_no" "2"
 	)
 endif()
+
+if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
+	if(PAHO_BUILD_STATIC)
+		add_executable(test_issue1539-static test_issue1539.c)
+		target_link_libraries(test_issue1539-static paho-mqtt3as-static ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_issue1539-1-concurrent-connects-no-double-free-static
+			COMMAND "test_issue1539-static" "--test_no" "1"
+		)
+	endif()
+
+	if(PAHO_BUILD_SHARED)
+		add_executable(test_issue1539 test_issue1539.c)
+		target_link_libraries(test_issue1539 paho-mqtt3as ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_issue1539-1-concurrent-connects-no-double-free
+			COMMAND "test_issue1539" "--test_no" "1"
+		)
+	endif()
+endif()

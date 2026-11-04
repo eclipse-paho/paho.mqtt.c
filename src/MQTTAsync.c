@@ -664,6 +664,16 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 		}
 	}
 
+	/* Hold the async mutex while the client's connect data is replaced, so that it can't be changed
+	 * by another call to connect, or while the send and receive threads are using it (#1539).
+	 * Don't lock it if we are being called from a callback, as it's held already. */
+	thread_id = Paho_thread_getid();
+	if (thread_id != sendThread_id && thread_id != receiveThread_id)
+	{
+		MQTTAsync_lock_mutex(mqttasync_mutex);
+		locked = 1;
+	}
+
 	m->connect.onSuccess = options->onSuccess;
 	m->connect.onFailure = options->onFailure;
 	if (options->struct_version >= 6)
@@ -674,13 +684,6 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	m->connect.context = options->context;
 	m->connectTimeout = options->connectTimeout;
 
-	/* don't lock async mutex if we are being called from a callback */
-	thread_id = Paho_thread_getid();
-	if (thread_id != sendThread_id && thread_id != receiveThread_id)
-	{
-		MQTTAsync_lock_mutex(mqttasync_mutex);
-		locked = 1;
-	}
 	MQTTAsync_tostop = 0;
 	if (sendThread_state != STARTING && sendThread_state != RUNNING)
 	{
@@ -692,8 +695,6 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 		receiveThread_state = STARTING;
 		Paho_thread_start(MQTTAsync_receiveThread, handle);
 	}
-	if (locked)
-		MQTTAsync_unlock_mutex(mqttasync_mutex);
 
 	m->c->keepAliveInterval = m->c->savedKeepAliveInterval = options->keepAliveInterval;
 	setRetryLoopInterval(options->keepAliveInterval);
@@ -786,6 +787,11 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 		{
 			if (m->c->sslopts->CApath)
 				free((void*)m->c->sslopts->CApath);
+		}
+		if (m->c->sslopts->struct_version >= 5)
+		{
+			if (m->c->sslopts->protos)
+				free((void*)m->c->sslopts->protos);
 		}
 		free((void*)m->c->sslopts);
 		m->c->sslopts = NULL;
@@ -960,6 +966,8 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	rc = MQTTAsync_addCommand(conn, sizeof(conn));
 
 exit:
+	if (locked)
+		MQTTAsync_unlock_mutex(mqttasync_mutex);
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
