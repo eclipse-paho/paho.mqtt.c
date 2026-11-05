@@ -2421,3 +2421,31 @@ if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
 		)
 	endif()
 endif()
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1541-static test_issue1541.c)
+	target_link_libraries(test_issue1541-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1541-1-disconnect-fails-after-connection-lost-static
+		COMMAND "test_issue1541-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1541-2-disconnect-not-ended-by-connect-timeout-static
+		COMMAND "test_issue1541-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1541 test_issue1541.c)
+	target_link_libraries(test_issue1541 paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1541-1-disconnect-fails-after-connection-lost
+		COMMAND "test_issue1541" "--test_no" "1"
+	)
+	add_test(
+		NAME test_issue1541-2-disconnect-not-ended-by-connect-timeout
+		COMMAND "test_issue1541" "--test_no" "2"
+	)
+endif()

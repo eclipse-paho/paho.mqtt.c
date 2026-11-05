@@ -51,6 +51,7 @@ static MQTTAsync_queuedCommand* MQTTAsync_restoreCommand(char* buffer, int bufle
 #endif
 static void MQTTAsync_startConnectRetry(MQTTAsyncs* m);
 static void MQTTAsync_checkDisconnect(MQTTAsync handle, MQTTAsync_command* command);
+static void MQTTAsync_failDisconnect(MQTTAsync handle, MQTTAsync_command* command, char* message);
 static void MQTTProtocol_checkPendingWrites(void);
 static void MQTTAsync_freeCommand1(MQTTAsync_queuedCommand *command);
 static void MQTTAsync_freeCommand(MQTTAsync_queuedCommand *command);
@@ -1003,6 +1004,49 @@ void MQTTAsync_checkDisconnect(MQTTAsync handle, MQTTAsync_command* command)
 
 
 /**
+ * Call the failure callback of an application's disconnect which can't complete normally, because
+ * the connection was closed by something else, such as a network error (#1541)
+ * @param handle the client
+ * @param command the disconnect command
+ * @param message the reason, can be NULL
+ */
+static void MQTTAsync_failDisconnect(MQTTAsync handle, MQTTAsync_command* command, char* message)
+{
+	MQTTAsyncs* m = handle;
+
+	FUNC_ENTRY;
+	if (command->type != DISCONNECT || command->details.dis.internal)
+		goto exit;
+	if (command->onFailure)
+	{
+		MQTTAsync_failureData data;
+
+		data.token = 0;
+		data.code = MQTTASYNC_DISCONNECTED;
+		data.message = message;
+		Log(TRACE_MIN, -1, "Calling disconnect failure for client %s", m->c->clientID);
+		(*(command->onFailure))(command->context, &data);
+	}
+	else if (command->onFailure5)
+	{
+		MQTTAsync_failureData5 data = MQTTAsync_failureData5_initializer;
+
+		data.code = MQTTASYNC_DISCONNECTED;
+		data.message = message;
+		Log(TRACE_MIN, -1, "Calling disconnect failure for client %s", m->c->clientID);
+		(*(command->onFailure5))(command->context, &data);
+	}
+	/* Null out callback pointers so they aren't called again */
+	command->onSuccess = NULL;
+	command->onFailure = NULL;
+	command->onSuccess5 = NULL;
+	command->onFailure5 = NULL;
+exit:
+	FUNC_EXIT;
+}
+
+
+/**
  * Call Socket_noPendingWrites(int socket) with protection by socket_mutex, see https://github.com/eclipse/paho.mqtt.c/issues/385
  */
 static int MQTTAsync_Socket_noPendingWrites(SOCKET socket)
@@ -1525,7 +1569,13 @@ static int MQTTAsync_processCommand(void)
 	{
 		if (command->client->c->connect_state != NOT_IN_PROGRESS || command->client->c->connected != 0)
 		{
-			if (command->client->c->connect_state != NOT_IN_PROGRESS)
+			if (command->client->c->connect_state == DISCONNECTING)
+			{
+				/* an earlier disconnect is still waiting for inflight messages: this one, such as
+				 * the internal disconnect after a socket error, replaces it, so it won't complete */
+				MQTTAsync_failDisconnect(command->client, &command->client->disconnect, NULL);
+			}
+			else if (command->client->c->connect_state != NOT_IN_PROGRESS)
 			{
 				if (command->client->connect.onFailure)
 				{
@@ -1557,6 +1607,8 @@ static int MQTTAsync_processCommand(void)
 			command->client->c->connect_state = DISCONNECTING;
 			MQTTAsync_checkDisconnect(command->client, &command->command);
 		}
+		else /* the connection was lost after the disconnect was requested */
+			MQTTAsync_failDisconnect(command->client, &command->command, NULL);
 	}
 
 	if (command->command.type == CONNECT && rc != SOCKET_ERROR && rc != MQTTASYNC_PERSISTENCE_ERROR)
@@ -1648,6 +1700,7 @@ exit:
 static void nextOrClose(MQTTAsyncs* m, int rc, char* message, int sendDisconnect)
 {
 	int was_connected = m->c->connected;
+	int disconnecting = (m->c->connect_state == DISCONNECTING);
 	int more_to_try = 0;
 	int connectionLost_called = 0;
 	enum MQTTReasonCodes reasonCode = MQTTREASONCODE_SUCCESS;
@@ -1656,7 +1709,9 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message, int sendDisconnect
 	if (rc > 0) /* MQTT 5 reason codes are always positive */
 		reasonCode = rc;
 
-	more_to_try = MQTTAsync_checkConn(&m->connect, m, was_connected);
+	/* if the application is disconnecting, don't try to connect to the next server */
+	if (!disconnecting)
+		more_to_try = MQTTAsync_checkConn(&m->connect, m, was_connected);
 	if (more_to_try)
 	{
 		MQTTAsync_queuedCommand* conn;
@@ -1729,6 +1784,8 @@ static void nextOrClose(MQTTAsyncs* m, int rc, char* message, int sendDisconnect
 			m->connect.onFailure5 = NULL;
 			m->connect.onSuccess5 = NULL;
 		}
+		if (disconnecting) /* the application's disconnect can't complete now */
+			MQTTAsync_failDisconnect(m, &m->disconnect, message);
 		if (connectionLost_called == 0 && m->cl && was_connected)
 		{
 			Log(TRACE_MIN, -1, "Calling connectionLost for client %s", m->c->clientID);
@@ -1761,8 +1818,9 @@ static void MQTTAsync_checkTimeouts(void)
 		if (m->c->connect_state == DISCONNECTING)
 			MQTTAsync_checkDisconnect(m, &m->disconnect);
 
-		/* check connect timeout */
-		if (m->c->connect_state != NOT_IN_PROGRESS && MQTTTime_elapsed(m->connect.start_time) > (ELAPSED_TIME_TYPE)(m->connectTimeout * 1000))
+		/* check connect timeout: not when disconnecting, which has its own timeout (#1541) */
+		if (m->c->connect_state != NOT_IN_PROGRESS && m->c->connect_state != DISCONNECTING &&
+				MQTTTime_elapsed(m->connect.start_time) > (ELAPSED_TIME_TYPE)(m->connectTimeout * 1000))
 		{
 			nextOrClose(m, MQTTASYNC_FAILURE, "TCP connect timeout", 0);
 			continue;
