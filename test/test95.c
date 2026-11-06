@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2024 IBM Corp., Ian Craggs
+ * Copyright (c) 2012, 2026 IBM Corp., Ian Craggs
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -9,6 +9,13 @@
  *    https://www.eclipse.org/legal/epl-2.0/
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
  *
  * Contributors:
  *    Ian Craggs - initial API and implementation and/or initial documentation
@@ -200,7 +207,7 @@ long elapsed(START_TIME_TYPE start_time)
 }
 #endif
 
-#define assert(a, b, c, d) myassert(__FILE__, __LINE__, a, b, c, d)
+#define assert(a, b, c, ...) myassert(__FILE__, __LINE__, a, b, c, __VA_ARGS__)
 #define assert1(a, b, c, d, e) myassert(__FILE__, __LINE__, a, b, c, d, e)
 
 #define MAXMSGS 30;
@@ -390,8 +397,11 @@ int test1_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync
 
 	if (message->struct_version == 1)
 	{
+		/* include the message details, to show which message it was if this fails */
 		assert("Properties count should be > 0", message->properties.count > 0,
-			"Properties count was %d\n", message->properties.count);
+			"Properties count was %d, topic \"%.*s\", qos %d, retained %d, msgid %d, payload \"%.*s\"\n",
+			message->properties.count, topicLen > 0 ? topicLen : (int)strlen(topicName), topicName,
+			message->qos, message->retained, message->msgid, message->payloadlen, (char*)message->payload);
 		logProperties(&message->properties);
 	}
 
