@@ -10,6 +10,13 @@
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
+ *
  * Contributors:
  *    Ian Craggs - initial API and implementation and/or initial documentation
  *    Ian Craggs, Allan Stockdill-Mander - SSL updates
@@ -40,6 +47,7 @@ void MQTTProtocol_removePublication(Publications* p);
 void Protocol_processPublication(Publish* publish, Clients* client, int allocatePayload);
 
 int MQTTProtocol_handlePublishes(void* pack, SOCKET sock);
+int MQTTProtocol_isWrongAck(Clients* client, int ackType, int msgId);
 int MQTTProtocol_handlePubacks(void* pack, SOCKET sock, Publications** pubToRemove);
 int MQTTProtocol_handlePubrecs(void* pack, SOCKET sock, Publications** pubToRemove);
 int MQTTProtocol_handlePubrels(void* pack, SOCKET sock);

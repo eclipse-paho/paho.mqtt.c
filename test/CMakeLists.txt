@@ -2521,3 +2521,166 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1541" "--test_no" "2"
 	)
 endif()
+
+# Issue 1617: an acknowledgement which does not fit the message it is for
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1617-static test_issue1617.c)
+	target_link_libraries(test_issue1617-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1617-1-puback-for-qos2-static
+		COMMAND "test_issue1617-static" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1617-2-pubcomp-for-qos1-static
+		COMMAND "test_issue1617-static" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1617-3-pubcomp-before-pubrec-static
+		COMMAND "test_issue1617-static" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1617-4-pubrec-for-qos1-static
+		COMMAND "test_issue1617-static" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1617-5-mqtt5-puback-for-qos2-static
+		COMMAND "test_issue1617-static" "--test_no" "5"
+	)
+
+	add_test(
+		NAME test_issue1617-6-mqtt5-pubrec-failure-for-qos1-static
+		COMMAND "test_issue1617-static" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1617-7-puback-for-qos1-static
+		COMMAND "test_issue1617-static" "--test_no" "7"
+	)
+endif()
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1617sync-static test_issue1617.c)
+	target_link_libraries(test_issue1617sync-static paho-mqtt3c-static ${LIBS_SYSTEM})
+	target_compile_definitions(test_issue1617sync-static PRIVATE TEST_SYNC)
+
+	add_test(
+		NAME test_issue1617-sync-1-puback-for-qos2-static
+		COMMAND "test_issue1617sync-static" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-2-pubcomp-for-qos1-static
+		COMMAND "test_issue1617sync-static" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-3-pubcomp-before-pubrec-static
+		COMMAND "test_issue1617sync-static" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-4-pubrec-for-qos1-static
+		COMMAND "test_issue1617sync-static" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-5-mqtt5-puback-for-qos2-static
+		COMMAND "test_issue1617sync-static" "--test_no" "5"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-6-mqtt5-pubrec-failure-for-qos1-static
+		COMMAND "test_issue1617sync-static" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-7-puback-for-qos1-static
+		COMMAND "test_issue1617sync-static" "--test_no" "7"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1617 test_issue1617.c)
+	target_link_libraries(test_issue1617 paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1617-1-puback-for-qos2
+		COMMAND "test_issue1617" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1617-2-pubcomp-for-qos1
+		COMMAND "test_issue1617" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1617-3-pubcomp-before-pubrec
+		COMMAND "test_issue1617" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1617-4-pubrec-for-qos1
+		COMMAND "test_issue1617" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1617-5-mqtt5-puback-for-qos2
+		COMMAND "test_issue1617" "--test_no" "5"
+	)
+
+	add_test(
+		NAME test_issue1617-6-mqtt5-pubrec-failure-for-qos1
+		COMMAND "test_issue1617" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1617-7-puback-for-qos1
+		COMMAND "test_issue1617" "--test_no" "7"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1617sync test_issue1617.c)
+	target_link_libraries(test_issue1617sync paho-mqtt3c ${LIBS_SYSTEM})
+	target_compile_definitions(test_issue1617sync PRIVATE TEST_SYNC)
+
+	add_test(
+		NAME test_issue1617-sync-1-puback-for-qos2
+		COMMAND "test_issue1617sync" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-2-pubcomp-for-qos1
+		COMMAND "test_issue1617sync" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-3-pubcomp-before-pubrec
+		COMMAND "test_issue1617sync" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-4-pubrec-for-qos1
+		COMMAND "test_issue1617sync" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-5-mqtt5-puback-for-qos2
+		COMMAND "test_issue1617sync" "--test_no" "5"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-6-mqtt5-pubrec-failure-for-qos1
+		COMMAND "test_issue1617sync" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1617-sync-7-puback-for-qos1
+		COMMAND "test_issue1617sync" "--test_no" "7"
+	)
+endif()

@@ -10,6 +10,13 @@
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
+ *
  * Contributors:
  *    Ian Craggs - initial API and implementation and/or initial documentation
  *    Ian Craggs - fix for bug 413429 - connectionLost not called
@@ -472,6 +479,52 @@ exit:
 }
 
 /**
+ * Check whether an acknowledgement doesn't fit the outbound message it is for, which is a
+ * protocol error. For instance, a PUBACK for a QoS 2 message, which Azure IoT Hub sends - issue #1617.
+ * A PUBREC for a QoS 2 message whose PUBREC has already been received is not an error, as the
+ * PUBREC is sent again if the PUBREL is lost.
+ * @param m the outbound message
+ * @param ackType the type of the acknowledgement: PUBACK, PUBREC or PUBCOMP
+ * @return 1 if the acknowledgement is a protocol error, otherwise 0
+ */
+static int wrongAckForMessage(Messages* m, int ackType)
+{
+	int rc = 0;
+
+	if (ackType == PUBACK)
+		rc = (m->qos != 1);
+	else if (ackType == PUBREC)
+		rc = (m->qos != 2);
+	else if (ackType == PUBCOMP)
+		rc = (m->qos != 2 || m->nextMessageType != PUBCOMP);
+	return rc;
+}
+
+
+/**
+ * Check whether an acknowledgement received by a client is a protocol error, because it
+ * doesn't fit the outbound message it is for. The handle functions for the acknowledgement
+ * return SOCKET_ERROR in this case, so that the connection is closed.
+ * @param client the client
+ * @param ackType the type of the acknowledgement: PUBACK, PUBREC or PUBCOMP
+ * @param msgId the message id of the acknowledgement
+ * @return 1 if the acknowledgement is a protocol error, otherwise 0, including when there is
+ * no outbound message with that message id
+ */
+int MQTTProtocol_isWrongAck(Clients* client, int ackType, int msgId)
+{
+	ListElement* found = NULL;
+	int rc = 0;
+
+	FUNC_ENTRY;
+	if ((found = ListFindItem(client->outboundMsgs, &msgId, messageIDCompare)) != NULL)
+		rc = wrongAckForMessage((Messages*)(found->content), ackType);
+	FUNC_EXIT_RC(rc);
+	return rc;
+}
+
+
+/**
  * Process an incoming puback packet for a socket
  * @param pack pointer to the publish packet
  * @param sock the socket on which the packet was received
@@ -493,7 +546,7 @@ int MQTTProtocol_handlePubacks(void* pack, SOCKET sock, Publications** pubToRemo
 	else
 	{
 		Messages* m = (Messages*)(client->outboundMsgs->current->content);
-		if (m->qos != 1)
+		if (wrongAckForMessage(m, PUBACK))
 		{
 			Log(LOG_ERROR, 4, NULL, "PUBACK", client->clientID, puback->msgId, m->qos);
 			rc = SOCKET_ERROR;
@@ -550,10 +603,11 @@ int MQTTProtocol_handlePubrecs(void* pack, SOCKET sock, Publications** pubToRemo
 	else
 	{
 		Messages* m = (Messages*)(client->outboundMsgs->current->content);
-		if (m->qos != 2)
+		if (wrongAckForMessage(m, PUBREC))
 		{
-			if (pubrec->header.bits.dup == 0)
-				Log(TRACE_MIN, 4, NULL, "PUBREC", client->clientID, pubrec->msgId, m->qos);
+			Log(LOG_ERROR, 4, NULL, "PUBREC", client->clientID, pubrec->msgId, m->qos);
+			rc = SOCKET_ERROR;
+			send_pubrel = 0; /* the connection will be closed */
 		}
 		else if (m->nextMessageType != PUBREC)
 		{
@@ -589,7 +643,7 @@ int MQTTProtocol_handlePubrecs(void* pack, SOCKET sock, Publications** pubToRemo
 		}
 	}
 	if (!send_pubrel)
-		; /* only don't send ack on MQTT v5 PUBREC error, otherwise send ack under all circumstances because MQTT state can get out of step */
+		; /* only don't send ack on MQTT v5 PUBREC error or protocol error, otherwise send ack under all circumstances because MQTT state can get out of step */
 	else if (!Socket_noPendingWrites(sock))
 		rc = MQTTProtocol_queueAck(client, PUBREL, pubrec->msgId);
 	else
@@ -705,31 +759,32 @@ int MQTTProtocol_handlePubcomps(void* pack, SOCKET sock, Publications** pubToRem
 	else
 	{
 		Messages* m = (Messages*)(client->outboundMsgs->current->content);
-		if (m->qos != 2)
-			Log(TRACE_MIN, 4, NULL, "PUBCOMP", client->clientID, pubcomp->msgId, m->qos);
+		if (wrongAckForMessage(m, PUBCOMP))
+		{
+			if (m->qos != 2)
+				Log(LOG_ERROR, 4, NULL, "PUBCOMP", client->clientID, pubcomp->msgId, m->qos);
+			else
+				Log(LOG_ERROR, 5, NULL, "PUBCOMP", client->clientID, pubcomp->msgId);
+			rc = SOCKET_ERROR;
+		}
 		else
 		{
-			if (m->nextMessageType != PUBCOMP)
-				Log(TRACE_MIN, 5, NULL, "PUBCOMP", client->clientID, pubcomp->msgId);
+			Log(TRACE_MIN, 6, NULL, "PUBCOMP", client->clientID, pubcomp->msgId);
+			#if !defined(NO_PERSISTENCE)
+				rc = MQTTPersistence_remove(client,
+						(m->MQTTVersion >= MQTTVERSION_5) ? PERSISTENCE_V5_PUBLISH_SENT : PERSISTENCE_PUBLISH_SENT,
+						m->qos, pubcomp->msgId);
+				if (rc != 0)
+					Log(LOG_ERROR, -1, "Error removing PUBCOMP for client id %s msgid %d from persistence", client->clientID, pubcomp->msgId);
+			#endif
+			if (pubToRemove != NULL)
+				*pubToRemove = m->publish;
 			else
-			{
-				Log(TRACE_MIN, 6, NULL, "PUBCOMP", client->clientID, pubcomp->msgId);
-				#if !defined(NO_PERSISTENCE)
-					rc = MQTTPersistence_remove(client,
-							(m->MQTTVersion >= MQTTVERSION_5) ? PERSISTENCE_V5_PUBLISH_SENT : PERSISTENCE_PUBLISH_SENT,
-							m->qos, pubcomp->msgId);
-					if (rc != 0)
-						Log(LOG_ERROR, -1, "Error removing PUBCOMP for client id %s msgid %d from persistence", client->clientID, pubcomp->msgId);
-				#endif
-				if (pubToRemove != NULL)
-					*pubToRemove = m->publish;
-				else
-					MQTTProtocol_removePublication(m->publish);
-				if (m->MQTTVersion >= MQTTVERSION_5)
-					MQTTProperties_free(&m->properties);
-				ListRemove(client->outboundMsgs, m);
-				(++state.msgs_sent);
-			}
+				MQTTProtocol_removePublication(m->publish);
+			if (m->MQTTVersion >= MQTTVERSION_5)
+				MQTTProperties_free(&m->properties);
+			ListRemove(client->outboundMsgs, m);
+			(++state.msgs_sent);
 		}
 	}
 	if (pubcomp->MQTTVersion >= MQTTVERSION_5)

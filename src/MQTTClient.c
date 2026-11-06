@@ -10,6 +10,13 @@
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
+ *
  * Contributors:
  *    Ian Craggs - initial API and implementation and/or initial documentation
  *    Ian Craggs - bug 384016 - segv setting will message
@@ -2664,17 +2671,19 @@ static MQTTPacket* MQTTClient_cycle(SOCKET* sock, ELAPSED_TIME_TYPE timeout, int
 			else if (pack->header.bits.type == PUBACK || pack->header.bits.type == PUBCOMP)
 			{
 				int msgid;
+				int wrongAck; /* the ack doesn't fit the message, so the connection will be closed - issue #1617 */
 
 				ack = (pack->header.bits.type == PUBCOMP) ? *(Pubcomp*)pack : *(Puback*)pack;
 				msgid = ack.msgId;
-				if (m && m->c->MQTTVersion >= MQTTVERSION_5 && m->published)
+				wrongAck = m && MQTTProtocol_isWrongAck(m->c, pack->header.bits.type, msgid);
+				if (m && !wrongAck && m->c->MQTTVersion >= MQTTVERSION_5 && m->published)
 				{
 					Log(TRACE_MIN, -1, "Calling published for client %s, msgid %d", m->c->clientID, msgid);
 					(*(m->published))(m->published_context, msgid, pack->header.bits.type, &ack.properties, ack.rc);
 				}
 				*rc = (pack->header.bits.type == PUBCOMP) ?
 					MQTTProtocol_handlePubcomps(pack, *sock, NULL) : MQTTProtocol_handlePubacks(pack, *sock, NULL);
-				if (m && m->dc)
+				if (m && !wrongAck && m->dc)
 				{
 					Log(TRACE_MIN, -1, "Calling deliveryComplete for client %s, msgid %d", m->c->clientID, msgid);
 					(*(m->dc))(m->context, msgid);
@@ -2684,7 +2693,8 @@ static MQTTPacket* MQTTClient_cycle(SOCKET* sock, ELAPSED_TIME_TYPE timeout, int
 			{
 				Pubrec* pubrec = (Pubrec*)pack;
 
-				if (m && m->c->MQTTVersion >= MQTTVERSION_5 && m->published && pubrec->rc >= MQTTREASONCODE_UNSPECIFIED_ERROR)
+				if (m && m->c->MQTTVersion >= MQTTVERSION_5 && m->published && pubrec->rc >= MQTTREASONCODE_UNSPECIFIED_ERROR &&
+						!MQTTProtocol_isWrongAck(m->c, PUBREC, pubrec->msgId))
 				{
 					Log(TRACE_MIN, -1, "Calling published for client %s, msgid %d", m->c->clientID, ack.msgId);
 					(*(m->published))(m->published_context, pubrec->msgId, pack->header.bits.type,
