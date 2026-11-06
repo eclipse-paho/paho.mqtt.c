@@ -151,7 +151,7 @@ struct timespec Thread_time_from_now(int ms)
 #endif
 
 	from_now.tv_sec += interval.tv_sec;
-	from_now.tv_nsec += interval.tv_sec;
+	from_now.tv_nsec += interval.tv_nsec;
 
 	while (from_now.tv_nsec >= NSEC_PER_SEC)
 	{
