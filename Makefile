@@ -1,5 +1,5 @@
 #*******************************************************************************
-#  Copyright (c) 2009, 2021 IBM Corp.
+#  Copyright (c) 2009, 2026 IBM Corp.
 #
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the Eclipse Public License v2.0
@@ -9,6 +9,13 @@
 #     https://www.eclipse.org/legal/epl-2.0/
 #  and the Eclipse Distribution License is available at
 #    http://www.eclipse.org/org/documents/edl-v10.php.
+#
+#  AI Disclosure: This file was partly AI-generated. The AI-generated
+#  portions are made available under CC0-1.0 and not subject to the
+#  project's licence. The human contributor has reviewed and verified
+#  that the code is correct.
+#
+#  SPDX-License-Identifier: EPL-2.0 and CC0-1.0
 #
 #  Contributors:
 #     Ian Craggs - initial API and implementation and/or initial documentation
