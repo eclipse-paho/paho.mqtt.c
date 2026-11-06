@@ -782,24 +782,23 @@ int SSLSocket_connect(SSL* ssl, SOCKET sock, const char* hostname, int verify, i
 	{
 		int error;
 		error = SSLSocket_error("SSL_connect", ssl, sock, rc, cb, u);
-		if (error == SSL_FATAL)
-			rc = error;
-		else
+		switch (error)
 		{
-			switch (error)
-			{
-			case SSL_ERROR_WANT_READ:
-				rc = TCPSOCKET_INTERRUPTED;
-				Socket_clearPendingWrite(sock);
-				break;
-			case SSL_ERROR_WANT_WRITE:
-				rc = TCPSOCKET_INTERRUPTED;
-				Socket_addPendingWrite(sock);
-				break;
-			default:
-				Socket_clearPendingWrite(sock);
-				break;
-			}
+		case SSL_ERROR_WANT_READ:
+			rc = TCPSOCKET_INTERRUPTED;
+			Socket_clearPendingWrite(sock);
+			break;
+		case SSL_ERROR_WANT_WRITE:
+			/* wait for the socket to become writeable, then SSL_connect is called again */
+			rc = TCPSOCKET_INTERRUPTED;
+			Socket_addPendingWrite(sock);
+			break;
+		default:
+			/* any other error ends the handshake: report it as a failure now, rather than
+			 * leaving the connect to fail when connectTimeout expires - issue #1627 */
+			rc = SSL_FATAL;
+			Socket_clearPendingWrite(sock);
+			break;
 		}
 	}
 	else

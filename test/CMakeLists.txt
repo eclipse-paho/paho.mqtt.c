@@ -1209,50 +1209,122 @@ if(PAHO_WITH_SSL OR PAHO_WITH_LIBRESSL)
 	
 	ENDIF()
 
-	# SSL WANT_WRITE handshake test - validates proper handling of SSL_ERROR_WANT_WRITE/WANT_READ
-	IF (PAHO_BUILD_STATIC)
-		ADD_EXECUTABLE(
-			test_ssl_want_write-static
-			test_ssl_want_write.c
-		)
-		
-		TARGET_LINK_LIBRARIES(
-			test_ssl_want_write-static
-			paho-mqtt3cs-static
-		)
-		
-		ADD_TEST(
-			NAME test-ssl-want-write-handshake-static
-			COMMAND test_ssl_want_write-static "--hostname" ${MQTT_SSL_HOSTNAME} "--client_key" "${CERTDIR}/client.pem" "--server_key" "${CERTDIR}/test-root-ca.crt"
-		)
-		
-		SET_TESTS_PROPERTIES(
-			test-ssl-want-write-handshake-static
-			PROPERTIES TIMEOUT 60
-		)
-	ENDIF()
-	
-	IF (PAHO_BUILD_SHARED)
-		ADD_EXECUTABLE(
-			test_ssl_want_write
-			test_ssl_want_write.c
-		)
-		
-		TARGET_LINK_LIBRARIES(
-			test_ssl_want_write
-			paho-mqtt3cs
-		)
-		
-		ADD_TEST(
-			NAME test-ssl-want-write-handshake
-			COMMAND test_ssl_want_write "--hostname" ${MQTT_SSL_HOSTNAME} "--client_key" "${CERTDIR}/client.pem" "--server_key" "${CERTDIR}/test-root-ca.crt"
-		)
-		
-		SET_TESTS_PROPERTIES(
-			test-ssl-want-write-handshake
-			PROPERTIES TIMEOUT 60
-		)
-	ENDIF()
+	# Issue 1627: SSL_connect errors, injected by replacing the OpenSSL functions in the test
+	# program. That works for the static library, and on Linux for the shared library too,
+	# but not for the shared library on macOS, nor on Windows.
+	if(NOT WIN32)
+		set(ISSUE1627_ARGS "--hostname" ${MQTT_SSL_HOSTNAME} "--server_key" "${CERTDIR}/test-root-ca.crt")
+
+		if(PAHO_BUILD_STATIC)
+			add_executable(test_issue1627-static test_issue1627.c)
+			target_link_libraries(test_issue1627-static paho-mqtt3as-static ${LIBS_SYSTEM})
+
+			add_test(
+				NAME test_issue1627-1-want-write-continues-static
+				COMMAND "test_issue1627-static" "--test_no" "1" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-2-error-after-want-write-fails-static
+				COMMAND "test_issue1627-static" "--test_no" "2" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-3-error-fails-static
+				COMMAND "test_issue1627-static" "--test_no" "3" ${ISSUE1627_ARGS}
+			)
+
+			set_tests_properties(
+				test_issue1627-1-want-write-continues-static
+				test_issue1627-2-error-after-want-write-fails-static
+				test_issue1627-3-error-fails-static
+				PROPERTIES TIMEOUT 60
+			)
+		endif()
+
+		if(PAHO_BUILD_STATIC)
+			add_executable(test_issue1627sync-static test_issue1627.c)
+			target_link_libraries(test_issue1627sync-static paho-mqtt3cs-static ${LIBS_SYSTEM})
+			target_compile_definitions(test_issue1627sync-static PRIVATE TEST_SYNC)
+
+			add_test(
+				NAME test_issue1627-sync-1-want-write-continues-static
+				COMMAND "test_issue1627sync-static" "--test_no" "1" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-sync-2-error-after-want-write-fails-static
+				COMMAND "test_issue1627sync-static" "--test_no" "2" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-sync-3-error-fails-static
+				COMMAND "test_issue1627sync-static" "--test_no" "3" ${ISSUE1627_ARGS}
+			)
+
+			set_tests_properties(
+				test_issue1627-sync-1-want-write-continues-static
+				test_issue1627-sync-2-error-after-want-write-fails-static
+				test_issue1627-sync-3-error-fails-static
+				PROPERTIES TIMEOUT 60
+			)
+		endif()
+
+		if(PAHO_BUILD_SHARED AND NOT APPLE)
+			add_executable(test_issue1627 test_issue1627.c)
+			target_link_libraries(test_issue1627 paho-mqtt3as ${LIBS_SYSTEM})
+
+			add_test(
+				NAME test_issue1627-1-want-write-continues
+				COMMAND "test_issue1627" "--test_no" "1" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-2-error-after-want-write-fails
+				COMMAND "test_issue1627" "--test_no" "2" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-3-error-fails
+				COMMAND "test_issue1627" "--test_no" "3" ${ISSUE1627_ARGS}
+			)
+
+			set_tests_properties(
+				test_issue1627-1-want-write-continues
+				test_issue1627-2-error-after-want-write-fails
+				test_issue1627-3-error-fails
+				PROPERTIES TIMEOUT 60
+			)
+		endif()
+
+		if(PAHO_BUILD_SHARED AND NOT APPLE)
+			add_executable(test_issue1627sync test_issue1627.c)
+			target_link_libraries(test_issue1627sync paho-mqtt3cs ${LIBS_SYSTEM})
+			target_compile_definitions(test_issue1627sync PRIVATE TEST_SYNC)
+
+			add_test(
+				NAME test_issue1627-sync-1-want-write-continues
+				COMMAND "test_issue1627sync" "--test_no" "1" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-sync-2-error-after-want-write-fails
+				COMMAND "test_issue1627sync" "--test_no" "2" ${ISSUE1627_ARGS}
+			)
+
+			add_test(
+				NAME test_issue1627-sync-3-error-fails
+				COMMAND "test_issue1627sync" "--test_no" "3" ${ISSUE1627_ARGS}
+			)
+
+			set_tests_properties(
+				test_issue1627-sync-1-want-write-continues
+				test_issue1627-sync-2-error-after-want-write-fails
+				test_issue1627-sync-3-error-fails
+				PROPERTIES TIMEOUT 60
+			)
+		endif()
+	endif()
 ENDIF()
 
 

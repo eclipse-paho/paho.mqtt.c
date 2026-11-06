@@ -602,7 +602,7 @@ int isReady(int index)
 			((mod_s.saved.fds_write[index].revents | mod_s.saved.fds_read[index].revents) & POLLOUT))
 	{
 		ListRemoveItem(mod_s.connect_pending, socket, intcompare); /* POLLOUT from either poll: see Socket_getReadySocket */
-		Log(TRACE_PROTOCOL, -1, "TCP connect completed for socket %d", *socket);
+		Log(TRACE_PROTOCOL, -1, "Socket %d is writeable, continuing connect", *socket);
 	}
 	else
 		rc = (mod_s.saved.fds_read[index].revents & POLLIN) &&
@@ -1222,29 +1222,52 @@ exit:
 
 
 /**
- *  Add a socket to the pending write list, so that it is checked for writing in select.  This is used
- *  in connect processing when the TCP connect is incomplete, as we need to check the socket for both
- *  ready to read and write states.
+ *  Wait for a socket to become writeable during connect processing.  This is used when the TCP
+ *  connect is incomplete, and when the TLS handshake is waiting to write (SSL_ERROR_WANT_WRITE),
+ *  as then we need to check the socket for both ready to read and write states.
+ *  The socket is added to the connect pending list, so that Socket_getReadySocket waits for it to
+ *  become writeable, and returns it when it is, so the connect can be continued.
  *  @param socket the socket to add
  */
 void Socket_addPendingWrite(SOCKET socket)
 {
+	FUNC_ENTRY;
+	Paho_thread_lock_mutex(socket_mutex);
+	if (ListFindItem(mod_s.connect_pending, &socket, intcompare) == NULL)
+	{
+		SOCKET* pnewSd = (SOCKET*)malloc(sizeof(SOCKET));
+
+		if (pnewSd)
+		{
+			*pnewSd = socket;
+			if (!ListAppend(mod_s.connect_pending, pnewSd, sizeof(SOCKET)))
+				free(pnewSd);
+		}
+	}
 #if defined(USE_SELECT)
 	FD_SET(socket, &(mod_s.pending_wset));
 #endif
+	Paho_thread_unlock_mutex(socket_mutex);
+	Socket_interrupt(); /* so that a poll or select already in progress includes the socket */
+	FUNC_EXIT;
 }
 
 
 /**
- *  Clear a socket from the pending write list - if one was added with Socket_addPendingWrite
+ *  Stop waiting for a socket to become writeable - if it was added with Socket_addPendingWrite
  *  @param socket the socket to remove
  */
 void Socket_clearPendingWrite(SOCKET socket)
 {
+	FUNC_ENTRY;
+	Paho_thread_lock_mutex(socket_mutex);
+	ListRemoveItem(mod_s.connect_pending, &socket, intcompare);
 #if defined(USE_SELECT)
 	if (FD_ISSET(socket, &(mod_s.pending_wset)))
 		FD_CLR(socket, &(mod_s.pending_wset));
 #endif
+	Paho_thread_unlock_mutex(socket_mutex);
+	FUNC_EXIT;
 }
 
 

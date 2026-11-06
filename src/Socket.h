@@ -113,7 +113,7 @@ typedef struct
  */
 typedef struct
 {
-	List* connect_pending; /**< list of sockets for which a connect is pending */
+	List* connect_pending; /**< list of sockets for which a TCP connect is pending, or a TLS handshake is waiting to write */
 	List* write_pending; /**< list of sockets for which a write is pending */
 
 #if defined(USE_SELECT)
