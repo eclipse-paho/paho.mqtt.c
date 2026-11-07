@@ -123,9 +123,16 @@ int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
 	time(&timeout);
 	timeout += (time_t)10;
 
+	/* Read the status line.  The response can be split over several TCP
+	 * segments, so keep asking for the same 12 bytes until they have all
+	 * arrived - a short read leaves the data buffered for the next call. */
 	while(1) {
 		buf = Socket_getdata(net->socket, (size_t)12, &actual_len, &rc);
-		if(actual_len) {
+		if (buf == NULL) {
+			rc = SOCKET_ERROR;
+			goto exit;
+		}
+		if (actual_len == 12) {
 			if ( (strncmp( buf, "HTTP/1.0 200", 12 ) != 0) &&  (strncmp( buf, "HTTP/1.1 200", 12 ) != 0) )
 				rc = SOCKET_ERROR;
 			break;
@@ -144,13 +151,38 @@ int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
 		}
 	}
 
-	/* flush the SocketBuffer */
-	actual_len = 1;
-	while (actual_len)
+	/* Consume the rest of the proxy response, up to and including the blank
+	 * line that ends the headers, and no further - anything after it belongs
+	 * to the tunnelled protocol. */
+	if (rc != SOCKET_ERROR)
 	{
-		int rc1;
+		static const char term[4] = { '\r', '\n', '\r', '\n' };
+		int matched = 0;
 
-		buf = Socket_getdata(net->socket, (size_t)1, &actual_len, &rc1);
+		while (matched < 4)
+		{
+			int rc1 = 0;
+
+			buf = Socket_getdata(net->socket, (size_t)1, &actual_len, &rc1);
+			if (buf == NULL) {
+				rc = SOCKET_ERROR;
+				break;
+			}
+			if (actual_len == 1)
+				matched = (buf[0] == term[matched]) ? matched + 1 : ((buf[0] == '\r') ? 1 : 0);
+			else {
+				time(&current);
+				if (current > timeout) {
+					rc = SOCKET_ERROR;
+					break;
+				}
+#if defined(_WIN32)
+				Sleep(250);
+#else
+				usleep(250000);
+#endif
+			}
+		}
 	}
 
 exit:
