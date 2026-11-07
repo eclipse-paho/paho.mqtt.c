@@ -1167,7 +1167,8 @@ typedef struct
 	/**
 	 * The protocol-lists must be in wire-format, which is defined as a vector of non-empty, 8-bit length-prefixed, byte strings.
 	 * The length-prefix byte is not included in the length. Each string is limited to 255 bytes. A byte-string length of 0 is invalid.
-	 * A truncated byte-string is invalid.
+	 * A truncated byte-string is invalid. The whole vector must not be longer than 65535 bytes (RFC 7301).
+	 * The vector is copied on connect, which fails with MQTTASYNC_BAD_STRUCTURE if the vector is not valid.
 	 * Check documentation for SSL_CTX_set_alpn_protos
 	 * Exists only if struct_version >= 5
 	 */

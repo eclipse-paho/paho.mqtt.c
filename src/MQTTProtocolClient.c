@@ -40,6 +40,7 @@
 #include <stdint.h>
 
 #include "MQTTProtocolClient.h"
+#include "MQTTClientOptions.h"
 #if !defined(NO_PERSISTENCE)
 #include "MQTTPersistence.h"
 #endif
@@ -1059,31 +1060,8 @@ void MQTTProtocol_freeClient(Clients* client)
 #if defined(OPENSSL)
 	if (client->net.https_proxy_auth)
 		free(client->net.https_proxy_auth);
-	if (client->sslopts)
-	{
-		if (client->sslopts->trustStore)
-			free((void*)client->sslopts->trustStore);
-		if (client->sslopts->keyStore)
-			free((void*)client->sslopts->keyStore);
-		if (client->sslopts->privateKey)
-			free((void*)client->sslopts->privateKey);
-		if (client->sslopts->privateKeyPassword)
-			free((void*)client->sslopts->privateKeyPassword);
-		if (client->sslopts->enabledCipherSuites)
-			free((void*)client->sslopts->enabledCipherSuites);
-		if (client->sslopts->struct_version >= 2)
-		{
-			if (client->sslopts->CApath)
-				free((void*)client->sslopts->CApath);
-		}
-		if (client->sslopts->struct_version >= 5)
-		{
-			if (client->sslopts->protos)
-				free((void*)client->sslopts->protos);
-		}
-		free(client->sslopts);
-			client->sslopts = NULL;
-	}
+	MQTTClientOptions_freeSSL(client->sslopts);
+	client->sslopts = NULL;
 #endif
 	/* don't free the client structure itself... this is done elsewhere */
 	FUNC_EXIT;
