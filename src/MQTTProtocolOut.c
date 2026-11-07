@@ -185,6 +185,9 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 #if defined(OPENSSL)
 	if (!unixsock)
 	{
+		/* p0 may still hold the plain HTTP proxy from the block above, which
+		 * is a separate setting - don't let it stand in for the HTTPS one. */
+		p0 = NULL;
 		if (aClient->httpsProxy)
 			p0 = aClient->httpsProxy;
 		else /* if the proxy isn't set in the API then we can look in the environment */
