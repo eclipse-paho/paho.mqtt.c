@@ -10,6 +10,13 @@
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
+ *
  * Contributors:
  *    Ian Craggs - initial API and implementation and/or initial documentation
  *    Ian Craggs - MQTT 3.1.1 support
@@ -2082,6 +2089,180 @@ exit:
 	return failures;
 }
 
+
+struct
+{
+	int c_connected;
+	int d_connected;
+	int connection_lost;
+	int disconnected;
+	enum MQTTReasonCodes disconnect_reason;
+} test_server_disconnect_globals =
+{
+	0, 0, 0, 0, MQTTREASONCODE_SUCCESS
+};
+
+
+void test_server_disconnect_connectionLost(void* context, char* cause)
+{
+	MyLog(LOGA_DEBUG, "Callback: connectionLost, context %p", context);
+	test_server_disconnect_globals.connection_lost = 1;
+}
+
+
+void test_server_disconnect_disconnected(void* context, MQTTProperties* props, enum MQTTReasonCodes rc)
+{
+	MyLog(LOGA_DEBUG, "Callback: disconnected, reason code \"%s\"", MQTTReasonCode_toString(rc));
+	test_server_disconnect_globals.disconnect_reason = rc;
+	test_server_disconnect_globals.disconnected = 1;
+}
+
+
+int test_server_disconnect_messageArrived(void* context, char* topicName, int topicLen, MQTTAsync_message* message)
+{
+	MQTTAsync_freeMessage(&message);
+	MQTTAsync_free(topicName);
+	return 1;
+}
+
+
+void test_server_disconnect_onConnectc(void* context, MQTTAsync_successData5* response)
+{
+	MyLog(LOGA_DEBUG, "In server disconnect connect c onSuccess callback, context %p", context);
+	test_server_disconnect_globals.c_connected = 1;
+}
+
+
+void test_server_disconnect_onConnectd(void* context, MQTTAsync_successData5* response)
+{
+	MyLog(LOGA_DEBUG, "In server disconnect connect d onSuccess callback, context %p", context);
+	test_server_disconnect_globals.d_connected = 1;
+}
+
+
+void test_server_disconnect_onConnectFailure(void* context, MQTTAsync_failureData5* response)
+{
+	MyLog(LOGA_DEBUG, "In server disconnect connect onFailure callback, context %p", context);
+	assert1("Connect should not fail", 0, "rc was %d, reason code %d\n", response->code, response->reasonCode);
+}
+
+
+static void test_server_disconnect_wait(volatile int* flag)
+{
+	int count = 0;
+
+	while (*flag == 0 && ++count < 500)
+		#if defined(_WIN32)
+			Sleep(10);
+		#else
+			usleep(10000L);
+		#endif
+}
+
+
+/*********************************************************************
+
+Test10: connectionLost is called when the server sends DISCONNECT (#1619)
+
+Client c is connected, then client d connects with the same client id.
+The server must then send DISCONNECT with reason code 0x8E (session
+taken over) to client c.
+
+*********************************************************************/
+int test_server_disconnect(struct Options options)
+{
+	MQTTAsync c, d;
+	MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer5;
+	MQTTAsync_createOptions createOpts = MQTTAsync_createOptions_initializer;
+	char* clientid = "server disconnect connection lost";
+	int rc = 0;
+
+	MyLog(LOGA_INFO, "Starting V5 test - connectionLost on server disconnect");
+	fprintf(xml, "<testcase classname=\"test11\" name=\"server disconnect\"");
+	global_start_time = start_clock();
+
+	createOpts.MQTTVersion = MQTTVERSION_5;
+	rc = MQTTAsync_createWithOptions(&c, options.connection, clientid,
+			MQTTCLIENT_PERSISTENCE_NONE, NULL, &createOpts);
+	assert("good rc from create",  rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto exit;
+
+	rc = MQTTAsync_createWithOptions(&d, options.connection, clientid,
+			MQTTCLIENT_PERSISTENCE_NONE, NULL, &createOpts);
+	assert("good rc from create",  rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+	{
+		MQTTAsync_destroy(&c);
+		goto exit;
+	}
+
+	rc = MQTTAsync_setCallbacks(c, c, test_server_disconnect_connectionLost,
+			test_server_disconnect_messageArrived, NULL);
+	assert("Good rc from setCallbacks", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+	rc = MQTTAsync_setDisconnected(c, c, test_server_disconnect_disconnected);
+	assert("Good rc from setDisconnected", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+	rc = MQTTAsync_setCallbacks(d, d, NULL, test_server_disconnect_messageArrived, NULL);
+	assert("Good rc from setCallbacks", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+
+	opts.MQTTVersion = options.MQTTVersion;
+	opts.cleanstart = 1;
+	opts.onFailure5 = test_server_disconnect_onConnectFailure;
+
+	MyLog(LOGA_DEBUG, "Connecting client c");
+	opts.onSuccess5 = test_server_disconnect_onConnectc;
+	opts.context = c;
+	rc = MQTTAsync_connect(c, &opts);
+	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto destroy;
+
+	test_server_disconnect_wait(&test_server_disconnect_globals.c_connected);
+	assert("Client c should be connected", test_server_disconnect_globals.c_connected == 1,
+			"c_connected was %d\n", test_server_disconnect_globals.c_connected);
+	if (test_server_disconnect_globals.c_connected == 0)
+		goto destroy;
+
+	/* connecting with the same client id makes the server disconnect client c */
+	MyLog(LOGA_DEBUG, "Connecting client d with the same client id");
+	opts.onSuccess5 = test_server_disconnect_onConnectd;
+	opts.context = d;
+	rc = MQTTAsync_connect(d, &opts);
+	assert("Good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto destroy;
+
+	test_server_disconnect_wait(&test_server_disconnect_globals.d_connected);
+	test_server_disconnect_wait(&test_server_disconnect_globals.connection_lost);
+
+	assert("Client d should be connected", test_server_disconnect_globals.d_connected == 1,
+			"d_connected was %d\n", test_server_disconnect_globals.d_connected);
+	assert("disconnected callback should be called", test_server_disconnect_globals.disconnected == 1,
+			"disconnected was %d\n", test_server_disconnect_globals.disconnected);
+	assert("Disconnect reason code should be session taken over",
+			test_server_disconnect_globals.disconnect_reason == MQTTREASONCODE_SESSION_TAKEN_OVER,
+			"reason code was %d\n", test_server_disconnect_globals.disconnect_reason);
+	assert("connectionLost callback should be called", test_server_disconnect_globals.connection_lost == 1,
+			"connection_lost was %d\n", test_server_disconnect_globals.connection_lost);
+	assert("Client c should not be connected", MQTTAsync_isConnected(c) == 0,
+			"isConnected was %d\n", MQTTAsync_isConnected(c));
+
+	MQTTAsync_disconnect(d, NULL);
+
+destroy:
+	MQTTAsync_destroy(&c);
+	MQTTAsync_destroy(&d);
+
+exit:
+	MyLog(LOGA_INFO, "TEST10: test %s. %d tests run, %d failures.",
+			(failures == 0) ? "passed" : "failed", tests, failures);
+	write_test_result();
+	return failures;
+}
+
+
 void trace_callback(enum MQTTASYNC_TRACE_LEVELS level, char* message)
 {
 	printf("Trace : %d, %s\n", level, message);
@@ -2100,7 +2281,8 @@ int main(int argc, char** argv)
 		test_qos_1_2_errors,
 		test_request_response,
 		test_subscribeOptions,
-		test_shared_subscriptions
+		test_shared_subscriptions,
+		test_server_disconnect
  	}; /* indexed starting from 1 */
 	MQTTAsync_nameValue* info;
 	int i;
