@@ -2447,7 +2447,8 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 						(*(m->disconnected))(m->disconnected_context, &disc->properties, disc->rc);
 					}
 					rc = MQTTProtocol_handleDisconnects(pack, m->c->net.socket);
-					m->c->connected = 0; /* don't send disconnect packet back */
+					/* sendDisconnect = 0: don't send disconnect packet back. connected is left
+					 * set so that nextOrClose calls connectionLost - issue #1619 */
 					nextOrClose(m, discrc, "Received disconnect", 0);
 				}
 				else
