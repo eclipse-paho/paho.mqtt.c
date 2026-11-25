@@ -47,6 +47,7 @@
  *******************************************************************************/
 
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #if !defined(_WIN32)
 	#include <sys/time.h>
@@ -461,7 +462,21 @@ int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const 
 			rc = PAHO_MEMORY_ERROR;
 			goto exit;
 		}
-		memcpy(m->createOptions, options, sizeof(MQTTAsync_createOptions));
+		{
+			/* copy only the fields that exist in the caller's version of the structure, so as
+			 * not to read past its end, and give the rest their default values (#1727) */
+			MQTTAsync_createOptions defaults = MQTTAsync_createOptions_initializer;
+			size_t len = sizeof(MQTTAsync_createOptions);
+
+			if (options->struct_version == 0)
+				len = offsetof(MQTTAsync_createOptions, MQTTVersion);
+			else if (options->struct_version == 1)
+				len = offsetof(MQTTAsync_createOptions, allowDisconnectedSendAtAnyTime);
+			else if (options->struct_version == 2)
+				len = offsetof(MQTTAsync_createOptions, persistQoS0);
+			*m->createOptions = defaults;
+			memcpy(m->createOptions, options, len);
+		}
 		if (options->struct_version > 0)
 			m->c->MQTTVersion = options->MQTTVersion;
 	}

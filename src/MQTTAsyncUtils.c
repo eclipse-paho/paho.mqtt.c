@@ -854,7 +854,7 @@ int MQTTAsync_addCommand(MQTTAsync_queuedCommand* command, int command_size)
 		if (command->client->c->persistence)
 		{
 			if (command->command.type == PUBLISH &&
-				command->client->createOptions && command->client->createOptions->struct_version >= 2 &&
+				command->client->createOptions && command->client->createOptions->struct_version >= 3 &&
 				command->client->createOptions->persistQoS0 == 0 && command->command.details.pub.qos == 0)
 				; /* don't persist QoS0 if that create option is set to 0 */
 			else
