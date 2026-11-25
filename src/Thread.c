@@ -361,7 +361,7 @@ int Thread_destroy_evt(evt_type evt)
 	rc = pthread_mutex_destroy(&evt->mutex);
 	int rcc = pthread_cond_destroy(&evt->cond);
 	if (rcc != 0)
-    rc = rcc;
+		rc = rcc;
 	free(evt);
 #endif
 	FUNC_EXIT_RC(rc);

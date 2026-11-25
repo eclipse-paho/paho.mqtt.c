@@ -1704,7 +1704,6 @@ int Socket_unix_new(const char* addr, size_t addr_len, SOCKET* sock)
 		}
 	}
 
-exit:
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
