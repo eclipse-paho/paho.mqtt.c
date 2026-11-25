@@ -1448,7 +1448,8 @@ typedef struct
 {
 	/** The eyecatcher for this structure. Must be MQTD. */
 	char struct_id[4];
-	/** The version number of this structure.  Must be 0 or 1.  0 signifies no V5 properties */
+	/** The version number of this structure.  Must be 0 or 1.  0 signifies no V5 properties
+	 * or reason code.  onSuccess5 and onFailure5 are used with either version. */
 	int struct_version;
 	/**
       * The client delays disconnection for up to this time (in

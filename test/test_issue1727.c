@@ -36,6 +36,18 @@
  * Test 4: version 2: persistQoS0 isn't part of the structure, so is ignored
  * Test 5: version 0, 1 and 2 structures placed just before an inaccessible
  *         memory page, so that reading past their end crashes
+ * The other API structures had the same problem: fields were read from older
+ * versions which don't have them, and MQTTAsync_sendMessage wrote the message
+ * properties into the caller's response options, past the end of a version 0
+ * structure. Tests 6 to 8 put each older version before an inaccessible page.
+ * Test 6: MQTTAsync_connect, connect options versions 0 to 7 (no broker needed)
+ * Test 7: MQTT 3.1.1 subscribe, unsubscribe, send and sendMessage with version 0
+ *         response options and message
+ * Test 8: MQTT 5 sendMessage with a version 0 response options or message,
+ *         which mustn't change the caller's response options. Also disconnect with
+ *         the version 0 initializer, which includes onSuccess5: unlike the other
+ *         structures, version 0 disconnect options have had the MQTT 5 callbacks
+ *         since 1.3.1, so they must still be used.
  */
 
 #include "MQTTAsync.h"
@@ -59,16 +71,19 @@ void usage(void)
 {
 	printf("Options:\n");
 	printf("  --test_no <n>  run test number n (default all)\n");
+	printf("  --connection <uri>  broker to connect to for tests 7 and 8 (default tcp://localhost:1883)\n");
 	printf("  --verbose\n");
 	exit(EXIT_FAILURE);
 }
 
 struct Options
 {
+	char* connection;
 	int verbose;
 	int test_no;
 } options =
 {
+	"tcp://localhost:1883",
 	0,
 	0,
 };
@@ -83,6 +98,13 @@ void getopts(int argc, char** argv)
 		{
 			if (++count < argc)
 				options.test_no = atoi(argv[count]);
+			else
+				usage();
+		}
+		else if (strcmp(argv[count], "--connection") == 0)
+		{
+			if (++count < argc)
+				options.connection = argv[count];
 			else
 				usage();
 		}
@@ -405,10 +427,280 @@ int test5(struct Options options)
 }
 
 
+/* Copy the first len bytes of a structure to just before an inaccessible page, so that any
+ * access past its end crashes. Returns the copy, or NULL on error. */
+void* guarded_copy(const void* src, size_t len, char** guard, size_t* pagesize)
+{
+	if ((*guard = alloc_guarded(pagesize)) == NULL)
+		return NULL;
+	memcpy(*guard - len, src, len);
+	return *guard - len;
+}
+
+
+void MySleep(long milliseconds)
+{
+#if defined(_WIN32) || defined(_WINDOWS)
+	Sleep(milliseconds);
+#else
+	usleep(milliseconds*1000);
+#endif
+}
+
+volatile int connected = 0;
+
+void onConnect(void* context, MQTTAsync_successData* response)
+{
+	connected = 1;
+}
+
+void onConnect5(void* context, MQTTAsync_successData5* response)
+{
+	connected = 1;
+}
+
+void onConnectFailure(void* context, MQTTAsync_failureData* response)
+{
+	connected = -1;
+}
+
+void onConnectFailure5(void* context, MQTTAsync_failureData5* response)
+{
+	connected = -1;
+}
+
+volatile int disconnected = 0;
+
+void onDisconnect5(void* context, MQTTAsync_successData5* response)
+{
+	disconnected = 1;
+}
+
+int wait_for_connect(void)
+{
+	int count = 0;
+
+	while (connected == 0 && count++ < 500)
+		MySleep(10);
+	return connected == 1;
+}
+
+
+int test6(struct Options options)
+{
+	char* testname = "test1727-6 - no read past the end of older connect options versions";
+	/* the size of each version of the structure */
+	size_t sizes[] = {
+		offsetof(MQTTAsync_connectOptions, serverURIcount),
+		offsetof(MQTTAsync_connectOptions, serverURIcount),
+		offsetof(MQTTAsync_connectOptions, MQTTVersion),
+		offsetof(MQTTAsync_connectOptions, automaticReconnect),
+		offsetof(MQTTAsync_connectOptions, binarypwd),
+		offsetof(MQTTAsync_connectOptions, cleanstart),
+		offsetof(MQTTAsync_connectOptions, httpHeaders),
+		offsetof(MQTTAsync_connectOptions, httpProxy)
+	};
+	int version;
+
+	start_test(testname);
+	for (version = 0; version < (int)(sizeof(sizes) / sizeof(sizes[0])); ++version)
+	{
+		MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
+		MQTTAsync_connectOptions* guarded;
+		MQTTAsync c;
+		size_t pagesize = 0;
+		char* guard = NULL;
+		int rc;
+
+		/* nothing listens on port 1, so the connect fails, but the options are read in the call */
+		rc = MQTTAsync_create(&c, "tcp://127.0.0.1:1", "issue1727", MQTTCLIENT_PERSISTENCE_NONE, NULL);
+		assert("good rc from create", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+		if (rc != MQTTASYNC_SUCCESS)
+			break;
+
+		opts.struct_version = version;
+		guarded = guarded_copy(&opts, sizes[version], &guard, &pagesize);
+		assert("guarded memory allocated", guarded != NULL, "guarded was %p\n", (void*)guarded);
+		if (guarded == NULL)
+		{
+			MQTTAsync_destroy(&c);
+			break;
+		}
+
+		MyLog(LOGA_INFO, "Connecting with a version %d structure of %d bytes", version, (int)sizes[version]);
+		rc = MQTTAsync_connect(c, guarded);
+		assert("good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+		MQTTAsync_destroy(&c);
+		free_guarded(guard, pagesize);
+	}
+	return end_test(testname);
+}
+
+
+int test7(struct Options options)
+{
+	char* testname = "test1727-7 - MQTT 3.1.1, no read past the end of version 0 response options and message";
+	MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
+	MQTTAsync_responseOptions response = MQTTAsync_responseOptions_initializer;
+	MQTTAsync_message message = MQTTAsync_message_initializer;
+	MQTTAsync_responseOptions* response0 = NULL;
+	MQTTAsync_message* message0 = NULL;
+	char* guards[2] = {NULL, NULL};
+	size_t pagesize = 0;
+	char* topic = "issue1727/test7";
+	char* const topics[2] = {"issue1727/test7/a", "issue1727/test7/b"};
+	int qoss[2] = {1, 1};
+	MQTTAsync c;
+	int rc, i;
+
+	start_test(testname);
+	rc = MQTTAsync_create(&c, options.connection, "issue1727-7", MQTTCLIENT_PERSISTENCE_NONE, NULL);
+	assert("good rc from create", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto exit;
+
+	connected = 0;
+	opts.onSuccess = onConnect;
+	opts.onFailure = onConnectFailure;
+	rc = MQTTAsync_connect(c, &opts);
+	assert("good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	assert("connected", wait_for_connect(), "connected was %d\n", connected);
+	if (connected != 1)
+		goto destroy;
+
+	response.struct_version = 0;
+	response0 = guarded_copy(&response, offsetof(MQTTAsync_responseOptions, onSuccess5), &guards[0], &pagesize);
+	message.struct_version = 0;
+	message.payload = "issue 1727";
+	message.payloadlen = (int)strlen(message.payload);
+	message.qos = 1;
+	message0 = guarded_copy(&message, offsetof(MQTTAsync_message, properties), &guards[1], &pagesize);
+	assert("guarded memory allocated", response0 && message0, "%p %p\n", (void*)response0, (void*)message0);
+	if (!response0 || !message0)
+		goto destroy;
+
+	rc = MQTTAsync_subscribe(c, topic, 1, response0);
+	assert("good rc from subscribe", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	rc = MQTTAsync_subscribeMany(c, 2, topics, qoss, response0);
+	assert("good rc from subscribeMany", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	rc = MQTTAsync_send(c, topic, message.payloadlen, message.payload, 1, 0, response0);
+	assert("good rc from send", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	rc = MQTTAsync_sendMessage(c, topic, message0, response0);
+	assert("good rc from sendMessage", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	rc = MQTTAsync_unsubscribe(c, topic, response0);
+	assert("good rc from unsubscribe", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	MySleep(500);
+	rc = MQTTAsync_disconnect(c, NULL);
+	assert("good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	MySleep(500);
+
+destroy:
+	MQTTAsync_destroy(&c);
+	for (i = 0; i < 2; ++i)
+		if (guards[i])
+			free_guarded(guards[i], pagesize);
+exit:
+	return end_test(testname);
+}
+
+
+int test8(struct Options options)
+{
+	char* testname = "test1727-8 - MQTT 5 sendMessage, version 0 response options and message";
+	MQTTAsync_createOptions createOpts = MQTTAsync_createOptions_initializer5;
+	MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer5;
+	MQTTAsync_responseOptions response = MQTTAsync_responseOptions_initializer;
+	MQTTAsync_message message = MQTTAsync_message_initializer;
+	MQTTAsync_responseOptions* response0 = NULL;
+	MQTTAsync_message* message0 = NULL;
+	MQTTAsync_disconnectOptions disc = MQTTAsync_disconnectOptions_initializer;
+	MQTTProperty property;
+	char* guards[2] = {NULL, NULL};
+	size_t pagesize = 0;
+	char* topic = "issue1727/test8";
+	MQTTAsync c;
+	int rc, i;
+
+	start_test(testname);
+	rc = MQTTAsync_createWithOptions(&c, options.connection, "issue1727-8", MQTTCLIENT_PERSISTENCE_NONE,
+			NULL, &createOpts);
+	assert("good rc from create", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	if (rc != MQTTASYNC_SUCCESS)
+		goto exit;
+
+	connected = 0;
+	opts.onSuccess5 = onConnect5;
+	opts.onFailure5 = onConnectFailure5;
+	rc = MQTTAsync_connect(c, &opts);
+	assert("good rc from connect", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	assert("connected", wait_for_connect(), "connected was %d\n", connected);
+	if (connected != 1)
+		goto destroy;
+
+	message.payload = "issue 1727";
+	message.payloadlen = (int)strlen(message.payload);
+	message.qos = 1;
+	property.identifier = MQTTPROPERTY_CODE_USER_PROPERTY;
+	property.value.data.data = "test";
+	property.value.data.len = 4;
+	property.value.value.data = "1727";
+	property.value.value.len = 4;
+	MQTTProperties_add(&message.properties, &property);
+
+	/* MQTT 5 needs version 1 response options, so this must fail, without writing to them */
+	response.struct_version = 0;
+	response0 = guarded_copy(&response, offsetof(MQTTAsync_responseOptions, onSuccess5), &guards[0], &pagesize);
+	response.struct_version = 1;
+	assert("guarded memory allocated", response0 != NULL, "response0 was %p\n", (void*)response0);
+	if (response0)
+	{
+		rc = MQTTAsync_sendMessage(c, topic, &message, response0);
+		assert("bad MQTT option rc from sendMessage with version 0 response options",
+			rc == MQTTASYNC_BAD_MQTT_OPTION, "rc was %d\n", rc);
+	}
+
+	/* the message properties are used, but must not be copied into the caller's response options */
+	rc = MQTTAsync_sendMessage(c, topic, &message, &response);
+	assert("good rc from sendMessage", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	assert("response options properties unchanged", response.properties.count == 0 &&
+		response.properties.array == NULL, "count was %d\n", response.properties.count);
+
+	/* a version 0 message has no properties */
+	message.struct_version = 0;
+	message0 = guarded_copy(&message, offsetof(MQTTAsync_message, properties), &guards[1], &pagesize);
+	assert("guarded memory allocated", message0 != NULL, "message0 was %p\n", (void*)message0);
+	if (message0)
+	{
+		rc = MQTTAsync_sendMessage(c, topic, message0, &response);
+		assert("good rc from sendMessage with version 0 message", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	}
+	MySleep(500);
+
+	/* the version 0 initializer includes onSuccess5, which must be called */
+	disconnected = 0;
+	disc.onSuccess5 = onDisconnect5;
+	rc = MQTTAsync_disconnect(c, &disc);
+	assert("good rc from disconnect", rc == MQTTASYNC_SUCCESS, "rc was %d\n", rc);
+	for (i = 0; disconnected == 0 && i < 500; ++i)
+		MySleep(10);
+	assert("disconnect onSuccess5 called with version 0 options", disconnected == 1,
+		"disconnected was %d\n", disconnected);
+
+destroy:
+	MQTTAsync_destroy(&c);
+	MQTTProperties_free(&message.properties);
+	for (i = 0; i < 2; ++i)
+		if (guards[i])
+			free_guarded(guards[i], pagesize);
+exit:
+	return end_test(testname);
+}
+
+
 int main(int argc, char** argv)
 {
 	int rc = 0;
-	int (*test_funcs[])(struct Options) = {NULL, test1, test2, test3, test4, test5};
+	int (*test_funcs[])(struct Options) = {NULL, test1, test2, test3, test4, test5, test6, test7, test8};
 	int i;
 
 	getopts(argc, argv);

@@ -2815,6 +2815,8 @@ int MQTTAsync_disconnect1(MQTTAsync handle, const MQTTAsync_disconnectOptions* o
 	{
 		dis->command.onSuccess = options->onSuccess;
 		dis->command.onFailure = options->onFailure;
+		/* The callbacks are read whatever the version, because since 1.3.1 the version 0
+		 * initializer has included them, and applications set them with it */
 		dis->command.onSuccess5 = options->onSuccess5;
 		dis->command.onFailure5 = options->onFailure5;
 		dis->command.context = options->context;
