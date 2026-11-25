@@ -2036,6 +2036,11 @@ if(PAHO_BUILD_STATIC)
 		COMMAND "test11-static" "--test_no" "9" "--connection" ${MQTT_TEST_BROKER} "--proxy_connection" ${MQTT_TEST_PROXY}
 	)
 	
+	add_test(
+		NAME test11-10-server_disconnect-static
+		COMMAND "test11-static" "--test_no" "10" "--connection" ${MQTT_TEST_BROKER} "--proxy_connection" ${MQTT_TEST_PROXY}
+	)
+	
 	set_tests_properties(
 		test11-1-client_topic_aliases-static
 		test11-2-server_topic_aliases-static
@@ -2046,6 +2051,7 @@ if(PAHO_BUILD_STATIC)
 		test11-7-request_response-static
 		test11-8-subscribe_options-static
 		test11-9-shared_subscriptions-static
+		test11-10-server_disconnect-static
 		PROPERTIES TIMEOUT 540
 	)
 endif()
@@ -2099,6 +2105,11 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test11" "--test_no" "9" "--connection" ${MQTT_TEST_BROKER} "--proxy_connection" ${MQTT_TEST_PROXY}
 	)
 	
+	add_test(
+		NAME test11-10-server_disconnect
+		COMMAND "test11" "--test_no" "10" "--connection" ${MQTT_TEST_BROKER} "--proxy_connection" ${MQTT_TEST_PROXY}
+	)
+	
 	set_tests_properties(
 		test11-1-client_topic_aliases
 		test11-2-server_topic_aliases
@@ -2109,6 +2120,7 @@ if(PAHO_BUILD_SHARED)
 		test11-7-request_response
 		test11-8-subscribe_options
 		test11-9-shared_subscriptions
+		test11-10-server_disconnect
 		PROPERTIES TIMEOUT 540
 	)
 endif()
