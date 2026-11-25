@@ -580,6 +580,7 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	MQTTAsync_queuedCommand* conn;
 	thread_id_type thread_id = 0;
 	int locked = 0;
+	int MQTTVersion = MQTTVERSION_DEFAULT;
 
 	FUNC_ENTRY;
 	if (options == NULL)
@@ -595,18 +596,18 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	}
 
 #if defined(OPENSSL)
-	if (m->ssl && options->ssl == NULL)
+	/* ssl only exists in version 1 and later structures, serverURIs in version 2 and later */
+	if (m->ssl && (options->struct_version == 0 || options->ssl == NULL))
 	{
 		rc = MQTTASYNC_NULL_PARAMETER;
 		goto exit;
 	}
-	if (options->ssl == NULL && options->serverURIcount > 0)
+	if (options->struct_version >= 2 && options->ssl == NULL && options->serverURIcount > 0)
 	{
 		int i = 0;
 		for (i = 0; i < options->serverURIcount; i++)
 		{
 			char* serverURI = options->serverURIs[i];
-			printf("checking %s\n", serverURI);
 			if (strncmp(URI_SSL, serverURI, strlen(URI_SSL)) == 0 ||
 				strncmp(URI_TLS, serverURI, strlen(URI_TLS)) == 0 ||
 				strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0 ||
@@ -649,7 +650,9 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 			goto exit;
 		}
 	}
-	if (options->MQTTVersion >= MQTTVERSION_5 && m->c->MQTTVersion < MQTTVERSION_5)
+	/* MQTTVersion only exists in version 3 and later structures */
+	MQTTVersion = (options->struct_version >= 3) ? options->MQTTVersion : MQTTVERSION_DEFAULT;
+	if (MQTTVersion >= MQTTVERSION_5 && m->c->MQTTVersion < MQTTVERSION_5)
 	{
 		rc = MQTTASYNC_WRONG_MQTT_VERSION;
 		goto exit;
@@ -660,17 +663,17 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 		rc = MQTTASYNC_BAD_UTF8_STRING;
 		goto exit;
 	}
-	if (options->MQTTVersion >= MQTTVERSION_5 && options->struct_version < 6)
+	if (MQTTVersion >= MQTTVERSION_5 && options->struct_version < 6)
 	{
 		rc = MQTTASYNC_BAD_STRUCTURE;
 		goto exit;
 	}
-	if (options->MQTTVersion >= MQTTVERSION_5 && options->cleansession != 0)
+	if (MQTTVersion >= MQTTVERSION_5 && options->cleansession != 0)
 	{
 		rc = MQTTASYNC_BAD_MQTT_OPTION;
 		goto exit;
 	}
-	if (options->MQTTVersion < MQTTVERSION_5 && options->struct_version >= 6)
+	if (MQTTVersion < MQTTVERSION_5 && options->struct_version >= 6)
 	{
 		if (options->cleanstart != 0 || options->onFailure5 || options->onSuccess5 ||
 				options->connectProperties || options->willProperties)
@@ -967,8 +970,11 @@ int MQTTAsync_connect(MQTTAsync handle, const MQTTAsync_connectOptions* options)
 	{
 		conn->command.onSuccess = options->onSuccess;
 		conn->command.onFailure = options->onFailure;
-		conn->command.onSuccess5 = options->onSuccess5;
-		conn->command.onFailure5 = options->onFailure5;
+		if (options->struct_version >= 6)
+		{
+			conn->command.onSuccess5 = options->onSuccess5;
+			conn->command.onFailure5 = options->onFailure5;
+		}
 		conn->command.context = options->context;
 	}
 	conn->command.type = CONNECT;
@@ -1064,14 +1070,15 @@ int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, con
 		; /* don't overwrite a previous error code */
 	else if ((msgid = MQTTAsync_assignMsgId(m)) == 0)
 		rc = MQTTASYNC_NO_MORE_MSGIDS;
-	else if (m->c->MQTTVersion >= MQTTVERSION_5 && count > 1 && (count != response->subscribeOptionsCount
-			&& response->subscribeOptionsCount != 0))
-		rc = MQTTASYNC_BAD_MQTT_OPTION;
 	else if (response)
 	{
 		if (m->c->MQTTVersion >= MQTTVERSION_5)
 		{
 			if (response->struct_version == 0 || response->onFailure || response->onSuccess)
+				rc = MQTTASYNC_BAD_MQTT_OPTION;
+			/* subscribeOptionsCount only exists in version 1 response options */
+			else if (count > 1 && (count != response->subscribeOptionsCount
+					&& response->subscribeOptionsCount != 0))
 				rc = MQTTASYNC_BAD_MQTT_OPTION;
 		}
 		else if (m->c->MQTTVersion < MQTTVERSION_5)
@@ -1096,8 +1103,11 @@ int MQTTAsync_subscribeMany(MQTTAsync handle, int count, char* const* topic, con
 	{
 		sub->command.onSuccess = response->onSuccess;
 		sub->command.onFailure = response->onFailure;
-		sub->command.onSuccess5 = response->onSuccess5;
-		sub->command.onFailure5 = response->onFailure5;
+		if (response->struct_version >= 1)
+		{
+			sub->command.onSuccess5 = response->onSuccess5;
+			sub->command.onFailure5 = response->onFailure5;
+		}
 		sub->command.context = response->context;
 		response->token = sub->command.token;
 		if (m->c->MQTTVersion >= MQTTVERSION_5)
@@ -1257,8 +1267,11 @@ int MQTTAsync_unsubscribeMany(MQTTAsync handle, int count, char* const* topic, M
 	{
 		unsub->command.onSuccess = response->onSuccess;
 		unsub->command.onFailure = response->onFailure;
-		unsub->command.onSuccess5 = response->onSuccess5;
-		unsub->command.onFailure5 = response->onFailure5;
+		if (response->struct_version >= 1)
+		{
+			unsub->command.onSuccess5 = response->onSuccess5;
+			unsub->command.onFailure5 = response->onFailure5;
+		}
 		unsub->command.context = response->context;
 		response->token = unsub->command.token;
 		if (m->c->MQTTVersion >= MQTTVERSION_5)
@@ -1292,8 +1305,9 @@ int MQTTAsync_unsubscribe(MQTTAsync handle, const char* topic, MQTTAsync_respons
 }
 
 
-int MQTTAsync_send(MQTTAsync handle, const char* destinationName, int payloadlen, const void* payload,
-							 int qos, int retained, MQTTAsync_responseOptions* response)
+/* props are the MQTT 5 properties for the PUBLISH, which can be NULL */
+static int MQTTAsync_send1(MQTTAsync handle, const char* destinationName, int payloadlen, const void* payload,
+							 int qos, int retained, MQTTAsync_responseOptions* response, const MQTTProperties* props)
 {
 	int rc = MQTTASYNC_SUCCESS;
 	MQTTAsyncs* m = handle;
@@ -1359,13 +1373,16 @@ int MQTTAsync_send(MQTTAsync handle, const char* destinationName, int payloadlen
 	{
 		pub->command.onSuccess = response->onSuccess;
 		pub->command.onFailure = response->onFailure;
-		pub->command.onSuccess5 = response->onSuccess5;
-		pub->command.onFailure5 = response->onFailure5;
+		if (response->struct_version >= 1)
+		{
+			pub->command.onSuccess5 = response->onSuccess5;
+			pub->command.onFailure5 = response->onFailure5;
+		}
 		pub->command.context = response->context;
 		response->token = pub->command.token;
-		if (m->c->MQTTVersion >= MQTTVERSION_5)
-			pub->command.properties = MQTTProperties_copy(&response->properties);
 	}
+	if (m->c->MQTTVersion >= MQTTVERSION_5 && props)
+		pub->command.properties = MQTTProperties_copy(props);
 	if ((pub->command.details.pub.destinationName = MQTTStrdup(destinationName)) == NULL)
 	{
 		free(pub);
@@ -1393,11 +1410,22 @@ exit:
 }
 
 
+int MQTTAsync_send(MQTTAsync handle, const char* destinationName, int payloadlen, const void* payload,
+							 int qos, int retained, MQTTAsync_responseOptions* response)
+{
+	const MQTTProperties* props = NULL;
+
+	if (response && response->struct_version >= 1)
+		props = &response->properties;
+	return MQTTAsync_send1(handle, destinationName, payloadlen, payload, qos, retained, response, props);
+}
+
+
 int MQTTAsync_sendMessage(MQTTAsync handle, const char* destinationName, const MQTTAsync_message* message,
 													 MQTTAsync_responseOptions* response)
 {
 	int rc = MQTTASYNC_SUCCESS;
-	MQTTAsyncs* m = handle;
+	const MQTTProperties* props = NULL;
 
 	FUNC_ENTRY;
 	if (message == NULL)
@@ -1412,11 +1440,15 @@ int MQTTAsync_sendMessage(MQTTAsync handle, const char* destinationName, const M
 		goto exit;
 	}
 
-	if (m->c->MQTTVersion >= MQTTVERSION_5 && response)
-		response->properties = message->properties;
+	/* Use the message properties, without copying them into the caller's response options,
+	 * which may be a version 0 structure without properties, or be used for other calls */
+	if (message->struct_version >= 1)
+		props = &message->properties;
+	else if (response && response->struct_version >= 1)
+		props = &response->properties;
 
-	rc = MQTTAsync_send(handle, destinationName, message->payloadlen, message->payload,
-								message->qos, message->retained, response);
+	rc = MQTTAsync_send1(handle, destinationName, message->payloadlen, message->payload,
+								message->qos, message->retained, response, props);
 exit:
 	FUNC_EXIT_RC(rc);
 	return rc;

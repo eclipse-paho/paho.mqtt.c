@@ -2366,6 +2366,21 @@ if(PAHO_BUILD_STATIC)
 		NAME test_issue1727-5-no-read-past-older-versions-static
 		COMMAND "test_issue1727-static" "--test_no" "5"
 	)
+
+	add_test(
+		NAME test_issue1727-6-no-read-past-older-connect-options-static
+		COMMAND "test_issue1727-static" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1727-7-no-read-past-older-response-options-static
+		COMMAND "test_issue1727-static" "--test_no" "7" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_issue1727-8-mqtt5-sendmessage-no-write-to-response-options-static
+		COMMAND "test_issue1727-static" "--test_no" "8" "--connection" ${MQTT_TEST_BROKER}
+	)
 endif()
 
 if(PAHO_BUILD_SHARED)
@@ -2395,5 +2410,20 @@ if(PAHO_BUILD_SHARED)
 	add_test(
 		NAME test_issue1727-5-no-read-past-older-versions
 		COMMAND "test_issue1727" "--test_no" "5"
+	)
+
+	add_test(
+		NAME test_issue1727-6-no-read-past-older-connect-options
+		COMMAND "test_issue1727" "--test_no" "6"
+	)
+
+	add_test(
+		NAME test_issue1727-7-no-read-past-older-response-options
+		COMMAND "test_issue1727" "--test_no" "7" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_issue1727-8-mqtt5-sendmessage-no-write-to-response-options
+		COMMAND "test_issue1727" "--test_no" "8" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
