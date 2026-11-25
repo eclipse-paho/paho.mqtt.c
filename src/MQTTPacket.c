@@ -576,6 +576,8 @@ void* MQTTPacket_publish(int MQTTVersion, unsigned char aHeader, char* data, siz
 	{
 		if (enddata - curdata < 2)  /* Is there enough data for the msgid? */
 		{
+			free(pack->topic);
+			pack->topic = NULL;
 			free(pack);
 			pack = NULL;
 			goto exit;
@@ -590,6 +592,8 @@ void* MQTTPacket_publish(int MQTTVersion, unsigned char aHeader, char* data, siz
 		pack->properties = props;
 		if (MQTTProperties_read(&pack->properties, &curdata, enddata) != 1)
 		{
+			free(pack->topic);
+			pack->topic = NULL;
 			if (pack->properties.array)
 				free(pack->properties.array);
 			if (pack)
