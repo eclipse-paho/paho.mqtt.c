@@ -46,6 +46,7 @@ set(common_src
   SHA1.c
   WebSocket.c
   Proxy.c
+  MQTTClientOptions.c
 )
 
 if(NOT PAHO_HIGH_PERFORMANCE)
