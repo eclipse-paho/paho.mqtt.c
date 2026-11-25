@@ -33,11 +33,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <time.h>
+#endif
 
 #include "MQTTAsync.h"
 #include "Base64.h"
 #include "Tree.h"
 #include "Proxy.h"
+#include "Socket.h"
+#include "SocketBuffer.h"
 #include "MQTTProperties.h"
 #include "MQTTPacket.h"
 #include "utf-8.h"
@@ -321,6 +330,194 @@ static void test_proxy(void)
 
 
 /* ---------------------------------------------------------------------- */
+/* Proxy_connect over a real socket pair, with the response fragmented */
+/* ---------------------------------------------------------------------- */
+
+#if !defined(_WIN32)
+
+/** Response the fake proxy sends back, followed by a byte of tunnelled data.
+ * The trailing marker must survive Proxy_connect untouched: it belongs to the
+ * protocol being tunnelled, not to the proxy. */
+#define PROXY_REPLY "HTTP/1.1 200 Connection established\r\nX-Pad: abc\r\n\r\n"
+#define PROXY_MARKER 0x42
+
+struct proxy_writer_args
+{
+	int fd;
+	size_t first_chunk;	/**< bytes to send before Proxy_connect can see the rest */
+};
+
+/** Sends the tail of the response after a delay, so that the first read in
+ * Proxy_connect is necessarily short. */
+static void* proxy_writer(void* context)
+{
+	struct proxy_writer_args* args = (struct proxy_writer_args*)context;
+	static const char reply[] = PROXY_REPLY;
+	const char marker = (char)PROXY_MARKER;
+	size_t i;
+
+	/* 100ms, comfortably inside the 250ms retry interval in Proxy_connect */
+	usleep(100000);
+	for (i = args->first_chunk; i < sizeof(reply) - 1; ++i)
+	{
+		if (write(args->fd, &reply[i], 1) != 1)
+			break;
+		usleep(1000);
+	}
+	if (write(args->fd, &marker, 1) != 1)
+		fprintf(stderr, "proxy_writer: failed to write the marker\n");
+	return NULL;
+}
+
+struct proxy_connect_args
+{
+	networkHandles* net;
+	int rc;
+	int done;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+};
+
+/** Runs the call under test, so that a version of Proxy_connect that fails to
+ * terminate shows up as a test failure rather than hanging the test run. */
+static void* proxy_connect_runner(void* context)
+{
+	struct proxy_connect_args* args = (struct proxy_connect_args*)context;
+	int rc = Proxy_connect(args->net, 0, "localhost:1883");
+
+	pthread_mutex_lock(&args->mutex);
+	args->rc = rc;
+	args->done = 1;
+	pthread_cond_signal(&args->cond);
+	pthread_mutex_unlock(&args->mutex);
+	return NULL;
+}
+
+static void test_proxy_connect_fragmented(void)
+{
+	static const char reply[] = PROXY_REPLY;
+	/* short enough that the status line cannot be complete on the first read */
+	const size_t first_chunk = 5;
+	int fds[2];
+	networkHandles net;
+	struct proxy_writer_args args;
+	struct proxy_connect_args call;
+	struct timespec deadline;
+	pthread_t writer;
+	pthread_t runner;
+	char leftover = 0;
+	ssize_t got;
+	int waitrc = 0;
+	int done;
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0)
+	{
+		TEST_EXPECT("socketpair for Proxy_connect test", 0);
+		return;
+	}
+
+	/* non-blocking, as a connecting socket is in the library, so that a read
+	 * with nothing available returns instead of blocking */
+	if (fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK) != 0)
+	{
+		TEST_EXPECT("set Proxy_connect test socket non-blocking", 0);
+		close(fds[0]);
+		close(fds[1]);
+		return;
+	}
+
+	memset(&net, '\0', sizeof(net));
+	net.socket = fds[0];
+
+	/* Proxy_connect writes through Socket_putdatas and reads through
+	 * Socket_getdata, so the socket module's queues have to exist. */
+	Socket_outInitialize();
+	SocketBuffer_initialize();
+
+	/* the beginning of the status line only - fewer than the 12 bytes that
+	 * Proxy_connect asks for */
+	if (write(fds[1], reply, first_chunk) != (ssize_t)first_chunk)
+	{
+		TEST_EXPECT("write first chunk of proxy reply", 0);
+		close(fds[0]);
+		close(fds[1]);
+		return;
+	}
+
+	args.fd = fds[1];
+	args.first_chunk = first_chunk;
+	if (pthread_create(&writer, NULL, proxy_writer, &args) != 0)
+	{
+		TEST_EXPECT("start proxy reply writer thread", 0);
+		close(fds[0]);
+		close(fds[1]);
+		return;
+	}
+
+	call.net = &net;
+	call.rc = SOCKET_ERROR;
+	call.done = 0;
+	pthread_mutex_init(&call.mutex, NULL);
+	pthread_cond_init(&call.cond, NULL);
+
+	if (pthread_create(&runner, NULL, proxy_connect_runner, &call) != 0)
+	{
+		TEST_EXPECT("start Proxy_connect runner thread", 0);
+		pthread_join(writer, NULL);
+		close(fds[0]);
+		close(fds[1]);
+		return;
+	}
+
+	/* Proxy_connect bounds its own wait at 10 seconds, so anything past that
+	 * means it is not going to return at all. */
+	clock_gettime(CLOCK_REALTIME, &deadline);
+	deadline.tv_sec += 30;
+	pthread_mutex_lock(&call.mutex);
+	while (!call.done && waitrc == 0)
+		waitrc = pthread_cond_timedwait(&call.cond, &call.mutex, &deadline);
+	done = call.done;
+	pthread_mutex_unlock(&call.mutex);
+
+	TEST_EXPECT("Proxy_connect returns rather than looping forever", done);
+	if (!done)
+	{
+		/* The call is spinning inside the library and still using the socket
+		 * buffers, so there is no safe way to carry on in this process. Report
+		 * what has been found and stop here rather than letting a stuck thread
+		 * corrupt the remaining tests. */
+		pthread_detach(runner);
+		fprintf(stderr, "%u tests failed\n", fails);
+		fflush(NULL);
+		_exit((int)fails);
+	}
+
+	pthread_join(runner, NULL);
+	pthread_join(writer, NULL);
+
+	TEST_EXPECT("Proxy_connect accepts a status line split across reads",
+			call.rc != SOCKET_ERROR);
+
+	/* Proxy_connect must stop at the blank line: the tunnelled byte after it
+	 * has to still be there, and nothing of the proxy response before it. */
+	got = recv(fds[0], &leftover, 1, 0);
+	TEST_EXPECT("Proxy_connect leaves the tunnelled data unread",
+			got == 1 && leftover == (char)PROXY_MARKER);
+
+	/* and nothing of the proxy response beyond it */
+	got = recv(fds[0], &leftover, 1, 0);
+	TEST_EXPECT("Proxy_connect consumes the whole proxy response", got <= 0);
+
+	pthread_mutex_destroy(&call.mutex);
+	pthread_cond_destroy(&call.cond);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+#endif /* !_WIN32 */
+
+
+/* ---------------------------------------------------------------------- */
 /* utf-8 */
 /* ---------------------------------------------------------------------- */
 
@@ -595,6 +792,10 @@ int main(int argc, char** argv)
 	test_proxy();
 	test_utf8();
 	test_mqtt_properties();
+#if !defined(_WIN32)
+	/* last: on failure this one stops the process, see the comment there */
+	test_proxy_connect_fragmented();
+#endif
 
 	if (fails)
 		printf("%u tests failed\n", fails);
