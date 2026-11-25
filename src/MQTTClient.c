@@ -340,6 +340,7 @@ struct props_rc_parms
 	MQTTClients* m;
 	MQTTProperties* properties;
 	enum MQTTReasonCodes reasonCode;
+	int connection_lost; /* call connectionLost after disconnected */
 };
 
 static void MQTTClient_terminate(void);
@@ -783,6 +784,11 @@ static thread_return_type WINAPI call_disconnected(void* context)
 	struct props_rc_parms* pr = (struct props_rc_parms*)context;
 
 	(*(pr->m->disconnected))(pr->m->disconnected_context, pr->properties, pr->reasonCode);
+	if (pr->connection_lost && pr->m->cl)
+	{
+		Log(TRACE_MIN, -1, "Calling connectionLost for client %s", pr->m->c->clientID);
+		(*(pr->m->cl))(pr->m->context, NULL);
+	}
 	MQTTProperties_free(pr->properties);
 	free(pr->properties);
 	free(pr);
@@ -964,26 +970,35 @@ static thread_return_type WINAPI MQTTClient_run(void* n)
 				}
 				else if (m->c->MQTTVersion >= MQTTVERSION_5)
 				{
-					if (pack->header.bits.type == DISCONNECT && m->disconnected)
+					if (pack->header.bits.type == DISCONNECT)
 					{
-						struct props_rc_parms* dp;
+						/* The server is closing the connection, so close it here too, without sending
+						 * DISCONNECT back. Call disconnected, if set, and then connectionLost, as when
+						 * the connection is lost any other way (#1619) */
+						struct props_rc_parms* dp = NULL;
 						Ack* disc = (Ack*)pack;
 
-						dp = malloc(sizeof(struct props_rc_parms));
-						if (dp)
+						if (m->disconnected && (dp = malloc(sizeof(struct props_rc_parms))) != NULL)
 						{
 							dp->m = m;
 							dp->reasonCode = disc->rc;
-							dp->properties = malloc(sizeof(MQTTProperties));
-							if (dp->properties)
-							{
+							dp->connection_lost = m->c->connected;
+							if ((dp->properties = malloc(sizeof(MQTTProperties))) != NULL)
 								*(dp->properties) = disc->properties;
-								MQTTClient_disconnect1(m, 10, 0, 1, MQTTREASONCODE_SUCCESS, NULL, 0);
-								Log(TRACE_MIN, -1, "Calling disconnected for client %s", m->c->clientID);
-								Paho_thread_start(call_disconnected, dp);
-							}
 							else
+							{
 								free(dp);
+								dp = NULL;
+							}
+						}
+						if (dp == NULL)
+							MQTTProperties_free(&disc->properties);
+						/* with a disconnected callback, connectionLost is called after it, by call_disconnected */
+						MQTTClient_disconnect1(m, 10, dp == NULL, 1, MQTTREASONCODE_SUCCESS, NULL, 0);
+						if (dp)
+						{
+							Log(TRACE_MIN, -1, "Calling disconnected for client %s", m->c->clientID);
+							Paho_thread_start(call_disconnected, dp);
 						}
 						free(disc);
 					}

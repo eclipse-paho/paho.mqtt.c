@@ -2787,3 +2787,34 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1727" "--test_no" "8" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1619-static test_issue1619.c)
+	target_link_libraries(test_issue1619-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1619-1-sync-server-disconnect-with-disconnected-static
+		COMMAND "test_issue1619-static" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_issue1619-2-sync-server-disconnect-static
+		COMMAND "test_issue1619-static" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1619 test_issue1619.c)
+	target_link_libraries(test_issue1619 paho-mqtt3c ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1619-1-sync-server-disconnect-with-disconnected
+		COMMAND "test_issue1619" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_issue1619-2-sync-server-disconnect
+		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
