@@ -33,6 +33,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <time.h>
+#endif
 
 #include "MQTTAsync.h"
 #include "Base64.h"
@@ -41,6 +48,9 @@
 #include "MQTTProperties.h"
 #include "MQTTPacket.h"
 #include "utf-8.h"
+#include "WebSocket.h"
+#include "Socket.h"
+#include "SocketBuffer.h"
 #include "Heap.h" /* redefines malloc/free as mymalloc/myfree, matching how Proxy.c allocates */
 
 /* internal functions with external linkage that aren't declared in the public headers */
@@ -324,6 +334,139 @@ static void test_proxy(void)
 /* utf-8 */
 /* ---------------------------------------------------------------------- */
 
+#if !defined(_WIN32)
+
+/* ---------------------------------------------------------------------- */
+/* WebSocket_upgrade with the HTTP 101 response split across reads */
+/* ---------------------------------------------------------------------- */
+
+/** The key/accept pair from RFC 6455 section 1.3, so the expected value is
+ * fixed by the specification rather than recomputed with the code under test. */
+#define WS_TEST_KEY "dGhlIHNhbXBsZSBub25jZQ=="
+#define WS_TEST_RESPONSE \
+	"HTTP/1.1 101 Switching Protocols\r\n" \
+	"Upgrade: websocket\r\n" \
+	"Connection: Upgrade\r\n" \
+	"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n" \
+	"\r\n"
+
+struct ws_writer_args
+{
+	int fd;
+	size_t chunk;	/**< bytes per write */
+};
+
+/** Trickles the response out so that WebSocket_upgrade cannot see it all at
+ * once, however often it is called. */
+static void* ws_writer(void* context)
+{
+	struct ws_writer_args* args = (struct ws_writer_args*)context;
+	static const char response[] = WS_TEST_RESPONSE;
+	size_t i;
+
+	for (i = 0; i < sizeof(response) - 1; i += args->chunk)
+	{
+		size_t n = sizeof(response) - 1 - i;
+
+		if (n > args->chunk)
+			n = args->chunk;
+		if (write(args->fd, &response[i], n) != (ssize_t)n)
+			break;
+		usleep(2000);
+	}
+	return NULL;
+}
+
+/** One pass of the fragmented upgrade, with the response delivered @p chunk
+ * bytes at a time.  Returns the result of the upgrade. */
+static int run_ws_upgrade(size_t chunk)
+{
+	int fds[2];
+	networkHandles net;
+	struct ws_writer_args args;
+	pthread_t writer;
+	int rc = SOCKET_ERROR;
+	int i;
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0)
+		return SOCKET_ERROR;
+	if (fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK) != 0)
+	{
+		close(fds[0]);
+		close(fds[1]);
+		return SOCKET_ERROR;
+	}
+
+	Socket_outInitialize();
+	SocketBuffer_initialize();
+
+	memset(&net, '\0', sizeof(net));
+	net.socket = fds[0];
+	/* freed by WebSocket_upgrade on success, so it must come from the same
+	 * allocator the library frees with */
+	net.websocket_key = malloc(sizeof(WS_TEST_KEY));
+	if (net.websocket_key == NULL)
+	{
+		close(fds[0]);
+		close(fds[1]);
+		return SOCKET_ERROR;
+	}
+	strcpy(net.websocket_key, WS_TEST_KEY);
+
+	args.fd = fds[1];
+	args.chunk = chunk;
+	if (pthread_create(&writer, NULL, ws_writer, &args) != 0)
+	{
+		free(net.websocket_key);
+		close(fds[0]);
+		close(fds[1]);
+		return SOCKET_ERROR;
+	}
+
+	/* TCPSOCKET_INTERRUPTED means "not all here yet, call again" - which is
+	 * exactly the path that has to survive the response being fragmented. */
+	for (i = 0; i < 2000; ++i)
+	{
+		rc = WebSocket_upgrade(&net);
+		if (rc != TCPSOCKET_INTERRUPTED)
+			break;
+		usleep(1000);
+	}
+
+	pthread_join(writer, NULL);
+	WebSocket_terminate();
+	if (net.websocket_key)
+		free(net.websocket_key);
+	close(fds[0]);
+	close(fds[1]);
+	return rc;
+}
+
+static void test_websocket_upgrade_fragmented(void)
+{
+	/* 1 byte per write is the worst case; the others cross the boundary of
+	 * the 12-byte status line the code reads first */
+	const size_t chunks[] = { 1, 2, 4, 8, 13, 64 };
+	size_t i;
+
+	for (i = 0; i < sizeof(chunks) / sizeof(chunks[0]); ++i)
+	{
+		char name[96];
+		int rc = run_ws_upgrade(chunks[i]);
+
+		sprintf(name, "WebSocket_upgrade completes with %d bytes per write",
+				(int)chunks[i]);
+		TEST_EXPECT(name, rc == 1);
+	}
+}
+
+#endif /* !_WIN32 */
+
+
+/* ---------------------------------------------------------------------- */
+/* utf-8 */
+/* ---------------------------------------------------------------------- */
+
 static void test_utf8(void)
 {
 	/* 1-byte ASCII */
@@ -595,6 +738,9 @@ int main(int argc, char** argv)
 	test_proxy();
 	test_utf8();
 	test_mqtt_properties();
+#if !defined(_WIN32)
+	test_websocket_upgrade_fragmented();
+#endif
 
 	if (fails)
 		printf("%u tests failed\n", fails);
