@@ -10,6 +10,13 @@
  * and the Eclipse Distribution License is available at
  *   http://www.eclipse.org/org/documents/edl-v10.php.
  *
+ * AI Disclosure: This file was partly AI-generated. The AI-generated
+ * portions are made available under CC0-1.0 and not subject to the
+ * project's licence. The human contributor has reviewed and verified
+ * that the code is correct.
+ *
+ * SPDX-License-Identifier: EPL-2.0 and CC0-1.0
+ *
  * Contributors:
  *    Ian Craggs - initial API and implementation
  *    Ian Craggs, Allan Stockdill-Mander - SSL connections
@@ -966,9 +973,9 @@ typedef struct
 	/** The eyecatcher for this structure.  must be MQCO. */
 	char struct_id[4];
 	/** The version number of this structure.  Must be 0, 1, 2 or 3
-	 * 0 means no MQTTVersion
-	 * 1 means no allowDisconnectedSendAtAnyTime, deleteOldestMessages, restoreMessages
-	 * 2 means no persistQoS0
+	 * version 1 adds MQTTVersion
+	 * version 2 adds allowDisconnectedSendAtAnyTime, deleteOldestMessages, restoreMessages
+	 * version 3 adds persistQoS0
 	 */
 	int struct_version;
 	/** Whether to allow messages to be sent when the client library is not connected. */
@@ -1001,9 +1008,9 @@ typedef struct
 	int persistQoS0;
 } MQTTAsync_createOptions;
 
-#define MQTTAsync_createOptions_initializer  { {'M', 'Q', 'C', 'O'}, 2, 0, 100, MQTTVERSION_DEFAULT, 0, 0, 1, 1}
+#define MQTTAsync_createOptions_initializer  { {'M', 'Q', 'C', 'O'}, 3, 0, 100, MQTTVERSION_DEFAULT, 0, 0, 1, 1}
 
-#define MQTTAsync_createOptions_initializer5 { {'M', 'Q', 'C', 'O'}, 2, 0, 100, MQTTVERSION_5, 0, 0, 1, 1}
+#define MQTTAsync_createOptions_initializer5 { {'M', 'Q', 'C', 'O'}, 3, 0, 100, MQTTVERSION_5, 0, 0, 1, 1}
 
 
 LIBMQTT_API int MQTTAsync_createWithOptions(MQTTAsync* handle, const char* serverURI, const char* clientId,

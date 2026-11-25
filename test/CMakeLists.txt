@@ -2336,3 +2336,64 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1592" "--test_no" "2"
 	)
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_issue1727-static test_issue1727.c)
+	target_link_libraries(test_issue1727-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1727-1-create-options-initializer-version-static
+		COMMAND "test_issue1727-static" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1727-2-persistqos0-off-version3-static
+		COMMAND "test_issue1727-static" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1727-3-persistqos0-on-version3-static
+		COMMAND "test_issue1727-static" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1727-4-persistqos0-ignored-version2-static
+		COMMAND "test_issue1727-static" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1727-5-no-read-past-older-versions-static
+		COMMAND "test_issue1727-static" "--test_no" "5"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_issue1727 test_issue1727.c)
+	target_link_libraries(test_issue1727 paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_issue1727-1-create-options-initializer-version
+		COMMAND "test_issue1727" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_issue1727-2-persistqos0-off-version3
+		COMMAND "test_issue1727" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_issue1727-3-persistqos0-on-version3
+		COMMAND "test_issue1727" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_issue1727-4-persistqos0-ignored-version2
+		COMMAND "test_issue1727" "--test_no" "4"
+	)
+
+	add_test(
+		NAME test_issue1727-5-no-read-past-older-versions
+		COMMAND "test_issue1727" "--test_no" "5"
+	)
+endif()
