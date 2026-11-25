@@ -323,8 +323,12 @@ void *myrealloc(char* file, int line, void* p, size_t size)
 {
 	void* rc = NULL;
 	storageElement* s = NULL;
+	Node* e = NULL;
+	size_t oldspace = 0;
 
 	Paho_thread_lock_mutex(heap_mutex);
+	if ((e = TreeFind(&heap, ((eyecatcherType*)p)-1)) != NULL)
+		oldspace = e->size;
 	s = TreeRemoveKey(&heap, ((eyecatcherType*)p)-1);
 	if (s == NULL)
 		Log(LOG_ERROR, 13, "Failed to reallocate heap item at file %s line %d", file, line);
@@ -342,6 +346,9 @@ void *myrealloc(char* file, int line, void* p, size_t size)
 		if (newPtr == NULL)
 		{
 			Log(LOG_ERROR, 13, errmsg);
+			/* the original block is unchanged and still owned by the caller, so keep tracking it */
+			state.current_size -= size - s->size;
+			TreeAdd(&heap, s, oldspace);
 			goto exit;
 		}
 		s->ptr = newPtr;
@@ -349,16 +356,21 @@ void *myrealloc(char* file, int line, void* p, size_t size)
 		*(eyecatcherType*)(s->ptr) = eyecatcher; /* start eyecatcher */
 		*(eyecatcherType*)(((char*)(s->ptr)) + (sizeof(eyecatcherType) + size)) = eyecatcher; /* end eyecatcher */
 		s->size = size;
-		space -= strlen(s->file);
+		size_t oldfilelen = strlen(s->file);
 		newPtr = realloc(s->file, filenamelen);
 		if (newPtr == NULL)
 		{
+			/* the block has already been reallocated (and may have moved), so it must still be
+			 * returned to the caller; just keep the previous file name */
 			Log(LOG_ERROR, 13, errmsg);
-			goto exit;
 		}
-		s->file = newPtr;
-		space += filenamelen;
-		strcpy(s->file, file);
+		else
+		{
+			space -= oldfilelen;
+			s->file = newPtr;
+			space += filenamelen;
+			strcpy(s->file, file);
+		}
 		s->line = line;
 		rc = s->ptr;
 		TreeAdd(&heap, s, space);
