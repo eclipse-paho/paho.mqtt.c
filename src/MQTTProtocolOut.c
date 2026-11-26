@@ -61,7 +61,7 @@ size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, 
 	char* topic_pos;
 
 	FUNC_ENTRY;
-	colon_pos = strrchr(uri, ':'); /* reverse find to allow for ':' in IPv6 addresses */
+	colon_pos = strrchr(buf, ':'); /* reverse find to allow for ':' in IPv6 addresses */
 
 	if (uri[0] == '[')
 	{  /* ip v6 */
