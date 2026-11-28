@@ -1968,6 +1968,7 @@ void MQTTAsync_emptyMessageQueue(Clients* client)
 		{
 			qEntry* qe = (qEntry*)(current->content);
 			free(qe->topicName);
+			MQTTProperties_free(&qe->msg->properties);
 			free(qe->msg->payload);
 			free(qe->msg);
 		}
