@@ -37,6 +37,7 @@
 #define PROXY_DEFAULT_PORT 8080
 
 size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, int default_port);
+int MQTTProtocol_defaultPort(int ssl, int websocket);
 void MQTTProtocol_reconnect(const char* ip_address, Clients* client);
 #if defined(OPENSSL)
 #if defined(__GNUC__) && defined(__linux__)

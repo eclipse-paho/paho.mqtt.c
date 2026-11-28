@@ -3000,7 +3000,7 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 
 			if (m->c->net.https_proxy) {
 				m->c->connect_state = PROXY_CONNECT_IN_PROGRESS;
-				if ((rc = Proxy_connect( &m->c->net, 1, serverURI)) == SOCKET_ERROR )
+				if ((rc = Proxy_connect( &m->c->net, 1, serverURI, MQTTProtocol_defaultPort(1, m->websocket))) == SOCKET_ERROR )
 					goto exit;
 			}
 
@@ -3062,7 +3062,7 @@ static int MQTTAsync_connecting(MQTTAsyncs* m)
 #endif
 			if (m->c->net.http_proxy) {
 				m->c->connect_state = PROXY_CONNECT_IN_PROGRESS;
-				if ((rc = Proxy_connect( &m->c->net, 0, serverURI)) == SOCKET_ERROR )
+				if ((rc = Proxy_connect( &m->c->net, 0, serverURI, MQTTProtocol_defaultPort(0, m->websocket))) == SOCKET_ERROR )
 					goto exit;
 			}
 

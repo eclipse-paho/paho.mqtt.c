@@ -50,12 +50,13 @@
  * @param[in]  net               network connection to proxy.
  * @param[in]  ssl               enable ssl.
  * @param[in]  hostname          hostname of endpoint.
+ * @param[in]  default_port      port of endpoint, if hostname doesn't have one.
  *
  * @retval SOCKET_ERROR          failed to network connection
  * @retval 0                     connection to endpoint
  *
  */
-int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
+int Proxy_connect(networkHandles *net, int ssl, const char *hostname, int default_port)
 {
 	int port, i, rc = 0, buf_len=0;
 	char *buf = NULL;
@@ -64,42 +65,47 @@ int Proxy_connect(networkHandles *net, int ssl, const char *hostname)
 	PacketBuffers nulbufs = {0, NULL, NULL, NULL};
 
 	FUNC_ENTRY;
-	hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, PROXY_DEFAULT_PORT);
+	/* the port is the broker's, not the proxy's */
+	hostname_len = MQTTProtocol_addressPort(hostname, &port, NULL, default_port);
+	/* MQTTProtocol_addressPort leaves out the closing bracket of an IPv6 address, which CONNECT needs */
+	if (hostname[0] == '[' && hostname[hostname_len] == ']')
+		++hostname_len;
+	/* RFC 7230 section 5.4: the Host header is the same as the authority form target, host:port */
 	for ( i = 0; i < 2; ++i ) {
 #if defined(OPENSSL)
 		if(ssl) {
 			if (net->https_proxy_auth) {
 				buf_len = snprintf( buf, (size_t)buf_len, "CONNECT %.*s:%d HTTP/1.1\r\n"
-					"Host: %.*s\r\n"
+					"Host: %.*s:%d\r\n"
 					"Proxy-authorization: Basic %s\r\n"
 					"\r\n",
 					(int)hostname_len, hostname, port,
-					(int)hostname_len, hostname, net->https_proxy_auth);
+					(int)hostname_len, hostname, port, net->https_proxy_auth);
 			}
 			else {
 				buf_len = snprintf( buf, (size_t)buf_len, "CONNECT %.*s:%d HTTP/1.1\r\n"
-					"Host: %.*s\r\n"
+					"Host: %.*s:%d\r\n"
 					"\r\n",
 					(int)hostname_len, hostname, port,
-					(int)hostname_len, hostname);
+					(int)hostname_len, hostname, port);
 			}
 		}
 		else {
 #endif
 			if (net->http_proxy_auth) {
 				buf_len = snprintf( buf, (size_t)buf_len, "CONNECT %.*s:%d HTTP/1.1\r\n"
-					"Host: %.*s\r\n"
+					"Host: %.*s:%d\r\n"
 					"Proxy-authorization: Basic %s\r\n"
 					"\r\n",
 					(int)hostname_len, hostname, port,
-					(int)hostname_len, hostname, net->http_proxy_auth);
+					(int)hostname_len, hostname, port, net->http_proxy_auth);
 			}
 			else {
 				buf_len = snprintf( buf, (size_t)buf_len, "CONNECT %.*s:%d HTTP/1.1\r\n"
-					"Host: %.*s\r\n"
+					"Host: %.*s:%d\r\n"
 					"\r\n",
 					(int)hostname_len, hostname, port,
-					(int)hostname_len, hostname);
+					(int)hostname_len, hostname, port);
 			}
 #if defined(OPENSSL)
 		}

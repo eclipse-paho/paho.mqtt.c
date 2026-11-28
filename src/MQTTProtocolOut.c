@@ -104,6 +104,20 @@ size_t MQTTProtocol_addressPort(const char* uri, int* port, const char **topic, 
 
 
 /**
+ * The port to connect to the broker on when the URI doesn't have one
+ * @param ssl whether the connection uses TLS
+ * @param websocket whether the connection uses WebSockets
+ * @return the default port
+ */
+int MQTTProtocol_defaultPort(int ssl, int websocket)
+{
+	if (ssl)
+		return websocket ? WSS_DEFAULT_PORT : SECURE_MQTT_DEFAULT_PORT;
+	return websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT;
+}
+
+
+/**
  * MQTT outgoing connect processing for a client
  * @param address The address of the server. For TCP this is in the form
  *  			  'address:port; for a UNIX socket it's the path to the
@@ -268,11 +282,9 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 #endif
 	else {
 #if defined(OPENSSL)
-		addr_len = MQTTProtocol_addressPort(address, &port, NULL, ssl ?
-				(websocket ? WSS_DEFAULT_PORT : SECURE_MQTT_DEFAULT_PORT) :
-				(websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT) );
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, MQTTProtocol_defaultPort(ssl, websocket));
 #else
-		addr_len = MQTTProtocol_addressPort(address, &port, NULL, websocket ? WS_DEFAULT_PORT : MQTT_DEFAULT_PORT);
+		addr_len = MQTTProtocol_addressPort(address, &port, NULL, MQTTProtocol_defaultPort(0, websocket));
 #endif
 #if defined(__GNUC__) && defined(__linux__)
 		if (timeout < 0)
@@ -292,7 +304,7 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 		{
 			if (aClient->net.https_proxy) {
 				aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-				rc = Proxy_connect( &aClient->net, 1, address);
+				rc = Proxy_connect( &aClient->net, 1, address, MQTTProtocol_defaultPort(1, websocket));
 			}
 			if (rc == 0 && SSLSocket_setSocketForSSL(&aClient->net, aClient->sslopts, address, addr_len) == 1)
 			{
@@ -316,7 +328,7 @@ int MQTTProtocol_connect(const char* address, Clients* aClient, int unixsock, in
 		if (aClient->net.http_proxy) {
 #endif
 			aClient->connect_state = PROXY_CONNECT_IN_PROGRESS;
-			rc = Proxy_connect( &aClient->net, 0, address);
+			rc = Proxy_connect( &aClient->net, 0, address, MQTTProtocol_defaultPort(0, websocket));
 		}
 		if ( websocket )
 		{
