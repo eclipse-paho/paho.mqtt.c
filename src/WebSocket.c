@@ -1102,8 +1102,13 @@ int WebSocket_receiveFrame(networkHandles *net, size_t *actual_len)
 					rc = TCPSOCKET_INTERRUPTED;
 					goto exit;
 				}
-				/* convert from big endian 16 to host */
-				payload_len = be16toh(*(uint16_t*)b);
+				/* convert from big endian 16 to host: b isn't aligned, so copy it */
+				{
+					uint16_t len16;
+
+					memcpy(&len16, b, sizeof(len16));
+					payload_len = be16toh(len16);
+				}
 			} else if (payload_len == 127)
 			{
 				/* If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the
@@ -1123,8 +1128,13 @@ int WebSocket_receiveFrame(networkHandles *net, size_t *actual_len)
 					rc = TCPSOCKET_INTERRUPTED;
 					goto exit;
 				}
-				/* convert from big-endian 64 to host */
-				payload_len = (size_t) be64toh(*(uint64_t*)b);
+				/* convert from big-endian 64 to host: b isn't aligned, so copy it */
+				{
+					uint64_t len64;
+
+					memcpy(&len64, b, sizeof(len64));
+					payload_len = (size_t) be64toh(len64);
+				}
 			}
 
 			if (has_mask)
