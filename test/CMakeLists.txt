@@ -2818,3 +2818,35 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+# the test uses POSIX sockets and threads, and OpenSSL for the WebSocket handshake
+if(NOT WIN32 AND PAHO_WITH_SSL)
+	if(PAHO_BUILD_STATIC)
+		add_executable(test_websocket_frames-static test_websocket_frames.c)
+		target_link_libraries(test_websocket_frames-static paho-mqtt3cs-static ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_websocket_frames-1-16-bit-payload-length-static
+			COMMAND "test_websocket_frames-static" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_websocket_frames-2-64-bit-payload-length-static
+			COMMAND "test_websocket_frames-static" "--test_no" "2"
+		)
+	endif()
+	if(PAHO_BUILD_SHARED)
+		add_executable(test_websocket_frames test_websocket_frames.c)
+		target_link_libraries(test_websocket_frames paho-mqtt3cs ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_websocket_frames-1-16-bit-payload-length
+			COMMAND "test_websocket_frames" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_websocket_frames-2-64-bit-payload-length
+			COMMAND "test_websocket_frames" "--test_no" "2"
+		)
+	endif()
+endif()
