@@ -353,8 +353,8 @@ void* MQTTPacket_suback(int MQTTVersion, unsigned char aHeader, char* data, size
 		newint = malloc(sizeof(unsigned int));
 		if (newint == NULL)
 		{
-			if (pack->properties.array)
-				free(pack->properties.array);
+			MQTTProperties_free(&pack->properties);
+			ListFree(pack->qoss);
 			if (pack)
 				free(pack);
 			pack = NULL; /* signal protocol error */
@@ -365,8 +365,7 @@ void* MQTTPacket_suback(int MQTTVersion, unsigned char aHeader, char* data, size
 	}
 	if (pack->qoss->count == 0)
 	{
-		if (MQTTVersion >= MQTTVERSION_5 && pack->properties.array)
-			free(pack->properties.array);
+		MQTTProperties_free(&pack->properties);
 		ListFree(pack->qoss);
 		free(pack);
 		pack = NULL;
@@ -475,8 +474,8 @@ void* MQTTPacket_unsuback(int MQTTVersion, unsigned char aHeader, char* data, si
 			newrc = malloc(sizeof(enum MQTTReasonCodes));
 			if (newrc == NULL)
 			{
-				if (pack->properties.array)
-					free(pack->properties.array);
+				MQTTProperties_free(&pack->properties);
+				ListFree(pack->reasonCodes);
 				if (pack)
 					free(pack);
 				pack = NULL; /* signal protocol error */
@@ -488,8 +487,7 @@ void* MQTTPacket_unsuback(int MQTTVersion, unsigned char aHeader, char* data, si
 		if (pack->reasonCodes->count == 0)
 		{
 			ListFree(pack->reasonCodes);
-			if (pack->properties.array)
-				free(pack->properties.array);
+			MQTTProperties_free(&pack->properties);
 			if (pack)
 				free(pack);
 			pack = NULL;
