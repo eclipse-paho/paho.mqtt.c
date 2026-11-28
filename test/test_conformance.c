@@ -179,6 +179,7 @@ int test_subscribe_empty(struct Options options)
 		{
 			MQTTResponse response = MQTTClient_connect5(c, &opts, NULL, NULL);
 			rc = response.reasonCode;
+			MQTTResponse_free(response);
 		}
 		else
 			rc = MQTTClient_connect(c, &opts);
@@ -189,6 +190,7 @@ int test_subscribe_empty(struct Options options)
 		{
 			MQTTResponse response = MQTTClient_subscribeMany5(c, 0, NULL, NULL, NULL, NULL);
 			rc = response.reasonCode;
+			MQTTResponse_free(response);
 		}
 		else
 			rc = MQTTClient_subscribeMany(c, 0, NULL, NULL);
@@ -221,6 +223,7 @@ int test_keepalive_ping(struct Options options)
 	int rc;
 	MQTTClient c;
 	MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer5;
+	MQTTClient_createOptions createOpts = MQTTClient_createOptions_initializer;
 	int MQTTVersions[] = { MQTTVERSION_3_1_1, MQTTVERSION_5 };
 	size_t i;
 
@@ -229,7 +232,9 @@ int test_keepalive_ping(struct Options options)
 
 	for (i = 0; i < ARRAY_SIZE(MQTTVersions); ++i)
 	{
-		rc = MQTTClient_create(&c, options.connection, "conformance_keepalive", MQTTCLIENT_PERSISTENCE_NONE, NULL);
+		createOpts.MQTTVersion = MQTTVersions[i];
+		rc = MQTTClient_createWithOptions(&c, options.connection, "conformance_keepalive", MQTTCLIENT_PERSISTENCE_NONE,
+				NULL, &createOpts);
 		assert("Good rc from create", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
 
 		opts.keepAliveInterval = 2;
@@ -237,7 +242,14 @@ int test_keepalive_ping(struct Options options)
 		opts.cleansession = (MQTTVersions[i] >= MQTTVERSION_5) ? 0 : 1;
 		opts.cleanstart = (MQTTVersions[i] >= MQTTVERSION_5) ? 1 : 0;
 
-		rc = MQTTClient_connect(c, &opts);
+		if (MQTTVersions[i] >= MQTTVERSION_5)
+		{
+			MQTTResponse response = MQTTClient_connect5(c, &opts, NULL, NULL);
+			rc = response.reasonCode;
+			MQTTResponse_free(response);
+		}
+		else
+			rc = MQTTClient_connect(c, &opts);
 		assert("Good rc from connect", rc == MQTTCLIENT_SUCCESS, "rc was %d\n", rc);
 
 		/* stay idle for a few keepalive intervals: this is a synchronous-mode client (no
@@ -310,6 +322,7 @@ int test_server_keepalive_override(struct Options options)
 	}
 	else
 		assert("CONNACK properties should be present", 0, "properties was NULL\n", 0);
+	MQTTResponse_free(response);
 
 	MQTTClient_disconnect(c, 1000);
 	MQTTClient_destroy(&c);
@@ -359,6 +372,7 @@ int test_zero_length_clientid(struct Options options)
 	}
 	else
 		assert("CONNACK properties should be present", 0, "properties was NULL\n", 0);
+	MQTTResponse_free(response);
 
 	MQTTClient_disconnect(c, 1000);
 	MQTTClient_destroy(&c);
@@ -424,9 +438,11 @@ int test_duplicate_clientid(struct Options options)
 	response = MQTTClient_connect5(a, &opts, NULL, NULL);
 	assert("Good rc from connect (a)", response.reasonCode == MQTTREASONCODE_SUCCESS, "rc was %d\n", response.reasonCode);
 	assert("a is connected", MQTTClient_isConnected(a) == 1, "isConnected was %d\n", MQTTClient_isConnected(a));
+	MQTTResponse_free(response);
 
 	response = MQTTClient_connect5(b, &opts, NULL, NULL);
 	assert("Good rc from connect (b)", response.reasonCode == MQTTREASONCODE_SUCCESS, "rc was %d\n", response.reasonCode);
+	MQTTResponse_free(response);
 
 	{
 		int count = 0;
@@ -560,12 +576,14 @@ int test_unsubscribe_no_match(struct Options options)
 	opts.MQTTVersion = MQTTVERSION_5;
 	response = MQTTClient_connect5(c, &opts, NULL, NULL);
 	assert("Good rc from connect", response.reasonCode == MQTTREASONCODE_SUCCESS, "rc was %d\n", response.reasonCode);
+	MQTTResponse_free(response);
 
 	/* [MQTT-3.10.4-5] the server must respond to an unsubscribe of a topic with no matching
 	 * subscription with an UNSUBACK, using reason code 0x11 (No subscription existed) */
 	unsub_response = MQTTClient_unsubscribe5(c, "conformance/never_subscribed_to_this", NULL);
 	assert("Reason code is no subscription existed", unsub_response.reasonCode == MQTTREASONCODE_NO_SUBSCRIPTION_FOUND,
 			"reasonCode was %d\n", unsub_response.reasonCode);
+	MQTTResponse_free(unsub_response);
 
 	MQTTClient_disconnect(c, 1000);
 	MQTTClient_destroy(&c);
@@ -703,6 +721,8 @@ int test_password_without_username(struct Options options)
 				response.reasonCode, MQTTVersions[i]);
 		assert("Connect did not succeed", response.reasonCode != MQTTREASONCODE_SUCCESS,
 				"reasonCode was %d\n", response.reasonCode);
+		if (MQTTVersions[i] >= MQTTVERSION_5)
+			MQTTResponse_free(response);
 
 		MQTTClient_disconnect(c, 0);
 		MQTTClient_destroy(&c);
@@ -743,6 +763,7 @@ int test_user_property_order(struct Options options)
 	opts.MQTTVersion = MQTTVERSION_5;
 	response = MQTTClient_connect5(c, &opts, NULL, NULL);
 	assert("Good rc from connect", response.reasonCode == MQTTREASONCODE_SUCCESS, "rc was %d\n", response.reasonCode);
+	MQTTResponse_free(response);
 
 	property.identifier = MQTTPROPERTY_CODE_USER_PROPERTY;
 	property.value.data.data = "key1";
@@ -758,6 +779,7 @@ int test_user_property_order(struct Options options)
 	response = MQTTClient_publish5(c, "conformance/user_property_order", (int)strlen("payload"), "payload", 0, 0, &props, NULL);
 	assert("Good rc from publish with multiple user properties", response.reasonCode == MQTTREASONCODE_SUCCESS,
 			"rc was %d\n", response.reasonCode);
+	MQTTResponse_free(response);
 
 	MQTTProperties_free(&props);
 	MQTTClient_disconnect(c, 1000);
