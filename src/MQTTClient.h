@@ -942,7 +942,7 @@ typedef struct
 	 * MQTTVERSION_DEFAULT (0) = default: start with 3.1.1, and if that fails, fall back to 3.1
 	 * MQTTVERSION_3_1 (3) = only try version 3.1
 	 * MQTTVERSION_3_1_1 (4) = only try version 3.1.1
-	 * MQTTVERSION_5 (5) = only try version 5.0
+	 * MQTTVERSION_5 (5) = only try version 5.0, with MQTTClient_connect5() and a client created for MQTT 5.0
 	 */
 	int MQTTVersion;
 	/**
@@ -1017,7 +1017,10 @@ typedef struct
   * structure.
   * @return ::MQTTCLIENT_SUCCESS if the client successfully connects to the
   * server. An error code is returned if the client was unable to connect to
-  * the server.
+  * the server. ::MQTTCLIENT_WRONG_MQTT_VERSION is returned if the client was
+  * created for MQTT version 5.0, or if the options ask for MQTT version 5.0. For
+  * MQTT version 5.0, create the client with MQTTClient_createWithOptions() and
+  * connect with MQTTClient_connect5().
   * Error codes greater than 0 are returned by the MQTT protocol:<br><br>
   * <b>1</b>: Connection refused: Unacceptable protocol version<br>
   * <b>2</b>: Connection refused: Identifier rejected<br>

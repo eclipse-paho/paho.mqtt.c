@@ -1784,6 +1784,8 @@ int MQTTClient_connect(MQTTClient handle, MQTTClient_connectOptions* options)
 		return MQTTCLIENT_WRONG_MQTT_VERSION;
 
 	response = MQTTClient_connectAll(handle, options, NULL, NULL);
+	/* defensive: MQTT 5 is rejected, so the response has no CONNACK properties, which couldn't be returned */
+	MQTTResponse_free(response);
 
 	return response.reasonCode;
 }
@@ -1831,6 +1833,15 @@ MQTTResponse MQTTClient_connectAll(MQTTClient handle, MQTTClient_connectOptions*
 	if (strncmp(options->struct_id, "MQTC", 4) != 0 || options->struct_version < 0 || options->struct_version > 8)
 	{
 		rc.reasonCode = MQTTCLIENT_BAD_STRUCTURE;
+		goto exit;
+	}
+
+	/* MQTTVersion only exists in version 3 and later structures. MQTT 5 needs a client created for
+	 * MQTT 5, whose persistence is in its format, and MQTTClient_connect5, which returns the CONNACK
+	 * properties in its response: MQTTClient_connect5 rejects other clients */
+	if (options->struct_version >= 3 && options->MQTTVersion == MQTTVERSION_5 && m->c->MQTTVersion < MQTTVERSION_5)
+	{
+		rc.reasonCode = MQTTCLIENT_WRONG_MQTT_VERSION;
 		goto exit;
 	}
 

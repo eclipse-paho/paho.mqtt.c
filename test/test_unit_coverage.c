@@ -124,6 +124,16 @@ static void test_base64(void)
 /* Tree */
 /* ---------------------------------------------------------------------- */
 
+/* remove the nodes left in a tree, which TreeFree doesn't free: each index has its own nodes */
+static void tree_remove_all(Tree* t)
+{
+	int i;
+
+	for (i = 0; i < t->indexes; ++i)
+		while (t->index[i].root)
+			TreeRemoveIndex(t, t->index[i].root->content, i);
+}
+
 static void test_tree(void)
 {
 	Tree* t;
@@ -182,6 +192,7 @@ static void test_tree(void)
 		TEST_EXPECT("TreeFind no longer finds removed key", n == NULL);
 	}
 
+	tree_remove_all(t);
 	TreeFree(t);
 
 	/* stack-allocated tree (no malloc), second index, both indexes ordering the
@@ -213,6 +224,7 @@ static void test_tree(void)
 		void* removed = TreeRemoveIndex(&stackTree, (void*)"cherry", 1);
 		TEST_EXPECT("TreeRemoveIndex removes via second index", removed != NULL);
 	}
+	tree_remove_all(&stackTree);
 
 	/* allow_duplicates: when set, adding a key that already compares equal to an
 	 * existing one is silently skipped (unlike the default, which replaces the
@@ -235,6 +247,7 @@ static void test_tree(void)
 		found = TreeFind(&dupTree, &dupkey2);
 		TEST_EXPECT("allow_duplicates leaves the original entry's content in place",
 				found != NULL && found->content == &dupkey1);
+		tree_remove_all(&dupTree);
 	}
 }
 

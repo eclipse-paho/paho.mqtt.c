@@ -2818,3 +2818,32 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+# MQTTClient_connect, when the options ask for MQTT 5
+if(PAHO_BUILD_STATIC)
+	add_executable(test_sync_connect_response-static test_sync_connect_response.c)
+	target_link_libraries(test_sync_connect_response-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_sync_connect_response-1-connect-mqtt5-rejected-static
+		COMMAND "test_sync_connect_response-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_sync_connect_response-2-connect5-static
+		COMMAND "test_sync_connect_response-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_sync_connect_response test_sync_connect_response.c)
+	target_link_libraries(test_sync_connect_response paho-mqtt3c ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_sync_connect_response-1-connect-mqtt5-rejected
+		COMMAND "test_sync_connect_response" "--test_no" "1"
+	)
+	add_test(
+		NAME test_sync_connect_response-2-connect5
+		COMMAND "test_sync_connect_response" "--test_no" "2"
+	)
+endif()
