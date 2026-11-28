@@ -382,23 +382,27 @@ void* MQTTPersistence_restorePacket(int MQTTVersion, char* buffer, size_t buflen
 	extern pf new_packets[];
 
 	FUNC_ENTRY;
+	if (buflen < 2)
+		goto exit;
 	header.byte = buffer[0];
-	/* decode the message length according to the MQTT algorithm */
+	/* decode the message length according to the MQTT algorithm, at most 4 bytes */
 	do
 	{
-		c = *(++buffer);
+		if (fixed_header_length > 4 || (size_t)fixed_header_length >= buflen)
+			goto exit;
+		c = buffer[fixed_header_length++];
 		remaining_length += (c & 127) * multiplier;
 		multiplier *= 128;
-		fixed_header_length++;
 	} while ((c & 128) != 0);
 
 	if ( (fixed_header_length + remaining_length) == buflen )
 	{
 		ptype = header.bits.type;
 		if (ptype >= CONNECT && ptype <= DISCONNECT && new_packets[ptype] != NULL)
-			pack = (*new_packets[ptype])(MQTTVersion, header.byte, ++buffer, remaining_length);
+			pack = (*new_packets[ptype])(MQTTVersion, header.byte, &buffer[fixed_header_length], remaining_length);
 	}
 
+exit:
 	FUNC_EXIT;
 	return pack;
 }
@@ -910,14 +914,19 @@ int MQTTPersistence_restoreMessageQueue(Clients* c)
 					c->qentry_seqno = max(c->qentry_seqno, qe->seqno);
 					entries_restored++;
 				}
-				if (buffer)
-					free(buffer);
 			}
+			if (buffer)
+				free(buffer);
 			if (msgkeys[i])
 			{
 				free(msgkeys[i]);
 			}
 			i++;
+		}
+		for (; i < nkeys; i++) /* free any keys left after an error */
+		{
+			if (msgkeys[i])
+				free(msgkeys[i]);
 		}
 		if (msgkeys != NULL)
 			free(msgkeys);
