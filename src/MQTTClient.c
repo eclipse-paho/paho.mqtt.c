@@ -2721,6 +2721,12 @@ static MQTTPacket* MQTTClient_cycle(SOCKET* sock, ELAPSED_TIME_TYPE timeout, int
 				*rc = MQTTProtocol_handlePubrels(pack, *sock);
 			else if (pack->header.bits.type == PINGRESP)
 				*rc = MQTTProtocol_handlePingresps(pack, *sock);
+			else if (pack->header.bits.type == AUTH)
+			{
+				/* AUTH isn't handled, and is read as an acknowledgement, with properties */
+				Log(LOG_ERROR, -1, "An unexpected packet type %u has been received", pack->header.bits.type);
+				MQTTPacket_freeAck((Ack*)pack);
+			}
 			else
 				freed = 0;
 			if (freed)
