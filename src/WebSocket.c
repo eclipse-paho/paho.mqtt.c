@@ -468,9 +468,6 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 		}
 	}
 
-	if (headers_buf)
-		free( headers_buf );
-
 	if ( buf )
 	{
 		PacketBuffers nulbufs = {0, NULL, NULL, NULL};
@@ -491,6 +488,8 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 		rc = SOCKET_ERROR;
 	}
 exit:
+	if (headers_buf)
+		free( headers_buf );
 	FUNC_EXIT_RC(rc);
 	return rc;
 }
