@@ -382,23 +382,27 @@ void* MQTTPersistence_restorePacket(int MQTTVersion, char* buffer, size_t buflen
 	extern pf new_packets[];
 
 	FUNC_ENTRY;
+	if (buflen < 2)
+		goto exit;
 	header.byte = buffer[0];
-	/* decode the message length according to the MQTT algorithm */
+	/* decode the message length according to the MQTT algorithm, at most 4 bytes */
 	do
 	{
-		c = *(++buffer);
+		if (fixed_header_length > 4 || (size_t)fixed_header_length >= buflen)
+			goto exit;
+		c = buffer[fixed_header_length++];
 		remaining_length += (c & 127) * multiplier;
 		multiplier *= 128;
-		fixed_header_length++;
 	} while ((c & 128) != 0);
 
 	if ( (fixed_header_length + remaining_length) == buflen )
 	{
 		ptype = header.bits.type;
 		if (ptype >= CONNECT && ptype <= DISCONNECT && new_packets[ptype] != NULL)
-			pack = (*new_packets[ptype])(MQTTVersion, header.byte, ++buffer, remaining_length);
+			pack = (*new_packets[ptype])(MQTTVersion, header.byte, &buffer[fixed_header_length], remaining_length);
 	}
 
+exit:
 	FUNC_EXIT;
 	return pack;
 }
@@ -736,7 +740,8 @@ int MQTTPersistence_persistQueueEntry(Clients* aclient, MQTTPersistence_qEntry* 
 			goto exit;
 		}
 		props_allocated = bufindex;
-		rc = MQTTProperties_write(&ptr, props);
+		/* MQTTProperties_write returns the number of bytes written */
+		rc = (MQTTProperties_write(&ptr, props) < 0) ? MQTTCLIENT_PERSISTENCE_ERROR : 0;
 		lens[bufindex++] = temp_len;
 
 		chars = snprintf(key, KEYSIZE, "%s%u", PERSISTENCE_V5_QUEUE_KEY, aclient->qentry_seqno);
@@ -765,10 +770,29 @@ exit:
 }
 
 
+/**
+ * Reads an int from a persisted buffer, which might not be aligned
+ * @param pptr pointer to the current position in the buffer, which is moved past the int
+ * @param end the end of the buffer
+ * @param value the int read
+ * @return 0 if successful, -1 if the buffer is too short
+ */
+static int MQTTPersistence_readInt(char** pptr, const char* end, int* value)
+{
+	if ((size_t)(end - *pptr) < sizeof(int))
+		return -1;
+	memcpy(value, *pptr, sizeof(int));
+	*pptr += sizeof(int);
+	return 0;
+}
+
+
 static MQTTPersistence_qEntry* MQTTPersistence_restoreQueueEntry(char* buffer, size_t buflen, int MQTTVersion)
 {
 	MQTTPersistence_qEntry* qe = NULL;
 	char* ptr = buffer;
+	char* end = buffer + buflen;
+	char* topic_end = NULL;
 	int data_size;
 	
 	FUNC_ENTRY;
@@ -777,60 +801,56 @@ static MQTTPersistence_qEntry* MQTTPersistence_restoreQueueEntry(char* buffer, s
 	memset(qe, '\0', sizeof(MQTTPersistence_qEntry));
 	
 	if ((qe->msg = malloc(sizeof(MQTTPersistence_message))) == NULL)
-	{
-		free(qe);
-		qe = NULL;
-		goto exit;
-	}
+		goto error;
 	memset(qe->msg, '\0', sizeof(MQTTPersistence_message));
 	
 	qe->msg->struct_version = 1;
 
-	qe->msg->payloadlen = *(int*)ptr;
-	ptr += sizeof(int);
+	if (MQTTPersistence_readInt(&ptr, end, &qe->msg->payloadlen) != 0 ||
+		qe->msg->payloadlen < 0 || qe->msg->payloadlen > end - ptr)
+		goto error;
 	
 	data_size = qe->msg->payloadlen;
 	if ((qe->msg->payload = malloc(data_size)) == NULL)
-	{
-		free(qe->msg);
-		free(qe);
-		qe = NULL;
-		goto exit;
-	}
+		goto error;
 	memcpy(qe->msg->payload, ptr, data_size);
 	ptr += data_size;
 	
-	qe->msg->qos = *(int*)ptr;
-	ptr += sizeof(int);
+	if (MQTTPersistence_readInt(&ptr, end, &qe->msg->qos) != 0 ||
+		MQTTPersistence_readInt(&ptr, end, &qe->msg->retained) != 0 ||
+		MQTTPersistence_readInt(&ptr, end, &qe->msg->dup) != 0 ||
+		MQTTPersistence_readInt(&ptr, end, &qe->msg->msgid) != 0)
+		goto error;
 	
-	qe->msg->retained = *(int*)ptr;
-	ptr += sizeof(int);
-	
-	qe->msg->dup = *(int*)ptr;
-	ptr += sizeof(int);
-	
-	qe->msg->msgid = *(int*)ptr;
-	ptr += sizeof(int);
-	
-	data_size = (int)strlen(ptr) + 1;	
+	/* the topic name must be terminated within the buffer */
+	if ((topic_end = memchr(ptr, '\0', end - ptr)) == NULL)
+		goto error;
+	data_size = (int)(topic_end - ptr) + 1;
 	if ((qe->topicName = malloc(data_size)) == NULL)
-	{
-		free(qe->msg->payload);
-		free(qe->msg);
-		free(qe);
-		qe = NULL;
-		goto exit;
-	}
-	strcpy(qe->topicName, ptr);
+		goto error;
+	memcpy(qe->topicName, ptr, data_size);
 	ptr += data_size;
 	
-	qe->topicLen = *(int*)ptr;
-	ptr += sizeof(int);
+	if (MQTTPersistence_readInt(&ptr, end, &qe->topicLen) != 0)
+		goto error;
 
 	if (MQTTVersion >= MQTTVERSION_5 &&
-		MQTTProperties_read(&qe->msg->properties, &ptr, buffer + buflen) != 1)
+		MQTTProperties_read(&qe->msg->properties, &ptr, end) != 1)
 			Log(LOG_ERROR, -1, "Error restoring properties from persistence");
+	goto exit;
 
+error:
+	Log(LOG_ERROR, -1, "Error restoring queue entry from persistence");
+	if (qe->msg)
+	{
+		if (qe->msg->payload)
+			free(qe->msg->payload);
+		free(qe->msg);
+	}
+	if (qe->topicName)
+		free(qe->topicName);
+	free(qe);
+	qe = NULL;
 exit:
 	FUNC_EXIT;
 	return qe;
@@ -894,14 +914,19 @@ int MQTTPersistence_restoreMessageQueue(Clients* c)
 					c->qentry_seqno = max(c->qentry_seqno, qe->seqno);
 					entries_restored++;
 				}
-				if (buffer)
-					free(buffer);
 			}
+			if (buffer)
+				free(buffer);
 			if (msgkeys[i])
 			{
 				free(msgkeys[i]);
 			}
 			i++;
+		}
+		for (; i < nkeys; i++) /* free any keys left after an error */
+		{
+			if (msgkeys[i])
+				free(msgkeys[i]);
 		}
 		if (msgkeys != NULL)
 			free(msgkeys);

@@ -2818,3 +2818,91 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_queue_persistence-static test_queue_persistence.c)
+	target_link_libraries(test_queue_persistence-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_queue_persistence-1-restore-queued-messages-static
+		COMMAND "test_queue_persistence-static" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence-2-restore-queued-messages-mqtt5-static
+		COMMAND "test_queue_persistence-static" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence-3-corrupt-queue-entries-static
+		COMMAND "test_queue_persistence-static" "--test_no" "3" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_queue_persistence test_queue_persistence.c)
+	target_link_libraries(test_queue_persistence paho-mqtt3c ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_queue_persistence-1-restore-queued-messages
+		COMMAND "test_queue_persistence" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence-2-restore-queued-messages-mqtt5
+		COMMAND "test_queue_persistence" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence-3-corrupt-queue-entries
+		COMMAND "test_queue_persistence" "--test_no" "3" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_queue_persistence_async-static test_queue_persistence_async.c)
+	target_link_libraries(test_queue_persistence_async-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_queue_persistence_async-1-restore-queued-messages-static
+		COMMAND "test_queue_persistence_async-static" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence_async-2-restore-queued-messages-mqtt5-static
+		COMMAND "test_queue_persistence_async-static" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_queue_persistence_async test_queue_persistence_async.c)
+	target_link_libraries(test_queue_persistence_async paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_queue_persistence_async-1-restore-queued-messages
+		COMMAND "test_queue_persistence_async" "--test_no" "1" "--connection" ${MQTT_TEST_BROKER}
+	)
+
+	add_test(
+		NAME test_queue_persistence_async-2-restore-queued-messages-mqtt5
+		COMMAND "test_queue_persistence_async" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
+	)
+endif()
+
+foreach(SUFFIX -static "")
+	if((SUFFIX STREQUAL "-static" AND PAHO_BUILD_STATIC) OR (SUFFIX STREQUAL "" AND PAHO_BUILD_SHARED))
+		add_executable(test_persistence_restore${SUFFIX} test_persistence_restore.c)
+		target_link_libraries(test_persistence_restore${SUFFIX} paho-mqtt3c${SUFFIX} ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_persistence_restore-1-damaged-packets${SUFFIX}
+			COMMAND "test_persistence_restore${SUFFIX}" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_persistence_restore-2-queue-read-failure${SUFFIX}
+			COMMAND "test_persistence_restore${SUFFIX}" "--test_no" "2"
+		)
+	endif()
+endforeach()
