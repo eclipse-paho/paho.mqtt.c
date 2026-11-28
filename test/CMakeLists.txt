@@ -2818,3 +2818,55 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+# Issue 1653: the test uses POSIX sockets and threads
+if(NOT WIN32)
+	if(PAHO_BUILD_STATIC)
+		add_executable(test_issue1653-static test_issue1653.c)
+		target_link_libraries(test_issue1653-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_issue1653-1-direct-port-static
+			COMMAND "test_issue1653-static" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_issue1653-2-proxy-default-port-static
+			COMMAND "test_issue1653-static" "--test_no" "2"
+		)
+
+		add_test(
+			NAME test_issue1653-3-proxy-port-static
+			COMMAND "test_issue1653-static" "--test_no" "3"
+		)
+
+		add_test(
+			NAME test_issue1653-4-proxy-ipv6-static
+			COMMAND "test_issue1653-static" "--test_no" "4"
+		)
+	endif()
+	if(PAHO_BUILD_SHARED)
+		add_executable(test_issue1653 test_issue1653.c)
+		target_link_libraries(test_issue1653 paho-mqtt3c ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_issue1653-1-direct-port
+			COMMAND "test_issue1653" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_issue1653-2-proxy-default-port
+			COMMAND "test_issue1653" "--test_no" "2"
+		)
+
+		add_test(
+			NAME test_issue1653-3-proxy-port
+			COMMAND "test_issue1653" "--test_no" "3"
+		)
+
+		add_test(
+			NAME test_issue1653-4-proxy-ipv6
+			COMMAND "test_issue1653" "--test_no" "4"
+		)
+	endif()
+endif()

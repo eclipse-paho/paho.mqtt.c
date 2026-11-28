@@ -362,6 +362,8 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 	int headers_buf_len = 0;
 	size_t hostname_len;
 	int port = 80;
+	const int default_port = ssl ? WSS_DEFAULT_PORT : WS_DEFAULT_PORT;
+	char port_buf[16] = ""; /* ":" and the port, or empty for the default port */
 	const char *topic = NULL;
 #if defined(_WIN32)
 	UUID uuid;
@@ -400,7 +402,15 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 	Base64_encode( net->websocket_key, 25u, uuid, sizeof(uuid_t) );
 #endif /* else if defined(_WIN32) */
 
-	hostname_len = MQTTProtocol_addressPort(uri, &port, &topic, ssl ? WSS_DEFAULT_PORT : WS_DEFAULT_PORT);
+	hostname_len = MQTTProtocol_addressPort(uri, &port, &topic, default_port);
+
+	/* MQTTProtocol_addressPort leaves out the closing bracket of an IPv6 address, which the Host header needs */
+	if (uri[0] == '[' && uri[hostname_len] == ']')
+		++hostname_len;
+
+	/* RFC 7230 section 2.7.1: the port is omitted from the Host header if it's the default */
+	if (port != default_port)
+		snprintf(port_buf, sizeof(port_buf), ":%d", port);
 
 	/* if no topic, use default */
 	if ( !topic )
@@ -437,23 +447,23 @@ int WebSocket_connect( networkHandles *net, int ssl, const char *uri)
 	{
 		buf_len = snprintf( buf, (size_t)buf_len,
 			"GET %s HTTP/1.1\r\n"
-			"Host: %.*s:%d\r\n"
+			"Host: %.*s%s\r\n"
 			"Upgrade: websocket\r\n"
 			"Connection: Upgrade\r\n"
-			"Origin: %s://%.*s:%d\r\n"
+			"Origin: %s://%.*s%s\r\n"
 			"Sec-WebSocket-Key: %s\r\n"
 			"Sec-WebSocket-Version: 13\r\n"
 			"Sec-WebSocket-Protocol: mqtt\r\n"
 			"%s"
 			"\r\n", topic,
-			(int)hostname_len, uri, port,
+			(int)hostname_len, uri, port_buf,
 #if defined(OPENSSL)
 			HTTP_PROTOCOL(net->ssl),
 #else
 			HTTP_PROTOCOL(0),
 #endif
 			
-			(int)hostname_len, uri, port,
+			(int)hostname_len, uri, port_buf,
 			net->websocket_key,
 			headers_buf ? headers_buf : "");
 
