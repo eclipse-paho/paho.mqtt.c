@@ -2818,3 +2818,35 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+# The CONNECT request to an HTTP proxy. The test uses POSIX sockets and threads,
+# and with TLS also tests ssl and wss, whose CONNECT request is sent before the
+# TLS handshake.
+if(NOT WIN32)
+	if(PAHO_WITH_SSL)
+		set(PROXY_CONNECT_LIB paho-mqtt3cs)
+		set(PROXY_CONNECT_TESTS 1 2 3 4 5 6)
+	else()
+		set(PROXY_CONNECT_LIB paho-mqtt3c)
+		set(PROXY_CONNECT_TESTS 1 2 3 4)
+	endif()
+	set(PROXY_CONNECT_NAMES "" tcp-default-port tcp-port ws-default-port ws-ipv6 ssl-default-port wss-default-port)
+
+	foreach(SUFFIX -static "")
+		if((SUFFIX STREQUAL "-static" AND PAHO_BUILD_STATIC) OR (SUFFIX STREQUAL "" AND PAHO_BUILD_SHARED))
+			add_executable(test_proxy_connect${SUFFIX} test_proxy_connect.c)
+			target_link_libraries(test_proxy_connect${SUFFIX} ${PROXY_CONNECT_LIB}${SUFFIX} ${LIBS_SYSTEM})
+			if(PAHO_WITH_SSL)
+				target_compile_definitions(test_proxy_connect${SUFFIX} PRIVATE TEST_SSL)
+			endif()
+
+			foreach(TEST_NO ${PROXY_CONNECT_TESTS})
+				list(GET PROXY_CONNECT_NAMES ${TEST_NO} TEST_NAME)
+				add_test(
+					NAME test_proxy_connect-${TEST_NO}-${TEST_NAME}${SUFFIX}
+					COMMAND "test_proxy_connect${SUFFIX}" "--test_no" "${TEST_NO}"
+				)
+			endforeach()
+		endif()
+	endforeach()
+endif()

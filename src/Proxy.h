@@ -20,7 +20,7 @@
 #include "Clients.h"
 
 /* Notify the IP address and port of the endpoint to proxy, and wait connection to endpoint */
-int Proxy_connect(networkHandles *net, int ssl, const char *hostname);
+int Proxy_connect(networkHandles *net, int ssl, const char *hostname, int default_port);
 
 int Proxy_noProxy(const char* dest, char* no_proxy);
 
