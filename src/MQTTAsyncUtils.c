@@ -2454,6 +2454,10 @@ thread_return_type WINAPI MQTTAsync_receiveThread(void* n)
 				else
 				{
 					Log(LOG_ERROR, -1, "An unexpected packet type %u has been received", pack->header.bits.type);
+					/* AUTH is read as an acknowledgement, with properties. A packet with only a header,
+					 * such as PINGREQ, is in a static buffer, so isn't freed. */
+					if (pack->header.bits.type == AUTH)
+						MQTTPacket_freeAck((Ack*)pack);
 				}
 			}
 		}

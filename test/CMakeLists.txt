@@ -2818,3 +2818,61 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+# Packets which the asynchronous client does not expect from a server
+if(PAHO_BUILD_STATIC)
+	add_executable(test_async_unexpected_packets-static test_async_unexpected_packets.c)
+	target_link_libraries(test_async_unexpected_packets-static paho-mqtt3a-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_async_unexpected_packets-1-auth-freed-static
+		COMMAND "test_async_unexpected_packets-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_async_unexpected_packets-2-pingreq-not-freed-static
+		COMMAND "test_async_unexpected_packets-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_async_unexpected_packets test_async_unexpected_packets.c)
+	target_link_libraries(test_async_unexpected_packets paho-mqtt3a ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_async_unexpected_packets-1-auth-freed
+		COMMAND "test_async_unexpected_packets" "--test_no" "1"
+	)
+	add_test(
+		NAME test_async_unexpected_packets-2-pingreq-not-freed
+		COMMAND "test_async_unexpected_packets" "--test_no" "2"
+	)
+endif()
+
+# AUTH packets, which the synchronous client does not handle, from a server
+if(PAHO_BUILD_STATIC)
+	add_executable(test_sync_unexpected_packets-static test_sync_unexpected_packets.c)
+	target_link_libraries(test_sync_unexpected_packets-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_sync_unexpected_packets-1-auth-freed-with-callbacks-static
+		COMMAND "test_sync_unexpected_packets-static" "--test_no" "1"
+	)
+	add_test(
+		NAME test_sync_unexpected_packets-2-auth-freed-by-receive-static
+		COMMAND "test_sync_unexpected_packets-static" "--test_no" "2"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_sync_unexpected_packets test_sync_unexpected_packets.c)
+	target_link_libraries(test_sync_unexpected_packets paho-mqtt3c ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_sync_unexpected_packets-1-auth-freed-with-callbacks
+		COMMAND "test_sync_unexpected_packets" "--test_no" "1"
+	)
+	add_test(
+		NAME test_sync_unexpected_packets-2-auth-freed-by-receive
+		COMMAND "test_sync_unexpected_packets" "--test_no" "2"
+	)
+endif()
