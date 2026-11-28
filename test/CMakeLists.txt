@@ -2889,3 +2889,20 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_queue_persistence_async" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+foreach(SUFFIX -static "")
+	if((SUFFIX STREQUAL "-static" AND PAHO_BUILD_STATIC) OR (SUFFIX STREQUAL "" AND PAHO_BUILD_SHARED))
+		add_executable(test_persistence_restore${SUFFIX} test_persistence_restore.c)
+		target_link_libraries(test_persistence_restore${SUFFIX} paho-mqtt3c${SUFFIX} ${LIBS_SYSTEM})
+
+		add_test(
+			NAME test_persistence_restore-1-damaged-packets${SUFFIX}
+			COMMAND "test_persistence_restore${SUFFIX}" "--test_no" "1"
+		)
+
+		add_test(
+			NAME test_persistence_restore-2-queue-read-failure${SUFFIX}
+			COMMAND "test_persistence_restore${SUFFIX}" "--test_no" "2"
+		)
+	endif()
+endforeach()
