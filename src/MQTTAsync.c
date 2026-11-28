@@ -1875,9 +1875,22 @@ void MQTTAsync_setTraceLevel(enum MQTTASYNC_TRACE_LEVELS level)
 }
 
 
+static MQTTAsync_traceCallback* trace_callback = NULL;
+
+/* The trace callback has a different type from the Log one, so it mustn't be called through a Log_traceCallback pointer */
+static void MQTTAsync_traceCallbackAdapter(enum LOG_LEVELS level, const char* message)
+{
+	MQTTAsync_traceCallback* callback = trace_callback;
+
+	if (callback)
+		(*callback)((enum MQTTASYNC_TRACE_LEVELS)level, (char*)message); /* message points to a static, writable buffer */
+}
+
+
 void MQTTAsync_setTraceCallback(MQTTAsync_traceCallback* callback)
 {
-	Log_setTraceCallback((Log_traceCallback*)callback);
+	trace_callback = callback;
+	Log_setTraceCallback(callback ? MQTTAsync_traceCallbackAdapter : NULL);
 }
 
 

@@ -3034,9 +3034,22 @@ void MQTTClient_setTraceLevel(enum MQTTCLIENT_TRACE_LEVELS level)
 }
 
 
+static MQTTClient_traceCallback* trace_callback = NULL;
+
+/* The trace callback has a different type from the Log one, so it mustn't be called through a Log_traceCallback pointer */
+static void MQTTClient_traceCallbackAdapter(enum LOG_LEVELS level, const char* message)
+{
+	MQTTClient_traceCallback* callback = trace_callback;
+
+	if (callback)
+		(*callback)((enum MQTTCLIENT_TRACE_LEVELS)level, (char*)message); /* message points to a static, writable buffer */
+}
+
+
 void MQTTClient_setTraceCallback(MQTTClient_traceCallback* callback)
 {
-	Log_setTraceCallback((Log_traceCallback*)callback);
+	trace_callback = callback;
+	Log_setTraceCallback(callback ? MQTTClient_traceCallbackAdapter : NULL);
 }
 
 

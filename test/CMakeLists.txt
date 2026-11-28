@@ -2818,3 +2818,102 @@ if(PAHO_BUILD_SHARED)
 		COMMAND "test_issue1619" "--test_no" "2" "--connection" ${MQTT_TEST_BROKER}
 	)
 endif()
+
+
+if(PAHO_BUILD_STATIC)
+	add_executable(test_trace_callback-static test_trace_callback.c)
+	target_link_libraries(test_trace_callback-static paho-mqtt3c-static ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_trace_callback-sync-1-callback-called-static
+		COMMAND "test_trace_callback-static" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-2-trace-level-static
+		COMMAND "test_trace_callback-static" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-3-null-callback-static
+		COMMAND "test_trace_callback-static" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-4-replace-callback-static
+		COMMAND "test_trace_callback-static" "--test_no" "4"
+	)
+
+	add_executable(test_trace_callback_async-static test_trace_callback.c)
+	target_link_libraries(test_trace_callback_async-static paho-mqtt3a-static ${LIBS_SYSTEM})
+	target_compile_definitions(test_trace_callback_async-static PRIVATE TEST_ASYNC)
+
+	add_test(
+		NAME test_trace_callback-async-1-callback-called-static
+		COMMAND "test_trace_callback_async-static" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-2-trace-level-static
+		COMMAND "test_trace_callback_async-static" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-3-null-callback-static
+		COMMAND "test_trace_callback_async-static" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-4-replace-callback-static
+		COMMAND "test_trace_callback_async-static" "--test_no" "4"
+	)
+endif()
+
+if(PAHO_BUILD_SHARED)
+	add_executable(test_trace_callback test_trace_callback.c)
+	target_link_libraries(test_trace_callback paho-mqtt3c ${LIBS_SYSTEM})
+
+	add_test(
+		NAME test_trace_callback-sync-1-callback-called
+		COMMAND "test_trace_callback" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-2-trace-level
+		COMMAND "test_trace_callback" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-3-null-callback
+		COMMAND "test_trace_callback" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_trace_callback-sync-4-replace-callback
+		COMMAND "test_trace_callback" "--test_no" "4"
+	)
+
+	add_executable(test_trace_callback_async test_trace_callback.c)
+	target_link_libraries(test_trace_callback_async paho-mqtt3a ${LIBS_SYSTEM})
+	target_compile_definitions(test_trace_callback_async PRIVATE TEST_ASYNC)
+
+	add_test(
+		NAME test_trace_callback-async-1-callback-called
+		COMMAND "test_trace_callback_async" "--test_no" "1"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-2-trace-level
+		COMMAND "test_trace_callback_async" "--test_no" "2"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-3-null-callback
+		COMMAND "test_trace_callback_async" "--test_no" "3"
+	)
+
+	add_test(
+		NAME test_trace_callback-async-4-replace-callback
+		COMMAND "test_trace_callback_async" "--test_no" "4"
+	)
+endif()
